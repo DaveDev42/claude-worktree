@@ -1,6 +1,6 @@
 """Claude Worktree - CLI tool integrating git worktree with Claude Code."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 __author__ = "Dave"
 __license__ = "MIT"
 
