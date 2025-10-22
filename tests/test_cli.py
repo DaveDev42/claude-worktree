@@ -266,3 +266,25 @@ def test_attach_command_no_claude(temp_git_repo: Path, disable_claude) -> None:
     # Should not fail, just warn
     assert result.exit_code == 0
     assert "not detected" in result.stdout or "Skipping" in result.stdout
+
+
+def test_attach_command_with_worktree(temp_git_repo: Path, disable_claude) -> None:
+    """Test attach command with worktree argument."""
+    # Create a worktree
+    result = runner.invoke(app, ["new", "test-feature", "--no-claude", "--no-cd"])
+    assert result.exit_code == 0
+
+    # Attach to the worktree by name (from main repo)
+    result = runner.invoke(app, ["attach", "test-feature"])
+    assert result.exit_code == 0
+    assert "Attaching to worktree" in result.stdout or "not detected" in result.stdout
+
+    # Clean up
+    runner.invoke(app, ["delete", "test-feature"])
+
+
+def test_attach_command_nonexistent_worktree(temp_git_repo: Path, disable_claude) -> None:
+    """Test attach command with nonexistent worktree."""
+    result = runner.invoke(app, ["attach", "nonexistent"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout

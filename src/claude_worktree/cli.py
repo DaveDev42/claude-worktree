@@ -181,6 +181,11 @@ def finish(
 
 @app.command()
 def attach(
+    worktree: str | None = typer.Argument(
+        None,
+        help="Worktree branch to attach to (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
     bg: bool = typer.Option(
         False,
         "--bg",
@@ -198,12 +203,38 @@ def attach(
     ),
 ) -> None:
     """
-    Reattach Claude Code to current worktree.
+    Reattach Claude Code to a worktree.
 
-    Launches Claude Code in the current directory. Useful if you closed
-    the Claude session and want to restart it.
+    Launches Claude Code in the specified worktree or current directory.
+    Useful if you closed the Claude session and want to restart it.
+
+    Example:
+        cw attach                  # Attach to current directory
+        cw attach fix-auth         # Attach to fix-auth worktree
+        cw attach feature-api --iterm  # Attach in new iTerm window
     """
     try:
+        # If worktree specified, find its path and attach there
+        if worktree:
+            import os
+
+            from .git_utils import find_worktree_by_branch
+
+            repo = get_repo_root()
+            # Try with refs/heads/ prefix first
+            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
+            # If not found, try without prefix
+            if not worktree_path:
+                worktree_path = find_worktree_by_branch(repo, worktree)
+
+            if not worktree_path:
+                console.print(f"[bold red]Error:[/bold red] Worktree '{worktree}' not found")
+                raise typer.Exit(code=1)
+
+            # Change to worktree directory and attach
+            os.chdir(worktree_path)
+            console.print(f"[dim]Attaching to worktree at: {worktree_path}[/dim]")
+
         attach_claude(bg=bg, iterm=iterm, tmux_session=tmux)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
