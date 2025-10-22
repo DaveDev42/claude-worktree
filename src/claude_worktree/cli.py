@@ -16,6 +16,7 @@ from .core import (
     show_status,
 )
 from .exceptions import ClaudeWorktreeError
+from .git_utils import get_repo_root, parse_worktrees
 
 app = typer.Typer(
     name="cw",
@@ -31,6 +32,36 @@ def version_callback(value: bool) -> None:
     if value:
         console.print(f"claude-worktree version {__version__}")
         raise typer.Exit()
+
+
+def complete_worktree_branches() -> list[str]:
+    """Autocomplete function for worktree branch names."""
+    try:
+        repo = get_repo_root()
+        worktrees = parse_worktrees(repo)
+        # Return branch names without refs/heads/ prefix
+        branches = []
+        for branch, _ in worktrees:
+            if branch.startswith("refs/heads/"):
+                branches.append(branch[11:])  # Remove refs/heads/
+            elif branch != "(detached)":
+                branches.append(branch)
+        return branches
+    except Exception:
+        return []
+
+
+def complete_all_branches() -> list[str]:
+    """Autocomplete function for all git branches."""
+    try:
+        from .git_utils import git_command
+
+        repo = get_repo_root()
+        result = git_command("branch", "--format=%(refname:short)", repo=repo, capture=True)
+        branches = result.stdout.strip().splitlines()
+        return branches
+    except Exception:
+        return []
 
 
 @app.callback()
@@ -58,6 +89,7 @@ def new(
         "--base",
         "-b",
         help="Base branch to branch from (default: current branch)",
+        autocompletion=complete_all_branches,
     ),
     path: Path | None = typer.Option(
         None,
@@ -224,7 +256,11 @@ def prune() -> None:
 
 @app.command()
 def delete(
-    target: str = typer.Argument(..., help="Branch name or worktree path to delete"),
+    target: str = typer.Argument(
+        ...,
+        help="Branch name or worktree path to delete",
+        autocompletion=complete_worktree_branches,
+    ),
     keep_branch: bool = typer.Option(
         False,
         "--keep-branch",
