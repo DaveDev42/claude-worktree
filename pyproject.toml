@@ -1,10 +1,10 @@
 [project]
 name = "claude-worktree"
-version = "0.1.3"
+version = "0.1.4"
 description = "CLI tool integrating git worktree with Claude Code for seamless feature development workflows"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "BSD-3-Clause" }
 authors = [
     { name = "Dave", email = "dave.dev@icloud.com" }
 ]
@@ -12,7 +12,7 @@ keywords = ["git", "worktree", "claude", "cli", "development", "workflow"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

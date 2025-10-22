@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2025-10-22
+
+### Changed
+- **License changed from MIT to BSD-3-Clause**
+
 ## [0.1.3] - 2025-10-22
 
 ### Changed
@@ -66,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.0...v0.1.1

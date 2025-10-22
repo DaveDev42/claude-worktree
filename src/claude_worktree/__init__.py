@@ -9,7 +9,7 @@ except Exception:
     __version__ = "0.0.0.dev"
 
 __author__ = "Dave"
-__license__ = "MIT"
+__license__ = "BSD-3-Clause"
 
 from .cli import app
 from .exceptions import (
