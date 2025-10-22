@@ -84,7 +84,7 @@ def create_worktree(
     else:
         worktree_path = path.resolve()
 
-    console.print(f"\n[bold cyan]Creating new worktree:[/bold cyan]")
+    console.print("\n[bold cyan]Creating new worktree:[/bold cyan]")
     console.print(f"  Base branch: [green]{base_branch}[/green]")
     console.print(f"  New branch:  [green]{branch_name}[/green]")
     console.print(f"  Path:        [blue]{worktree_path}[/blue]\n")
@@ -149,7 +149,7 @@ def finish_worktree(push: bool = False) -> None:
     base_path = Path(base_path_str)
     repo = base_path
 
-    console.print(f"\n[bold cyan]Finishing worktree:[/bold cyan]")
+    console.print("\n[bold cyan]Finishing worktree:[/bold cyan]")
     console.print(f"  Feature:     [green]{feature_branch}[/green]")
     console.print(f"  Base:        [green]{base_branch}[/green]")
     console.print(f"  Repo:        [blue]{repo}[/blue]\n")
@@ -223,7 +223,7 @@ def finish_worktree(push: bool = False) -> None:
             console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
 
     # Cleanup: remove worktree and branch
-    console.print(f"[yellow]Cleaning up worktree and branch...[/yellow]")
+    console.print("[yellow]Cleaning up worktree and branch...[/yellow]")
 
     # Store current worktree path before removal
     worktree_to_remove = str(cwd)
@@ -356,7 +356,7 @@ def show_status() -> None:
         base = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
         base_path = get_config(CONFIG_KEY_BASE_PATH.format(branch), repo)
 
-        console.print(f"\n[bold cyan]Current worktree:[/bold cyan]")
+        console.print("\n[bold cyan]Current worktree:[/bold cyan]")
         console.print(f"  Feature:  [green]{branch}[/green]")
         console.print(f"  Base:     [green]{base or 'N/A'}[/green]")
         console.print(f"  Base path: [blue]{base_path or 'N/A'}[/blue]\n")

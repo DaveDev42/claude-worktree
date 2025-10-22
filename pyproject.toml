@@ -80,6 +80,8 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function call in argument defaults (Typer pattern)
+    "B904",  # raise from exception chaining (intentional for CLI errors)
 ]
 
 [tool.mypy]

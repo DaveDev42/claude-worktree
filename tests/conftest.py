@@ -1,6 +1,5 @@
 """Shared pytest fixtures for claude-worktree tests."""
 
-import os
 import subprocess
 from pathlib import Path
 from typing import Generator
@@ -84,8 +83,7 @@ def temp_git_repo(tmp_path: Path, monkeypatch) -> Generator[Path, None, None]:
 def disable_claude(monkeypatch) -> None:
     """Disable Claude CLI for tests by making it unavailable."""
     # Mock has_command to return False for 'claude'
-    from claude_worktree import git_utils
-    from claude_worktree import core
+    from claude_worktree import core, git_utils
     original_has_command = git_utils.has_command
 
     def mock_has_command(name: str) -> bool:

@@ -9,11 +9,11 @@ from claude_worktree.exceptions import GitError, InvalidBranchError
 from claude_worktree.git_utils import (
     branch_exists,
     find_worktree_by_branch,
+    get_config,
     get_current_branch,
     get_repo_root,
     has_command,
     parse_worktrees,
-    get_config,
     set_config,
     unset_config,
 )

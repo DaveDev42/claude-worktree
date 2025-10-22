@@ -1,6 +1,5 @@
 """Tests for core module - classicist style with real git operations."""
 
-import os
 import subprocess
 from pathlib import Path
 
@@ -18,8 +17,6 @@ from claude_worktree.core import (
 from claude_worktree.exceptions import (
     GitError,
     InvalidBranchError,
-    MergeError,
-    RebaseError,
     WorktreeNotFoundError,
 )
 
