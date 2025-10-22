@@ -232,12 +232,24 @@ def upgrade_package(installer: str | None = None) -> bool:
 
         result = subprocess.run(
             cmd,
-            check=True,
-            capture_output=False,
+            check=False,
+            capture_output=True,
             text=True,
         )
 
+        # Show the output
+        if result.stdout:
+            console.print(result.stdout)
+        if result.stderr:
+            console.print(result.stderr)
+
         if result.returncode == 0:
+            # Check if anything was actually upgraded
+            output = result.stdout + result.stderr
+            if "Nothing to upgrade" in output or "already installed" in output.lower():
+                console.print("\n[yellow]⚠[/yellow] Already at the latest version")
+                return False
+
             console.print("[bold green]✓[/bold green] Upgrade completed successfully!")
             console.print(f"\nPlease restart {sys.argv[0]} to use the new version.\n")
             return True
