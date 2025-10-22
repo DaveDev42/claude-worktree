@@ -17,6 +17,7 @@ from .core import (
 )
 from .exceptions import ClaudeWorktreeError
 from .git_utils import get_repo_root, parse_worktrees
+from .update import check_for_updates
 
 app = typer.Typer(
     name="cw",
@@ -76,7 +77,8 @@ def main(
     ),
 ) -> None:
     """Claude Code × git worktree helper CLI."""
-    pass
+    # Check for updates on first run of the day
+    check_for_updates(auto=True)
 
 
 @app.command()
@@ -328,6 +330,27 @@ def delete(
             no_force=no_force,
         )
     except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def upgrade() -> None:
+    """
+    Upgrade claude-worktree to the latest version.
+
+    Checks PyPI for the latest version and upgrades if a newer version
+    is available. Automatically detects the installation method (pipx, pip, or uv).
+
+    Example:
+        cw upgrade
+    """
+    try:
+        check_for_updates(auto=False)
+    except KeyboardInterrupt:
+        console.print("\n\n[yellow]Upgrade cancelled[/yellow]")
+        raise typer.Exit(code=1)
+    except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
 
