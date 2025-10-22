@@ -1,6 +1,13 @@
 """Claude Worktree - CLI tool integrating git worktree with Claude Code."""
 
-__version__ = "0.1.2"
+from importlib.metadata import version
+
+try:
+    __version__ = version("claude-worktree")
+except Exception:
+    # Fallback for development/editable installs
+    __version__ = "0.0.0.dev"
+
 __author__ = "Dave"
 __license__ = "MIT"
 
