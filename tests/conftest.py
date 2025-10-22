@@ -1,8 +1,8 @@
 """Shared pytest fixtures for claude-worktree tests."""
 
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
 
@@ -84,6 +84,7 @@ def disable_claude(monkeypatch) -> None:
     """Disable Claude CLI for tests by making it unavailable."""
     # Mock has_command to return False for 'claude'
     from claude_worktree import core, git_utils
+
     original_has_command = git_utils.has_command
 
     def mock_has_command(name: str) -> bool:

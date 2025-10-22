@@ -39,7 +39,6 @@ jobs:
     - name: Run type checking with mypy
       run: |
         mypy src/claude_worktree
-      continue-on-error: true  # Don't fail on mypy errors initially
 
     - name: Run tests with pytest
       run: |

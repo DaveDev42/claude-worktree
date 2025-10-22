@@ -5,7 +5,6 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 
@@ -35,13 +34,13 @@ console = Console()
 
 def create_worktree(
     branch_name: str,
-    base_branch: Optional[str] = None,
-    path: Optional[Path] = None,
+    base_branch: str | None = None,
+    path: Path | None = None,
     no_cd: bool = False,
     no_claude: bool = False,
     bg: bool = False,
     iterm: bool = False,
-    tmux_session: Optional[str] = None,
+    tmux_session: str | None = None,
 ) -> Path:
     """
     Create a new worktree with a feature branch.
@@ -163,8 +162,7 @@ def finish_worktree(push: bool = False) -> None:
     if fetch_result.returncode == 0:
         # Check if origin/base_branch exists
         check_result = git_command(
-            "rev-parse", "--verify", f"origin/{base_branch}",
-            repo=cwd, check=False, capture=True
+            "rev-parse", "--verify", f"origin/{base_branch}", repo=cwd, check=False, capture=True
         )
         if check_result.returncode == 0:
             rebase_target = f"origin/{base_branch}"
@@ -269,7 +267,7 @@ def delete_worktree(
         # Target is a path
         worktree_path = str(target_path.resolve())
         # Find branch for this worktree
-        branch_name: Optional[str] = None
+        branch_name: str | None = None
         for br, path in parse_worktrees(repo):
             if str(Path(path).resolve()) == worktree_path:
                 if br != "(detached)":
@@ -277,8 +275,10 @@ def delete_worktree(
                     branch_name = br[11:] if br.startswith("refs/heads/") else br
                 break
         if branch_name is None and not keep_branch:
-            console.print("[yellow]⚠[/yellow] Worktree is detached or branch not found. "
-                         "Branch deletion will be skipped.\n")
+            console.print(
+                "[yellow]⚠[/yellow] Worktree is detached or branch not found. "
+                "Branch deletion will be skipped.\n"
+            )
     else:
         # Target is a branch name
         branch_name = target
@@ -288,8 +288,7 @@ def delete_worktree(
             worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{branch_name}")
         if not worktree_path_result:
             raise WorktreeNotFoundError(
-                f"No worktree found for branch '{branch_name}'. "
-                "Try specifying the path directly."
+                f"No worktree found for branch '{branch_name}'. Try specifying the path directly."
             )
         worktree_path = worktree_path_result
         # Normalize branch_name to simple name without refs/heads/
@@ -361,8 +360,10 @@ def show_status() -> None:
         console.print(f"  Base:     [green]{base or 'N/A'}[/green]")
         console.print(f"  Base path: [blue]{base_path or 'N/A'}[/blue]\n")
     except (InvalidBranchError, GitError):
-        console.print("\n[yellow]Current directory is not a feature worktree "
-                     "or is the main repository.[/yellow]\n")
+        console.print(
+            "\n[yellow]Current directory is not a feature worktree "
+            "or is the main repository.[/yellow]\n"
+        )
 
     list_worktrees()
 
@@ -379,7 +380,7 @@ def launch_claude(
     path: Path,
     bg: bool = False,
     iterm: bool = False,
-    tmux_session: Optional[str] = None,
+    tmux_session: str | None = None,
 ) -> None:
     """
     Launch Claude Code in the specified directory.
@@ -403,13 +404,15 @@ def launch_claude(
             ["tmux", "new-session", "-ds", tmux_session, "bash", "-lc", cmd],
             cwd=str(path),
         )
-        console.print(f"[bold green]✓[/bold green] Claude running in tmux session '{tmux_session}'\n")
+        console.print(
+            f"[bold green]✓[/bold green] Claude running in tmux session '{tmux_session}'\n"
+        )
         return
 
     if iterm:
         if sys.platform != "darwin":
             raise GitError("--iterm option only works on macOS")
-        script = f'''
+        script = f"""
         osascript <<'APPLESCRIPT'
         tell application "iTerm"
           activate
@@ -419,7 +422,7 @@ def launch_claude(
           end tell
         end tell
 APPLESCRIPT
-        '''
+        """
         subprocess.run(["bash", "-lc", script], check=True)
         console.print("[bold green]✓[/bold green] Claude running in new iTerm window\n")
         return
@@ -435,7 +438,7 @@ APPLESCRIPT
 def attach_claude(
     bg: bool = False,
     iterm: bool = False,
-    tmux_session: Optional[str] = None,
+    tmux_session: str | None = None,
 ) -> None:
     """
     Reattach Claude Code to the current worktree.

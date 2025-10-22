@@ -2,17 +2,17 @@
 
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any
 
 from .exceptions import GitError, InvalidBranchError
 
 
 def run_command(
-    cmd: List[str],
-    cwd: Optional[Path] = None,
+    cmd: list[str],
+    cwd: Path | None = None,
     check: bool = True,
     capture: bool = False,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """
     Run a shell command.
 
@@ -28,7 +28,7 @@ def run_command(
     Raises:
         GitError: If command fails and check=True
     """
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if capture:
         kwargs["stdout"] = subprocess.PIPE
         kwargs["stderr"] = subprocess.STDOUT
@@ -46,10 +46,10 @@ def run_command(
 
 def git_command(
     *args: str,
-    repo: Optional[Path] = None,
+    repo: Path | None = None,
     check: bool = True,
     capture: bool = False,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """
     Run a git command.
 
@@ -69,7 +69,7 @@ def git_command(
     return run_command(cmd, cwd=repo, check=check, capture=capture)
 
 
-def get_repo_root(path: Optional[Path] = None) -> Path:
+def get_repo_root(path: Path | None = None) -> Path:
     """
     Get the root directory of the git repository.
 
@@ -89,7 +89,7 @@ def get_repo_root(path: Optional[Path] = None) -> Path:
         raise GitError("Not in a git repository")
 
 
-def get_current_branch(repo: Optional[Path] = None) -> str:
+def get_current_branch(repo: Path | None = None) -> str:
     """
     Get the current branch name.
 
@@ -109,7 +109,7 @@ def get_current_branch(repo: Optional[Path] = None) -> str:
     return branch
 
 
-def branch_exists(branch: str, repo: Optional[Path] = None) -> bool:
+def branch_exists(branch: str, repo: Path | None = None) -> bool:
     """
     Check if a branch exists.
 
@@ -124,7 +124,7 @@ def branch_exists(branch: str, repo: Optional[Path] = None) -> bool:
     return result.returncode == 0
 
 
-def get_config(key: str, repo: Optional[Path] = None) -> Optional[str]:
+def get_config(key: str, repo: Path | None = None) -> str | None:
     """
     Get a git config value.
 
@@ -135,15 +135,13 @@ def get_config(key: str, repo: Optional[Path] = None) -> Optional[str]:
     Returns:
         Config value or None if not found
     """
-    result = git_command(
-        "config", "--local", "--get", key, repo=repo, check=False, capture=True
-    )
+    result = git_command("config", "--local", "--get", key, repo=repo, check=False, capture=True)
     if result.returncode == 0:
         return result.stdout.strip()
     return None
 
 
-def set_config(key: str, value: str, repo: Optional[Path] = None) -> None:
+def set_config(key: str, value: str, repo: Path | None = None) -> None:
     """
     Set a git config value.
 
@@ -155,7 +153,7 @@ def set_config(key: str, value: str, repo: Optional[Path] = None) -> None:
     git_command("config", "--local", key, value, repo=repo)
 
 
-def unset_config(key: str, repo: Optional[Path] = None) -> None:
+def unset_config(key: str, repo: Path | None = None) -> None:
     """
     Unset a git config value.
 
@@ -166,7 +164,7 @@ def unset_config(key: str, repo: Optional[Path] = None) -> None:
     git_command("config", "--local", "--unset-all", key, repo=repo, check=False)
 
 
-def parse_worktrees(repo: Path) -> List[Tuple[str, str]]:
+def parse_worktrees(repo: Path) -> list[tuple[str, str]]:
     """
     Parse git worktree list output.
 
@@ -179,9 +177,9 @@ def parse_worktrees(repo: Path) -> List[Tuple[str, str]]:
     result = git_command("worktree", "list", "--porcelain", repo=repo, capture=True)
     lines = result.stdout.strip().splitlines()
 
-    items: List[Tuple[str, str]] = []
-    cur_path: Optional[str] = None
-    cur_branch: Optional[str] = None
+    items: list[tuple[str, str]] = []
+    cur_path: str | None = None
+    cur_branch: str | None = None
 
     for line in lines:
         if line.startswith("worktree "):
@@ -198,7 +196,7 @@ def parse_worktrees(repo: Path) -> List[Tuple[str, str]]:
     return items
 
 
-def find_worktree_by_branch(repo: Path, branch: str) -> Optional[str]:
+def find_worktree_by_branch(repo: Path, branch: str) -> str | None:
     """
     Find worktree path by branch name.
 
@@ -226,4 +224,5 @@ def has_command(name: str) -> bool:
         True if command exists, False otherwise
     """
     from shutil import which
+
     return bool(which(name))

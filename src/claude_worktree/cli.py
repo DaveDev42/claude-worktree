@@ -1,7 +1,6 @@
 """Typer-based CLI interface for claude-worktree."""
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -36,7 +35,7 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(
+    version: bool | None = typer.Option(
         None,
         "--version",
         "-v",
@@ -52,16 +51,15 @@ def main(
 @app.command()
 def new(
     branch_name: str = typer.Argument(
-        ...,
-        help="Name for the new branch (e.g., 'fix-auth', 'feature-api')"
+        ..., help="Name for the new branch (e.g., 'fix-auth', 'feature-api')"
     ),
-    base: Optional[str] = typer.Option(
+    base: str | None = typer.Option(
         None,
         "--base",
         "-b",
         help="Base branch to branch from (default: current branch)",
     ),
-    path: Optional[Path] = typer.Option(
+    path: Path | None = typer.Option(
         None,
         "--path",
         "-p",
@@ -88,7 +86,7 @@ def new(
         "--iterm",
         help="Launch Claude in new iTerm window (macOS only)",
     ),
-    tmux: Optional[str] = typer.Option(
+    tmux: str | None = typer.Option(
         None,
         "--tmux",
         help="Launch Claude in new tmux session with given name",
@@ -161,7 +159,7 @@ def attach(
         "--iterm",
         help="Launch Claude in new iTerm window (macOS only)",
     ),
-    tmux: Optional[str] = typer.Option(
+    tmux: str | None = typer.Option(
         None,
         "--tmux",
         help="Launch Claude in new tmux session with given name",
@@ -226,10 +224,7 @@ def prune() -> None:
 
 @app.command()
 def delete(
-    target: str = typer.Argument(
-        ...,
-        help="Branch name or worktree path to delete"
-    ),
+    target: str = typer.Argument(..., help="Branch name or worktree path to delete"),
     keep_branch: bool = typer.Option(
         False,
         "--keep-branch",

@@ -63,8 +63,7 @@ def test_new_command_with_base(temp_git_repo: Path, disable_claude) -> None:
     )
 
     result = runner.invoke(
-        app,
-        ["new", "from-develop", "--base", "develop", "--no-cd", "--no-claude"]
+        app, ["new", "from-develop", "--base", "develop", "--no-cd", "--no-claude"]
     )
 
     assert result.exit_code == 0
@@ -77,8 +76,7 @@ def test_new_command_custom_path(temp_git_repo: Path, disable_claude) -> None:
     custom_path = temp_git_repo.parent / "my-custom-worktree"
 
     result = runner.invoke(
-        app,
-        ["new", "custom", "--path", str(custom_path), "--no-cd", "--no-claude"]
+        app, ["new", "custom", "--path", str(custom_path), "--no-cd", "--no-claude"]
     )
 
     assert result.exit_code == 0
@@ -87,10 +85,7 @@ def test_new_command_custom_path(temp_git_repo: Path, disable_claude) -> None:
 
 def test_new_command_invalid_base(temp_git_repo: Path) -> None:
     """Test new command with invalid base branch."""
-    result = runner.invoke(
-        app,
-        ["new", "feature", "--base", "nonexistent", "--no-cd"]
-    )
+    result = runner.invoke(app, ["new", "feature", "--base", "nonexistent", "--no-cd"])
 
     # Should fail
     assert result.exit_code != 0
@@ -250,6 +245,7 @@ def test_prune_command_execution(temp_git_repo: Path, disable_claude) -> None:
 
     # Manually remove directory to make it stale
     import shutil
+
     shutil.rmtree(worktree_path)
 
     # Prune

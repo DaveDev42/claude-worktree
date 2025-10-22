@@ -331,6 +331,7 @@ def test_prune_worktrees(temp_git_repo: Path, disable_claude) -> None:
 
     # Manually remove the worktree directory (making it stale)
     import shutil
+
     shutil.rmtree(worktree_path)
 
     # Prune should clean it up
