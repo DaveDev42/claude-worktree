@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-10-22
+
+### Fixed
+- Fixed GitHub Actions workflow to properly handle asset uploads with `--clobber` flag
+- This prevents workflow failures when re-running releases with existing assets
+
+### Changed
+- Renamed workflow from "Publish to PyPI" to "Publish" for simplicity
+
 ## [0.1.0] - 2025-01-22
 
 ### Added
@@ -45,5 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DaveDev42/claude-worktree/releases/tag/v0.1.0
