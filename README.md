@@ -197,7 +197,7 @@ For example, if your repository is at `/Users/dave/myproject` and you run `cw ne
 ## Requirements
 
 - **Git**: Version 2.31 or higher
-- **Python**: 3.8 or higher
+- **Python**: 3.11 or higher
 - **Claude CLI** (optional): For automatic Claude Code integration
 
 ## How It Works
