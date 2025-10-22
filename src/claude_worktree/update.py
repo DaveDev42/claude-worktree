@@ -131,8 +131,12 @@ def detect_installer() -> str | None:
     Detect how claude-worktree was installed.
 
     Returns:
-        'pipx', 'pip', 'uv', or None if unknown
+        'pipx', 'uv-tool', 'uv-pip', 'pip', 'source', or None if unknown
     """
+    # Check if running from source (editable install)
+    if __version__.endswith(".dev"):
+        return "source"
+
     # Check if installed via pipx
     try:
         result = subprocess.run(
@@ -147,7 +151,21 @@ def detect_installer() -> str | None:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # Check if uv is available
+    # Check if installed via uv tool
+    try:
+        result = subprocess.run(
+            ["uv", "tool", "list"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        if result.returncode == 0 and "claude-worktree" in result.stdout:
+            return "uv-tool"
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # Check if uv is available (for uv pip)
     try:
         result = subprocess.run(
             ["uv", "--version"],
@@ -157,7 +175,7 @@ def detect_installer() -> str | None:
             timeout=5,
         )
         if result.returncode == 0:
-            return "uv"
+            return "uv-pip"
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
@@ -170,7 +188,7 @@ def upgrade_package(installer: str | None = None) -> bool:
     Upgrade claude-worktree to the latest version.
 
     Args:
-        installer: Installation method ('pipx', 'pip', 'uv')
+        installer: Installation method ('pipx', 'uv-tool', 'uv-pip', 'pip', 'source')
 
     Returns:
         True if upgrade succeeded, False otherwise
@@ -178,12 +196,36 @@ def upgrade_package(installer: str | None = None) -> bool:
     if installer is None:
         installer = detect_installer()
 
+    # Handle unknown installation method
+    if installer is None:
+        console.print("\n[yellow]⚠[/yellow] Could not detect how claude-worktree was installed.")
+        console.print("\nPlease upgrade manually using one of these methods:")
+        console.print("  [cyan]pip install --upgrade claude-worktree[/cyan]")
+        console.print("  [cyan]uv tool upgrade claude-worktree[/cyan]")
+        console.print("  [cyan]pipx upgrade claude-worktree[/cyan]\n")
+        return False
+
+    # Handle source installations
+    if installer == "source":
+        console.print(
+            "\n[yellow]⚠[/yellow] You appear to be running from source (editable install)."
+        )
+        console.print("\nTo upgrade, you have two options:")
+        console.print("  1. [cyan]git pull[/cyan] in your development directory")
+        console.print("  2. Install from PyPI:")
+        console.print("     [cyan]pip install --upgrade claude-worktree[/cyan]")
+        console.print("     [cyan]uv tool install --upgrade claude-worktree[/cyan]")
+        console.print("     [cyan]pipx install --force claude-worktree[/cyan]\n")
+        return False
+
     console.print(f"\n[cyan]Upgrading using {installer}...[/cyan]")
 
     try:
         if installer == "pipx":
             cmd = ["pipx", "upgrade", "claude-worktree"]
-        elif installer == "uv":
+        elif installer == "uv-tool":
+            cmd = ["uv", "tool", "upgrade", "claude-worktree"]
+        elif installer == "uv-pip":
             cmd = ["uv", "pip", "install", "--upgrade", "claude-worktree"]
         else:  # pip
             cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "claude-worktree"]
@@ -222,6 +264,12 @@ def check_for_updates(auto: bool = True) -> bool:
     Returns:
         True if an update is available, False otherwise
     """
+    # Show current version for manual upgrade
+    current_version = __version__
+    if not auto:
+        console.print(f"\n[cyan]Current version:[/cyan] {current_version}")
+        console.print("[cyan]Checking for updates...[/cyan]")
+
     # For auto-check, respect the daily limit
     if auto and not should_check_update():
         return False
@@ -233,25 +281,35 @@ def check_for_updates(auto: bool = True) -> bool:
         # Network error or PyPI unavailable
         if auto:
             mark_update_checked(failed=True)
+        else:
+            console.print(
+                "[bold red]✗[/bold red] Failed to check for updates. Please try again later.\n"
+            )
         return False
 
     # Mark that we successfully checked today
     if auto:
         mark_update_checked(failed=False)
 
+    # Show remote version for manual upgrade
+    if not auto:
+        console.print(f"[cyan]Latest version:[/cyan]  {latest_version}")
+
     # Compare versions
-    current_version = __version__
     if not is_newer_version(latest_version, current_version):
         if not auto:
-            console.print(
-                f"\n[green]You are already running the latest version ({current_version})[/green]\n"
-            )
+            console.print("\n[green]✓ You are already running the latest version![/green]\n")
         return False
 
     # New version available!
     console.print("\n[bold yellow]📦 Update available:[/bold yellow]")
-    console.print(f"  Current version: [cyan]{current_version}[/cyan]")
-    console.print(f"  Latest version:  [green]{latest_version}[/green]\n")
+    if auto:
+        # For auto-check, show both versions
+        console.print(f"  Current version: [cyan]{current_version}[/cyan]")
+        console.print(f"  Latest version:  [green]{latest_version}[/green]\n")
+    else:
+        # For manual upgrade, already showed both versions above
+        console.print()
 
     # For manual upgrade command, always ask
     # For auto-check, ask if user wants to upgrade

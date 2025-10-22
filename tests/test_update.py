@@ -90,9 +90,9 @@ def test_mark_update_checked(tmp_path: Path, monkeypatch) -> None:
 
 def test_detect_installer() -> None:
     """Test installer detection."""
-    # Just verify it returns a string
+    # Just verify it returns a valid installer type
     installer = detect_installer()
-    assert installer in ("pipx", "pip", "uv", None)
+    assert installer in ("pipx", "uv-tool", "uv-pip", "pip", "source", None)
 
 
 @patch("claude_worktree.update.httpx.get")

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-10-22
+
+### Fixed
+- **Fixed `uv tool install` support**: Now correctly detects and upgrades packages installed via `uv tool`
+- **Improved upgrade command output**: Shows current and latest versions before attempting upgrade
+- **Better error handling**: Clear messages for unknown installation methods and source installs
+
+### Added
+- Support for `uv tool upgrade` command for uv-tool installations
+- Friendly guidance for editable/source installations
+- Detailed version information in `cw upgrade` command
+
 ## [0.2.1] - 2025-10-22
 
 ### Changed
@@ -89,7 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.4...v0.2.0
 [0.1.4]: https://github.com/DaveDev42/claude-worktree/compare/v0.1.3...v0.1.4
