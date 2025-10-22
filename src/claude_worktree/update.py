@@ -29,10 +29,16 @@ def get_latest_version() -> str | None:
         Latest version string, or None if failed
     """
     try:
+        # Add cache-busting headers to ensure we get the latest version
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+        }
         response = httpx.get(
             "https://pypi.org/pypi/claude-worktree/json",
             timeout=5.0,
             follow_redirects=True,
+            headers=headers,
         )
         response.raise_for_status()
         data = response.json()
@@ -224,11 +230,22 @@ def upgrade_package(installer: str | None = None) -> bool:
         if installer == "pipx":
             cmd = ["pipx", "upgrade", "claude-worktree"]
         elif installer == "uv-tool":
-            cmd = ["uv", "tool", "upgrade", "claude-worktree"]
+            # Use --refresh to bypass cache and ensure latest version
+            cmd = ["uv", "tool", "upgrade", "--refresh", "claude-worktree"]
         elif installer == "uv-pip":
-            cmd = ["uv", "pip", "install", "--upgrade", "claude-worktree"]
+            # Use --refresh to bypass cache
+            cmd = ["uv", "pip", "install", "--upgrade", "--refresh", "claude-worktree"]
         else:  # pip
-            cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "claude-worktree"]
+            # Use --no-cache-dir to bypass cache
+            cmd = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "--no-cache-dir",
+                "claude-worktree",
+            ]
 
         result = subprocess.run(
             cmd,
