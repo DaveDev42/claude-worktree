@@ -64,6 +64,17 @@ def create_worktree(
     """
     repo = get_repo_root()
 
+    # Validate branch name
+    from .git_utils import get_branch_name_error, is_valid_branch_name
+
+    if not is_valid_branch_name(branch_name, repo):
+        error_msg = get_branch_name_error(branch_name)
+        raise InvalidBranchError(
+            f"Invalid branch name: {error_msg}\n"
+            f"Hint: Use alphanumeric characters, hyphens, and slashes. "
+            f"Avoid special characters like emojis, backslashes, or control characters."
+        )
+
     # Determine base branch
     if base_branch is None:
         try:

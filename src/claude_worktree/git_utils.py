@@ -226,3 +226,90 @@ def has_command(name: str) -> bool:
     from shutil import which
 
     return bool(which(name))
+
+
+def is_valid_branch_name(branch_name: str, repo: Path | None = None) -> bool:
+    """
+    Check if a branch name is valid according to git rules.
+
+    Uses git check-ref-format to validate branch name.
+    Git branch name rules:
+    - No ASCII control characters
+    - No spaces
+    - No ~, ^, :, ?, *, [
+    - No backslashes
+    - No consecutive dots (..)
+    - No @{
+    - Cannot start or end with /
+    - Cannot end with .lock
+    - Cannot be @ alone
+    - No consecutive slashes (//)
+
+    Args:
+        branch_name: Branch name to validate
+        repo: Repository path (optional)
+
+    Returns:
+        True if valid branch name, False otherwise
+    """
+    if not branch_name:
+        return False
+
+    # Use git check-ref-format for validation
+    result = git_command(
+        "check-ref-format",
+        "--branch",
+        branch_name,
+        repo=repo,
+        check=False,
+        capture=True,
+    )
+    return result.returncode == 0
+
+
+def get_branch_name_error(branch_name: str) -> str:
+    """
+    Get descriptive error message for invalid branch name.
+
+    Args:
+        branch_name: Invalid branch name
+
+    Returns:
+        Human-readable error message
+    """
+    # Common issues
+    if not branch_name:
+        return "Branch name cannot be empty"
+
+    if branch_name == "@":
+        return "Branch name cannot be '@' alone"
+
+    if branch_name.endswith(".lock"):
+        return "Branch name cannot end with '.lock'"
+
+    if branch_name.startswith("/") or branch_name.endswith("/"):
+        return "Branch name cannot start or end with '/'"
+
+    if "//" in branch_name:
+        return "Branch name cannot contain consecutive slashes '//'"
+
+    if ".." in branch_name:
+        return "Branch name cannot contain consecutive dots '..'"
+
+    if "@{" in branch_name:
+        return "Branch name cannot contain '@{'"
+
+    # Check for invalid characters
+    invalid_chars = set("~^:?*[\\")
+    if any(c in branch_name for c in invalid_chars):
+        found = [c for c in invalid_chars if c in branch_name]
+        return f"Branch name contains invalid characters: {', '.join(repr(c) for c in found)}"
+
+    # Check for control characters and spaces
+    if any(ord(c) < 32 or c == " " for c in branch_name):
+        return "Branch name cannot contain spaces or control characters"
+
+    # Generic error
+    return (
+        f"'{branch_name}' is not a valid branch name. See 'git check-ref-format --help' for rules"
+    )

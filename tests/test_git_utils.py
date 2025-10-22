@@ -159,3 +159,56 @@ def test_config_operations(temp_git_repo: Path) -> None:
     # Should return None after unset
     value = get_config("test.key", temp_git_repo)
     assert value is None
+
+
+def test_is_valid_branch_name(temp_git_repo: Path) -> None:
+    """Test branch name validation."""
+    from claude_worktree.git_utils import is_valid_branch_name
+
+    # Valid branch names
+    assert is_valid_branch_name("feature", temp_git_repo)
+    assert is_valid_branch_name("fix-auth", temp_git_repo)
+    assert is_valid_branch_name("feat/auth", temp_git_repo)
+    assert is_valid_branch_name("bugfix/issue-123", temp_git_repo)
+    assert is_valid_branch_name("release/v2.0.1", temp_git_repo)
+    assert is_valid_branch_name("user-123", temp_git_repo)
+
+    # Korean is valid in UTF-8
+    assert is_valid_branch_name("안녕하세요", temp_git_repo)
+
+    # Invalid branch names
+    assert not is_valid_branch_name("", temp_git_repo)  # Empty
+    # Note: "@" alone is actually valid in git (becomes refs/heads/@)
+    assert not is_valid_branch_name("branch.lock", temp_git_repo)  # Ends with .lock
+    assert not is_valid_branch_name("/branch", temp_git_repo)  # Starts with /
+    assert not is_valid_branch_name("branch/", temp_git_repo)  # Ends with /
+    assert not is_valid_branch_name("feat//auth", temp_git_repo)  # Consecutive //
+    assert not is_valid_branch_name("feat..auth", temp_git_repo)  # Consecutive ..
+    assert not is_valid_branch_name("feat@{auth", temp_git_repo)  # Contains @{
+    assert not is_valid_branch_name("feat~auth", temp_git_repo)  # Contains ~
+    assert not is_valid_branch_name("feat^auth", temp_git_repo)  # Contains ^
+    assert not is_valid_branch_name("feat:auth", temp_git_repo)  # Contains :
+    assert not is_valid_branch_name("feat?auth", temp_git_repo)  # Contains ?
+    assert not is_valid_branch_name("feat*auth", temp_git_repo)  # Contains *
+    assert not is_valid_branch_name("feat[auth", temp_git_repo)  # Contains [
+    assert not is_valid_branch_name("feat\\auth", temp_git_repo)  # Contains backslash
+    assert not is_valid_branch_name("feat auth", temp_git_repo)  # Contains space
+
+    # Note: Git actually allows emojis in branch names (as UTF-8)
+    # They may cause issues with some tools, but git check-ref-format allows them
+
+
+def test_get_branch_name_error() -> None:
+    """Test error message generation for invalid branch names."""
+    from claude_worktree.git_utils import get_branch_name_error
+
+    assert "empty" in get_branch_name_error("").lower()
+    assert "@" in get_branch_name_error("@")
+    assert ".lock" in get_branch_name_error("branch.lock")
+    assert "/" in get_branch_name_error("/branch")
+    assert "/" in get_branch_name_error("branch/")
+    assert "//" in get_branch_name_error("feat//auth")
+    assert ".." in get_branch_name_error("feat..auth")
+    assert "@{" in get_branch_name_error("feat@{auth")
+    assert "~" in get_branch_name_error("feat~auth")
+    assert "space" in get_branch_name_error("feat auth").lower()

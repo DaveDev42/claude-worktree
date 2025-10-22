@@ -354,3 +354,28 @@ def test_attach_claude_no_cli(temp_git_repo: Path, disable_claude, capsys) -> No
 
     captured = capsys.readouterr()
     assert "not detected" in captured.out or "Skipping" in captured.out
+
+
+def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude) -> None:
+    """Test error when branch name is invalid."""
+    # Test various invalid branch names
+    invalid_names = [
+        "feat:auth",  # Contains colon
+        "feat*test",  # Contains asterisk
+        "feat..test",  # Consecutive dots
+        "/feature",  # Starts with slash
+        "feature/",  # Ends with slash
+        "feat//test",  # Consecutive slashes
+        "feat~test",  # Contains tilde
+        "feat^test",  # Contains caret
+        "feat auth",  # Contains space
+        "feat\\test",  # Contains backslash
+    ]
+
+    for invalid_name in invalid_names:
+        with pytest.raises(InvalidBranchError, match="Invalid branch name"):
+            create_worktree(
+                branch_name=invalid_name,
+                no_cd=True,
+                no_claude=True,
+            )
