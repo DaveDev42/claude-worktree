@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2025-10-22
+
+### Fixed
+- **Cache-busting for upgrade consistency**: Added cache bypass flags to prevent version inconsistency
+  - Added `--refresh` flag to `uv tool/pip upgrade` commands
+  - Added `--no-cache-dir` flag to `pip upgrade` command
+  - Added cache-busting headers to PyPI API calls
+  - Ensures users get the exact version detected during update check
+  - Prevents issues from CDN propagation delays and local caching
+
 ## [0.3.1] - 2025-10-22
 
 ### Fixed
@@ -120,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.1...v0.2.2
