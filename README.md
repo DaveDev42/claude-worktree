@@ -108,8 +108,14 @@ Worktrees for repository: /Users/dave/myproject
 BRANCH                              STATUS     PATH
 refs/heads/main                     clean      .
 refs/heads/fix-auth                 active     ../myproject-fix-auth
-refs/heads/feature-api              clean      ../myproject-feature-api
+refs/heads/feature-api              modified   ../myproject-feature-api
 ```
+
+**Status Types:**
+- `active` (bold green) - Currently in this worktree directory
+- `clean` (green) - No uncommitted changes
+- `modified` (yellow) - Has uncommitted changes
+- `stale` (red) - Directory deleted, needs `cw prune`
 
 ### Show status
 
@@ -144,6 +150,8 @@ cw delete feature --delete-remote
 ```bash
 cw prune
 ```
+
+Removes administrative data for worktrees with "stale" status (directories that have been manually deleted).
 
 ## Command Reference
 

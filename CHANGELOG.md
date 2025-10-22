@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Expanded worktree status types**: Now shows more informative status indicators in `cw list`:
+  - `active` (bold green) - Currently in this worktree directory
+  - `clean` (green) - No uncommitted changes
+  - `modified` (yellow) - Has uncommitted changes
+  - `stale` (red) - Directory deleted but admin data remains (affected by `cw prune`)
+- **Improved status display**: Status column now uses color coding for better visibility
+
 ## [0.2.2] - 2025-10-22
 
 ### Fixed

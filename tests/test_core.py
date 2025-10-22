@@ -10,6 +10,7 @@ from claude_worktree.core import (
     create_worktree,
     delete_worktree,
     finish_worktree,
+    get_worktree_status,
     list_worktrees,
     prune_worktrees,
     show_status,
@@ -379,3 +380,70 @@ def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude
                 no_cd=True,
                 no_claude=True,
             )
+
+
+def test_get_worktree_status_stale(temp_git_repo: Path, disable_claude) -> None:
+    """Test status detection for stale worktree (directory deleted)."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="stale-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Manually remove the directory
+    import shutil
+
+    shutil.rmtree(worktree_path)
+
+    # Status should be "stale"
+    status = get_worktree_status(str(worktree_path), temp_git_repo)
+    assert status == "stale"
+
+
+def test_get_worktree_status_active(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test status detection for active worktree (current directory)."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="active-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Change to the worktree directory
+    monkeypatch.chdir(worktree_path)
+
+    # Status should be "active"
+    status = get_worktree_status(str(worktree_path), temp_git_repo)
+    assert status == "active"
+
+
+def test_get_worktree_status_modified(temp_git_repo: Path, disable_claude) -> None:
+    """Test status detection for modified worktree (uncommitted changes)."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="modified-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Add uncommitted changes
+    (worktree_path / "uncommitted.txt").write_text("uncommitted changes")
+
+    # Status should be "modified"
+    status = get_worktree_status(str(worktree_path), temp_git_repo)
+    assert status == "modified"
+
+
+def test_get_worktree_status_clean(temp_git_repo: Path, disable_claude) -> None:
+    """Test status detection for clean worktree (no uncommitted changes)."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="clean-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Status should be "clean" (no uncommitted changes, not current directory)
+    status = get_worktree_status(str(worktree_path), temp_git_repo)
+    assert status == "clean"

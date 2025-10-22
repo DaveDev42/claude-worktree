@@ -339,6 +339,40 @@ def delete_worktree(
                 console.print(f"[yellow]⚠[/yellow] Remote branch deletion failed: {e}\n")
 
 
+def get_worktree_status(path: str, repo: Path) -> str:
+    """
+    Determine the status of a worktree.
+
+    Args:
+        path: Absolute path to the worktree directory
+        repo: Repository root path
+
+    Returns:
+        Status string: "stale", "active", "modified", or "clean"
+    """
+    path_obj = Path(path)
+
+    # Check if directory exists
+    if not path_obj.exists():
+        return "stale"
+
+    # Check if currently in this worktree
+    cwd = str(Path.cwd())
+    if cwd.startswith(path):
+        return "active"
+
+    # Check for uncommitted changes
+    try:
+        result = git_command("status", "--porcelain", repo=path_obj, capture=True, check=False)
+        if result.returncode == 0 and result.stdout.strip():
+            return "modified"
+    except Exception:
+        # If we can't check status, assume clean
+        pass
+
+    return "clean"
+
+
 def list_worktrees() -> None:
     """List all worktrees for the current repository."""
     repo = get_repo_root()
@@ -348,11 +382,19 @@ def list_worktrees() -> None:
     console.print(f"{'BRANCH':<35} {'STATUS':<10} PATH")
     console.print("-" * 80)
 
-    cwd = str(Path.cwd())
+    # Status color mapping
+    status_colors = {
+        "active": "bold green",
+        "clean": "green",
+        "modified": "yellow",
+        "stale": "red",
+    }
+
     for branch, path in worktrees:
-        status = "active" if cwd.startswith(path) else "clean"
+        status = get_worktree_status(path, repo)
         rel_path = os.path.relpath(path, repo)
-        console.print(f"{branch[:33]:<35} {status:<10} {rel_path}")
+        color = status_colors.get(status, "white")
+        console.print(f"{branch[:33]:<35} [{color}]{status:<10}[/{color}] {rel_path}")
 
     console.print()
 
