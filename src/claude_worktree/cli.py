@@ -168,6 +168,11 @@ def new(
 
 @app.command()
 def finish(
+    target: str | None = typer.Argument(
+        None,
+        help="Worktree branch to finish (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
     push: bool = typer.Option(
         False,
         "--push",
@@ -175,7 +180,7 @@ def finish(
     ),
 ) -> None:
     """
-    Finish work on current worktree.
+    Finish work on a worktree.
 
     Performs the following steps:
     1. Rebases feature branch onto base branch
@@ -184,10 +189,16 @@ def finish(
     4. Deletes the feature branch
     5. Optionally pushes to remote with --push
 
-    Must be run from within a feature worktree created with 'cw new'.
+    Can be run from any directory by specifying the worktree branch name,
+    or from within a feature worktree without arguments.
+
+    Example:
+        cw finish                  # Finish current worktree
+        cw finish fix-auth         # Finish fix-auth worktree from anywhere
+        cw finish feature-api --push  # Finish and push to remote
     """
     try:
-        finish_worktree(push=push)
+        finish_worktree(target=target, push=push)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

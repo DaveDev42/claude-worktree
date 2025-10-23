@@ -123,28 +123,52 @@ def create_worktree(
     return worktree_path
 
 
-def finish_worktree(push: bool = False) -> None:
+def finish_worktree(target: str | None = None, push: bool = False) -> None:
     """
-    Finish work on current worktree: rebase, merge, and cleanup.
+    Finish work on a worktree: rebase, merge, and cleanup.
 
     Args:
+        target: Branch name of worktree to finish (optional, defaults to current directory)
         push: Push base branch to origin after merge
 
     Raises:
         GitError: If git operations fail
         RebaseError: If rebase fails
         MergeError: If merge fails
-        WorktreeNotFoundError: If base worktree not found
+        WorktreeNotFoundError: If worktree not found
+        InvalidBranchError: If branch is invalid
     """
-    cwd = Path.cwd()
+    # Determine the worktree to work on
+    if target:
+        # Target branch specified - find its worktree path
+        repo = get_repo_root()
+        worktree_path_result = find_worktree_by_branch(repo, target)
+        if not worktree_path_result:
+            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
+        if not worktree_path_result:
+            raise WorktreeNotFoundError(
+                f"No worktree found for branch '{target}'. "
+                f"Use 'cw list' to see available worktrees."
+            )
+        cwd = Path(worktree_path_result)
+        # Normalize branch name
+        feature_branch = target[11:] if target.startswith("refs/heads/") else target
+    else:
+        # No target specified - use current directory
+        cwd = Path.cwd()
+        try:
+            feature_branch = get_current_branch(cwd)
+        except InvalidBranchError:
+            raise InvalidBranchError("Cannot determine current branch")
 
-    try:
-        feature_branch = get_current_branch(cwd)
-    except InvalidBranchError:
-        raise InvalidBranchError("Cannot determine current branch")
-
-    # Get repo root from current worktree (might be the worktree itself)
-    worktree_repo = get_repo_root()
+    # Get repo root from the worktree we're working on
+    if target:
+        # When target is specified, cwd is the worktree path we found
+        # Need to get repo root from that worktree
+        worktree_repo = get_repo_root(cwd)
+    else:
+        # When no target, use current directory's repo root
+        worktree_repo = get_repo_root()
 
     # Get metadata - base_path is the actual main repository
     base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), worktree_repo)
