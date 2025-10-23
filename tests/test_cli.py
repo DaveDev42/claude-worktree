@@ -312,4 +312,32 @@ def test_attach_command_nonexistent_worktree(temp_git_repo: Path, disable_claude
     """Test attach command with nonexistent worktree."""
     result = runner.invoke(app, ["attach", "nonexistent"])
     assert result.exit_code == 1
-    assert "not found" in result.stdout
+    assert "No worktree found" in result.stdout
+
+
+def test_attach_command_shows_deprecation_warning(temp_git_repo: Path, disable_claude) -> None:
+    """Test that attach command shows deprecation warning."""
+    result = runner.invoke(app, ["attach"])
+    assert result.exit_code == 0
+    assert "deprecated" in result.stdout.lower()
+    assert "cw resume" in result.stdout or "resume" in result.stdout
+    assert "v2.0" in result.stdout
+
+
+def test_attach_command_redirects_to_resume(temp_git_repo: Path, disable_claude) -> None:
+    """Test that attach command redirects to resume internally."""
+    # Create a worktree
+    runner.invoke(app, ["new", "attach-test", "--no-ai", "--no-cd"])
+
+    # Use attach command (should redirect to resume)
+    result = runner.invoke(app, ["attach", "attach-test"])
+    assert result.exit_code == 0
+
+    # Should show deprecation warning
+    assert "deprecated" in result.stdout.lower()
+
+    # Should show session-related messages (from resume, not attach)
+    assert "session" in result.stdout.lower() or "Switched to worktree" in result.stdout
+
+    # Clean up
+    runner.invoke(app, ["delete", "attach-test"])

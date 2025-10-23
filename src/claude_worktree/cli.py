@@ -18,7 +18,6 @@ from .config import (
     list_presets as list_ai_presets,
 )
 from .core import (
-    attach_ai_tool,
     create_worktree,
     delete_worktree,
     finish_worktree,
@@ -277,39 +276,29 @@ def attach(
     ),
 ) -> None:
     """
-    Reattach AI coding assistant to a worktree.
+    [DEPRECATED] Reattach AI coding assistant to a worktree.
 
-    Launches your configured AI tool in the specified worktree or current directory.
-    Useful if you closed the AI session and want to restart it.
+    ⚠️  Warning: 'cw attach' is deprecated and will be removed in v2.0.
+    Use 'cw resume' instead for better context management and session restoration.
+
+    This command now redirects to 'cw resume' for backward compatibility.
 
     Example:
-        cw attach                  # Attach to current directory
-        cw attach fix-auth         # Attach to fix-auth worktree
-        cw attach feature-api --iterm  # Attach in new iTerm window
+        cw resume                  # Resume in current directory (recommended)
+        cw resume fix-auth         # Resume in fix-auth worktree (recommended)
+        cw resume feature-api --iterm  # Resume in new iTerm window (recommended)
     """
     try:
-        # If worktree specified, find its path and attach there
-        if worktree:
-            import os
+        # Show deprecation warning
+        console.print(
+            "[bold yellow]⚠  Warning:[/bold yellow] 'cw attach' is deprecated and will be removed in v2.0."
+        )
+        console.print(
+            "[dim]Use 'cw resume' instead for better context management and session restoration.[/dim]\n"
+        )
 
-            from .git_utils import find_worktree_by_branch
-
-            repo = get_repo_root()
-            # Try with refs/heads/ prefix first
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
-            # If not found, try without prefix
-            if not worktree_path:
-                worktree_path = find_worktree_by_branch(repo, worktree)
-
-            if not worktree_path:
-                console.print(f"[bold red]Error:[/bold red] Worktree '{worktree}' not found")
-                raise typer.Exit(code=1)
-
-            # Change to worktree directory and attach
-            os.chdir(worktree_path)
-            console.print(f"[dim]Attaching to worktree at: {worktree_path}[/dim]")
-
-        attach_ai_tool(bg=bg, iterm=iterm, tmux_session=tmux)
+        # Redirect to resume_worktree
+        resume_worktree(worktree=worktree, bg=bg, iterm=iterm, tmux_session=tmux, no_ai=False)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
