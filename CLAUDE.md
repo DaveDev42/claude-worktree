@@ -197,14 +197,31 @@ uv run pytest --cov=claude_worktree --cov-report=term
 The pre-commit hooks will automatically run ruff and mypy, but **you must run pytest manually** before committing. GitHub Actions will run all checks, but catching issues locally saves time and CI resources.
 
 ### Running the CLI during development
+
+**Option 1: Run with uv (recommended)**
 ```bash
 uv run python -m claude_worktree --help
 uv run python -m claude_worktree new my-feature
+```
 
-# Or install in editable mode for easier testing
+**Option 2: Install in editable mode for easier testing**
+```bash
+# Using uv (recommended - works without virtual environment)
 uv pip install -e .
 cw --help
+
+# Using pipx (for isolated global installation)
+pipx install -e .
+cw --help
+
+# Using regular pip (requires virtual environment due to PEP 668)
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+pip install -e .
+cw --help
 ```
+
+**Note**: Modern Python (3.11+) restricts global pip installs via PEP 668. Use `uv` or `pipx` for system-wide installation, or create a virtual environment for regular `pip`.
 
 ### Building the package
 ```bash
