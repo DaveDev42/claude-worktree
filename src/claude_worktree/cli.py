@@ -76,6 +76,13 @@ def complete_all_branches() -> list[str]:
         return []
 
 
+def complete_preset_names() -> list[str]:
+    """Autocomplete function for AI tool preset names."""
+    from .config import AI_TOOL_PRESETS
+
+    return sorted(AI_TOOL_PRESETS.keys())
+
+
 @app.callback()
 def main(
     version: bool | None = typer.Option(
@@ -373,6 +380,7 @@ def worktree_path(
     branch: str = typer.Argument(
         ...,
         help="Branch name to get worktree path for",
+        autocompletion=complete_worktree_branches,
     ),
 ) -> None:
     """
@@ -534,21 +542,25 @@ def set_cmd(
 def use_preset_cmd(
     preset: str = typer.Argument(
         ...,
-        help="Preset name (e.g., 'claude', 'codex', 'happy-claude', 'happy-codex')",
+        help="Preset name (e.g., 'claude', 'codex', 'happy', 'happy-codex')",
+        autocompletion=complete_preset_names,
     ),
 ) -> None:
     """
     Use a predefined AI tool preset.
 
     Available presets:
+    - no-op: Disable AI tool launching
     - claude: Claude Code CLI
     - codex: OpenAI Codex
-    - happy-claude: Happy with Claude backend
-    - happy-codex: Happy with Codex backend
+    - happy: Happy with Claude Code mode
+    - happy-codex: Happy with Codex mode (bypass permissions)
+    - happy-yolo: Happy with bypass permissions (fast iteration)
 
     Example:
         cw config use-preset claude
-        cw config use-preset happy-claude
+        cw config use-preset happy-codex
+        cw config use-preset no-op
     """
     try:
         use_preset(preset)
