@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2025-10-24
+
+### Fixed
+- **`uv tool upgrade` command fix**: Removed unsupported `--refresh` flag from `uv tool upgrade` command
+  - `uv tool upgrade` doesn't support `--refresh` option
+  - The command now works correctly: `uv tool upgrade claude-worktree`
+  - `uv pip install --upgrade` still uses `--refresh` which is supported
+
 ## [0.6.0] - 2025-10-24
 
 ### Added
@@ -181,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.2...v0.4.0

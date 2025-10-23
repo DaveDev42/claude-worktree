@@ -230,8 +230,8 @@ def upgrade_package(installer: str | None = None) -> bool:
         if installer == "pipx":
             cmd = ["pipx", "upgrade", "claude-worktree"]
         elif installer == "uv-tool":
-            # Use --refresh to bypass cache and ensure latest version
-            cmd = ["uv", "tool", "upgrade", "--refresh", "claude-worktree"]
+            # uv tool upgrade automatically checks for latest version
+            cmd = ["uv", "tool", "upgrade", "claude-worktree"]
         elif installer == "uv-pip":
             # Use --refresh to bypass cache
             cmd = ["uv", "pip", "install", "--upgrade", "--refresh", "claude-worktree"]
