@@ -6,42 +6,32 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### UX Improvements
 
-- [ ] **`cw resume [branch]`** - Resume AI work in a worktree with context restoration
-  - Replaces `cw attach` with better semantics and context management
+- [x] **`cw resume [branch]`** ✅ Implemented in v0.4.0
+  - Resume AI work in a worktree with context restoration
   - Optional branch argument: `cw resume fix-auth` or `cw resume` (current dir)
-  - **Context restoration**: Restore previous AI session history for seamless work continuation
   - Session storage: `~/.config/claude-worktree/sessions/<branch>/`
-  - Support Claude Code, Codex, Happy (pluggable architecture)
+  - Supports Claude Code, Codex, Happy, and custom AI tools
   - Flags: `--no-ai`, `--bg`, `--iterm`, `--iterm-tab`, `--tmux`
-  - Implementation phases:
-    1. Investigate Claude Code CLI session management
-    2. Build session backup/restore system
-    3. Implement `cw resume` command
-    4. Add multi-AI tool support
 
-- [ ] **Deprecate `cw attach`** - Migrate users to `cw resume`
-  - Show deprecation warning: "Warning: 'cw attach' is deprecated and will be removed in v2.0. Use 'cw resume' instead."
-  - Internally calls `resume_worktree()` for backward compatibility
-  - Update all documentation to reference `cw resume`
-  - Remove in next major version (v2.0)
+- [x] **Deprecate `cw attach`** ✅ Implemented in v0.4.0
+  - Shows deprecation warning and redirects to `cw resume`
+  - Backward compatible, will be removed in v2.0
 
-- [ ] **iTerm tab support** - Add `--iterm-tab` flag to open AI tool in a new iTerm tab instead of a new window
-  - Applies to: `cw new`, `cw resume`
-  - Related: `--iterm` currently opens new windows
+- [x] **iTerm tab support** ✅ Implemented in v0.5.0
+  - `--iterm-tab` flag available for `cw new`, `cw resume`, `cw attach`
+  - Opens AI tool in new iTerm2 tab instead of window
 
-- [ ] **Shell function for `cw cd`** - Enable direct directory navigation to worktrees
-  - Implement `cw _cd <branch>` internal command (outputs worktree path)
-  - Add `cw install-shell-function` command to install shell wrapper
-  - Support bash, zsh, and fish shells
-  - Usage: `cw cd <branch>` changes to the worktree directory
-  - Lower priority: can manually `cd` for now
+- [x] **Shell function for `cw cd`** ✅ Implemented in v0.6.0
+  - `cw-cd` shell function enables `cw cd <branch>` navigation
+  - Supports bash, zsh, and fish shells
+  - Install with `cw config install-shell-function` or manually source
 
 ### Terminology Cleanup
 
-- [ ] **Update help text** - Replace "Claude" references with "AI tool" in user-facing strings
-  - Update function docstrings in core.py
-  - Keep backward compatibility for `--no-claude` flag (already deprecated)
-  - Keep project description "Claude Code × git worktree" as-is
+- [x] **Update help text** ✅ Implemented in v0.4.0
+  - All user-facing text uses generic "AI tool" terminology
+  - `--no-claude` deprecated in favor of `--no-ai`
+  - Project description kept as "Claude Code × git worktree"
 
 ### AI Integration
 
@@ -156,26 +146,36 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## Documentation
 
-- [ ] Update CLAUDE.md with new features as they're implemented
-- [ ] Add dog-fooding section to README/CLAUDE.md
-  - Document `pip install -e .` for development
-  - Add development workflow best practices
+- [x] **Update CLAUDE.md with new features** ✅ Partially complete
+  - Resume command and session management documented
+  - AI tool integration documented
+  - Shell function documented
+- [x] **Add dog-fooding section** ✅ Implemented in v0.4.0
+  - Development installation methods documented in CLAUDE.md
+  - Covers uv, pipx, and pip methods with PEP 668 notes
 - [ ] Create troubleshooting guide for iTerm/terminal issues
-- [ ] Document shell function installation and setup
-- [ ] Add examples for common workflows
+- [x] **Document shell function installation** ✅ Implemented in v0.6.0
+  - CLAUDE.md includes shell function documentation
+  - README should include installation instructions
+- [ ] Add more examples for common workflows to README
 
 ## Testing
 
-- [ ] Add tests for `cw resume` command
-  - Test context restoration with mocked session files
-  - Test optional branch argument behavior
-  - Test backward compatibility with `cw attach`
-- [ ] Add tests for session manager
-  - Session backup/restore logic
+- [x] **Add tests for `cw resume` command** ✅ Implemented in v0.4.0
+  - Context restoration with mocked session files
+  - Optional branch argument behavior
+  - Backward compatibility with `cw attach`
+- [x] **Add tests for session manager** ✅ Implemented in v0.4.0
+  - Session backup/restore logic (test_session_manager.py has 20+ tests)
   - Multi-AI tool support
   - Session file format validation
-- [ ] Add tests for iTerm tab functionality
-- [ ] Add tests for shell function generation (`cw _cd`)
+  - Special branch name handling
+  - Corrupted JSON handling
+- [x] **Add tests for iTerm tab functionality** ✅ Implemented in v0.5.0
+  - Tests for `--iterm-tab` flag in resume and attach commands
+- [x] **Add tests for shell function generation (`cw _path`)** ✅ Implemented in v0.6.0
+  - Tests for internal `_path` command
+  - Tests for shell function output
 - [ ] Add tests for AI conflict resolution workflow
 - [ ] Add tests for `cw sync` command
 - [ ] Add tests for `cw clean` command
