@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-10-24
+
+### Changed
+- **Refactored AI tool launch control**: Removed `--no-ai`/`--no-claude` flags in favor of preset-based approach
+  - Old approach: `cw new my-feature --no-ai`
+  - New approach: `cw config use-preset no-op && cw new my-feature`
+  - More consistent with overall configuration design
+  - Added `no-op` preset (empty array) for disabling AI tool launching
+
+### Breaking Changes
+- **Removed `--no-ai` and `--no-claude` command-line flags** from all commands (`cw new`, `cw resume`, `cw attach`)
+  - Migration: Use `cw config use-preset no-op` to disable AI tool launching
+  - Affects users who relied on these flags in scripts or workflows
+- **Simplified Happy presets to 3 variants**: Removed model-specific presets
+  - Removed: `happy-sonnet`, `happy-opus`, `happy-haiku` (added in 0.6.2)
+  - Kept: `happy`, `happy-codex`, `happy-yolo`
+  - Migration: Use `happy` preset and configure model via Happy's own flags
+
+### Added
+- **New `no-op` preset**: Explicitly disable AI tool launching via configuration
+  - `cw config use-preset no-op`
+  - Cleaner than using empty string or dummy commands
+- **Happy-yolo preset**: `happy` with `--permission-mode bypassPermissions` for faster iteration
+- **Updated Happy-codex preset**: Now includes `--permission-mode bypassPermissions` flag
+
+### Documentation
+- Added comprehensive pre-commit hook workflow to CLAUDE.md
+  - Proper sequence: commit → check hook modifications → amend if needed → push
+  - Prevents force push conflicts from code formatting hooks
+
 ## [0.6.2] - 2025-10-24
 
 ### Fixed
@@ -218,7 +248,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.5.0...v0.6.0
