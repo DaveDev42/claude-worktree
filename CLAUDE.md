@@ -204,9 +204,16 @@ uv run python -m claude_worktree --help
 uv run python -m claude_worktree new my-feature
 ```
 
-**Option 2: Install in editable mode for easier testing**
+**Option 2: Install in editable mode for dog-fooding**
+
+For testing local changes, install in editable mode so code changes are immediately reflected:
+
 ```bash
-# Using uv (recommended - works without virtual environment)
+# Using uv tool (recommended - isolated global installation)
+uv tool install -e .
+cw --help
+
+# Using uv pip (works without virtual environment)
 uv pip install -e .
 cw --help
 
@@ -221,7 +228,7 @@ pip install -e .
 cw --help
 ```
 
-**Note**: Modern Python (3.11+) restricts global pip installs via PEP 668. Use `uv` or `pipx` for system-wide installation, or create a virtual environment for regular `pip`.
+**Note**: Modern Python (3.11+) restricts global pip installs via PEP 668. Use `uv tool`, `uv pip`, or `pipx` for system-wide installation, or create a virtual environment for regular `pip`.
 
 ### Building the package
 ```bash
