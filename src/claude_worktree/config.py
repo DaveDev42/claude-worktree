@@ -21,10 +21,16 @@ class ConfigError(ClaudeWorktreeError):
 
 # Predefined AI tool presets
 AI_TOOL_PRESETS = {
+    # No AI tool (no operation)
+    "no-op": [],
+    # Claude Code
     "claude": ["claude"],
+    # Codex
     "codex": ["codex"],
-    "happy-claude": ["happy", "--backend", "claude"],
-    "happy-codex": ["happy", "--backend", "codex"],
+    # Happy (mobile-enabled Claude Code)
+    "happy": ["happy"],
+    "happy-codex": ["happy", "codex", "--permission-mode", "bypassPermissions"],
+    "happy-yolo": ["happy", "--permission-mode", "bypassPermissions"],
 }
 
 
@@ -121,10 +127,14 @@ def get_ai_tool_command() -> list[str]:
 
     Returns:
         List of command parts (e.g., ["claude"] or ["happy", "--backend", "claude"])
+        Empty list [] means no AI tool should be launched.
     """
     # Check environment variable first
     env_tool = os.environ.get("CW_AI_TOOL")
     if env_tool:
+        # Empty string means no AI tool
+        if not env_tool.strip():
+            return []
         return env_tool.split()
 
     # Load from config
@@ -136,6 +146,10 @@ def get_ai_tool_command() -> list[str]:
     if command in AI_TOOL_PRESETS:
         base_cmd: list[str] = AI_TOOL_PRESETS[command].copy()
         return base_cmd + args
+
+    # Empty command means no AI tool
+    if not command.strip():
+        return []
 
     # Otherwise, use as custom command
     return [command] + args

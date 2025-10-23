@@ -116,12 +116,6 @@ def new(
         "--no-cd",
         help="Don't change directory after creation",
     ),
-    no_claude: bool = typer.Option(
-        False,
-        "--no-ai",
-        "--no-claude",
-        help="Don't launch AI coding assistant (--no-claude is deprecated)",
-    ),
     bg: bool = typer.Option(
         False,
         "--bg",
@@ -148,7 +142,7 @@ def new(
 
     Creates a new git worktree at ../<repo>-<branch_name> by default,
     or at a custom path if specified. Automatically launches your configured
-    AI tool in the new worktree unless --no-ai is specified.
+    AI tool in the new worktree (unless set to 'no-op' preset).
 
     Example:
         cw new fix-auth
@@ -161,7 +155,6 @@ def new(
             base_branch=base,
             path=path,
             no_cd=no_cd,
-            no_claude=no_claude,
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,
@@ -237,11 +230,6 @@ def resume(
         "--tmux",
         help="Launch AI tool in new tmux session with given name",
     ),
-    no_ai: bool = typer.Option(
-        False,
-        "--no-ai",
-        help="Don't launch AI tool, just switch to worktree",
-    ),
 ) -> None:
     """
     Resume AI work in a worktree with context restoration.
@@ -254,7 +242,6 @@ def resume(
         cw resume                  # Resume in current directory
         cw resume fix-auth         # Resume in fix-auth worktree
         cw resume feature-api --iterm  # Resume in new iTerm window
-        cw resume my-feature --no-ai   # Just switch to worktree without AI
     """
     try:
         resume_worktree(
@@ -263,7 +250,6 @@ def resume(
             iterm=iterm,
             iterm_tab=iterm_tab,
             tmux_session=tmux,
-            no_ai=no_ai,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -327,7 +313,6 @@ def attach(
             iterm=iterm,
             iterm_tab=iterm_tab,
             tmux_session=tmux,
-            no_ai=False,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")

@@ -38,7 +38,6 @@ def create_worktree(
     base_branch: str | None = None,
     path: Path | None = None,
     no_cd: bool = False,
-    no_claude: bool = False,
     bg: bool = False,
     iterm: bool = False,
     iterm_tab: bool = False,
@@ -52,7 +51,6 @@ def create_worktree(
         base_branch: Base branch to branch from (defaults to current branch)
         path: Custom path for worktree (defaults to ../<repo>-<branch>)
         no_cd: Don't change directory after creation
-        no_claude: Don't launch AI tool (parameter name kept for backward compatibility)
         bg: Launch AI tool in background
         iterm: Launch AI tool in new iTerm window (macOS only)
         iterm_tab: Launch AI tool in new iTerm tab (macOS only)
@@ -118,11 +116,10 @@ def create_worktree(
         os.chdir(worktree_path)
         console.print(f"Changed directory to: {worktree_path}")
 
-    # Launch AI tool
-    if not no_claude:
-        launch_ai_tool(
-            worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
-        )
+    # Launch AI tool (if configured)
+    launch_ai_tool(
+        worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
+    )
 
     return worktree_path
 
@@ -477,6 +474,11 @@ def launch_ai_tool(
     """
     # Get configured AI tool command
     ai_cmd_parts = get_ai_tool_command()
+
+    # Skip if no AI tool configured (empty array means no-op)
+    if not ai_cmd_parts:
+        return
+
     ai_tool_name = ai_cmd_parts[0]
 
     # Check if the command exists
@@ -568,8 +570,10 @@ def attach_ai_tool(
         tmux_session: Launch in new tmux session
     """
     path = Path.cwd()
-    ai_tool_name = get_ai_tool_command()[0]
-    console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
+    ai_cmd = get_ai_tool_command()
+    if ai_cmd:
+        ai_tool_name = ai_cmd[0]
+        console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
     launch_ai_tool(path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session)
 
 
@@ -579,7 +583,6 @@ def resume_worktree(
     iterm: bool = False,
     iterm_tab: bool = False,
     tmux_session: str | None = None,
-    no_ai: bool = False,
 ) -> None:
     """
     Resume AI work in a worktree with context restoration.
@@ -590,7 +593,6 @@ def resume_worktree(
         iterm: Launch AI tool in new iTerm window (macOS only)
         iterm_tab: Launch AI tool in new iTerm tab (macOS only)
         tmux_session: Launch AI tool in new tmux session
-        no_ai: Skip launching AI tool
 
     Raises:
         WorktreeNotFoundError: If worktree not found
@@ -652,12 +654,11 @@ def resume_worktree(
         )
         console.print()
 
-    # Save session metadata
-    ai_tool_name = get_ai_tool_command()[0]
-    session_manager.save_session_metadata(branch_name, ai_tool_name, str(worktree_path))
-
-    # Launch AI tool if not disabled
-    if not no_ai:
+    # Save session metadata and launch AI tool (if configured)
+    ai_cmd = get_ai_tool_command()
+    if ai_cmd:
+        ai_tool_name = ai_cmd[0]
+        session_manager.save_session_metadata(branch_name, ai_tool_name, str(worktree_path))
         console.print(f"[cyan]Resuming {ai_tool_name} in:[/cyan] {worktree_path}\n")
         launch_ai_tool(
             worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session

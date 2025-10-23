@@ -81,16 +81,11 @@ def temp_git_repo(tmp_path: Path, monkeypatch) -> Generator[Path, None, None]:
 
 @pytest.fixture
 def disable_claude(monkeypatch) -> None:
-    """Disable Claude CLI for tests by making it unavailable."""
-    # Mock has_command to return False for 'claude'
-    from claude_worktree import core, git_utils
+    """Disable AI tool launching for tests."""
+    # Mock get_ai_tool_command to return empty array (no-op)
+    from claude_worktree import config
 
-    original_has_command = git_utils.has_command
+    def mock_get_ai_tool_command():
+        return []
 
-    def mock_has_command(name: str) -> bool:
-        if name == "claude":
-            return False
-        return original_has_command(name)
-
-    monkeypatch.setattr(git_utils, "has_command", mock_has_command)
-    monkeypatch.setattr(core, "has_command", mock_has_command)
+    monkeypatch.setattr(config, "get_ai_tool_command", mock_get_ai_tool_command)

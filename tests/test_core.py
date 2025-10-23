@@ -31,7 +31,6 @@ def test_create_worktree_basic(temp_git_repo: Path, disable_claude) -> None:
         base_branch=None,  # Will use current branch
         path=None,  # Will use default path
         no_cd=True,  # Don't change directory
-        no_claude=True,
     )
 
     # Verify worktree was created
@@ -67,7 +66,6 @@ def test_create_worktree_custom_path(temp_git_repo: Path, disable_claude) -> Non
         branch_name="custom-branch",
         path=custom_path,
         no_cd=True,
-        no_claude=True,
     )
 
     assert result_path == custom_path
@@ -89,7 +87,6 @@ def test_create_worktree_with_base_branch(temp_git_repo: Path, disable_claude) -
         branch_name="feature",
         base_branch="develop",
         no_cd=True,
-        no_claude=True,
     )
 
     # Verify it was created from develop
@@ -109,7 +106,6 @@ def test_create_worktree_invalid_base(temp_git_repo: Path, disable_claude) -> No
             branch_name="feature",
             base_branch="nonexistent-branch",
             no_cd=True,
-            no_claude=True,
         )
 
 
@@ -119,7 +115,6 @@ def test_finish_worktree_success(temp_git_repo: Path, disable_claude, monkeypatc
     worktree_path = create_worktree(
         branch_name="finish-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Change to worktree and make a commit
@@ -162,7 +157,6 @@ def test_finish_worktree_with_rebase(temp_git_repo: Path, disable_claude, monkey
     worktree_path = create_worktree(
         branch_name="rebase-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Make commit in worktree
@@ -203,7 +197,6 @@ def test_delete_worktree_by_branch(temp_git_repo: Path, disable_claude) -> None:
     worktree_path = create_worktree(
         branch_name="delete-me",
         no_cd=True,
-        no_claude=True,
     )
 
     assert worktree_path.exists()
@@ -230,7 +223,6 @@ def test_delete_worktree_by_path(temp_git_repo: Path, disable_claude) -> None:
     worktree_path = create_worktree(
         branch_name="delete-by-path",
         no_cd=True,
-        no_claude=True,
     )
 
     # Delete by path
@@ -246,7 +238,6 @@ def test_delete_worktree_keep_branch(temp_git_repo: Path, disable_claude) -> Non
     worktree_path = create_worktree(
         branch_name="keep-branch",
         no_cd=True,
-        no_claude=True,
     )
 
     # Delete worktree but keep branch
@@ -281,8 +272,14 @@ def test_delete_main_repo_protection(temp_git_repo: Path, monkeypatch) -> None:
 def test_list_worktrees(temp_git_repo: Path, disable_claude, capsys) -> None:
     """Test listing worktrees."""
     # Create a couple of worktrees
-    create_worktree(branch_name="wt1", no_cd=True, no_claude=True)
-    create_worktree(branch_name="wt2", no_cd=True, no_claude=True)
+    create_worktree(
+        branch_name="wt1",
+        no_cd=True,
+    )
+    create_worktree(
+        branch_name="wt2",
+        no_cd=True,
+    )
 
     # List worktrees
     list_worktrees()
@@ -299,7 +296,6 @@ def test_show_status_in_worktree(temp_git_repo: Path, disable_claude, monkeypatc
     worktree_path = create_worktree(
         branch_name="status-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Change to worktree
@@ -328,7 +324,6 @@ def test_prune_worktrees(temp_git_repo: Path, disable_claude) -> None:
     worktree_path = create_worktree(
         branch_name="prune-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Manually remove the worktree directory (making it stale)
@@ -379,7 +374,6 @@ def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude
             create_worktree(
                 branch_name=invalid_name,
                 no_cd=True,
-                no_claude=True,
             )
 
 
@@ -389,7 +383,6 @@ def test_get_worktree_status_stale(temp_git_repo: Path, disable_claude) -> None:
     worktree_path = create_worktree(
         branch_name="stale-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Manually remove the directory
@@ -408,7 +401,6 @@ def test_get_worktree_status_active(temp_git_repo: Path, disable_claude, monkeyp
     worktree_path = create_worktree(
         branch_name="active-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Change to the worktree directory
@@ -425,7 +417,6 @@ def test_get_worktree_status_modified(temp_git_repo: Path, disable_claude) -> No
     worktree_path = create_worktree(
         branch_name="modified-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Add uncommitted changes
@@ -442,7 +433,6 @@ def test_get_worktree_status_clean(temp_git_repo: Path, disable_claude) -> None:
     worktree_path = create_worktree(
         branch_name="clean-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Status should be "clean" (no uncommitted changes, not current directory)
@@ -460,7 +450,6 @@ def test_resume_worktree_current_directory(
     worktree_path = create_worktree(
         branch_name="resume-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Clean up any existing session (from previous test runs)
@@ -471,7 +460,9 @@ def test_resume_worktree_current_directory(
     monkeypatch.chdir(worktree_path)
 
     # Resume without AI tool
-    resume_worktree(worktree=None, no_ai=True)
+    resume_worktree(
+        worktree=None,
+    )
 
     # Check output
     captured = capsys.readouterr()
@@ -489,14 +480,15 @@ def test_resume_worktree_with_branch_name(
     worktree_path = create_worktree(
         branch_name="resume-branch",
         no_cd=True,
-        no_claude=True,
     )
 
     # Start from main repo
     monkeypatch.chdir(temp_git_repo)
 
     # Resume by branch name
-    resume_worktree(worktree="resume-branch", no_ai=True)
+    resume_worktree(
+        worktree="resume-branch",
+    )
 
     # Verify we're now in the worktree directory
     assert os.getcwd() == str(worktree_path)
@@ -517,7 +509,6 @@ def test_resume_worktree_with_session(
     worktree_path = create_worktree(
         branch_name="session-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Create session metadata
@@ -528,7 +519,9 @@ def test_resume_worktree_with_session(
     monkeypatch.chdir(worktree_path)
 
     # Resume without AI tool
-    resume_worktree(worktree=None, no_ai=True)
+    resume_worktree(
+        worktree=None,
+    )
 
     # Check output shows session info
     captured = capsys.readouterr()
@@ -542,7 +535,9 @@ def test_resume_worktree_with_session(
 def test_resume_worktree_nonexistent_branch(temp_git_repo: Path, disable_claude) -> None:
     """Test error when resuming nonexistent worktree."""
     with pytest.raises(WorktreeNotFoundError, match="No worktree found"):
-        resume_worktree(worktree="nonexistent-branch", no_ai=True)
+        resume_worktree(
+            worktree="nonexistent-branch",
+        )
 
 
 def test_resume_worktree_creates_session_metadata(
@@ -555,7 +550,6 @@ def test_resume_worktree_creates_session_metadata(
     worktree_path = create_worktree(
         branch_name="metadata-test",
         no_cd=True,
-        no_claude=True,
     )
 
     # Clean up any existing session (from previous test runs)
@@ -569,7 +563,9 @@ def test_resume_worktree_creates_session_metadata(
     monkeypatch.chdir(worktree_path)
 
     # Resume without AI tool
-    resume_worktree(worktree=None, no_ai=True)
+    resume_worktree(
+        worktree=None,
+    )
 
     # Verify session metadata was created
     assert session_manager.session_exists("metadata-test")

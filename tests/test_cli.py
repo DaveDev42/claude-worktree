@@ -33,7 +33,7 @@ def test_new_command_help() -> None:
 
 def test_new_command_execution(temp_git_repo: Path, disable_claude) -> None:
     """Test new command with real execution."""
-    result = runner.invoke(app, ["new", "test-feature", "--no-cd", "--no-ai"])
+    result = runner.invoke(app, ["new", "test-feature", "--no-cd"])
 
     # Command should succeed
     assert result.exit_code == 0
@@ -52,35 +52,6 @@ def test_new_command_execution(temp_git_repo: Path, disable_claude) -> None:
     assert "test-feature" in git_result.stdout
 
 
-def test_new_command_with_deprecated_flag(temp_git_repo: Path, disable_claude) -> None:
-    """Test that --no-claude flag still works and is marked as deprecated in help."""
-    # Test that --no-claude still works
-    result = runner.invoke(app, ["new", "test-deprecated", "--no-cd", "--no-claude"])
-
-    # Command should still succeed
-    assert result.exit_code == 0
-
-    # Verify worktree was created
-    expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-deprecated"
-    assert expected_path.exists()
-
-
-def test_new_command_help_shows_deprecated() -> None:
-    """Test that help message shows --no-claude as deprecated."""
-    import re
-
-    result = runner.invoke(app, ["new", "--help"])
-    assert result.exit_code == 0
-
-    # Strip ANSI color codes for reliable string matching
-    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
-    clean_output = ansi_escape.sub("", result.stdout)
-
-    assert "deprecated" in clean_output.lower()
-    assert "--no-ai" in clean_output
-    assert "--no-claude" in clean_output
-
-
 def test_new_command_with_base(temp_git_repo: Path, disable_claude) -> None:
     """Test new command with base branch specification."""
     # Create develop branch
@@ -91,7 +62,7 @@ def test_new_command_with_base(temp_git_repo: Path, disable_claude) -> None:
         capture_output=True,
     )
 
-    result = runner.invoke(app, ["new", "from-develop", "--base", "develop", "--no-cd", "--no-ai"])
+    result = runner.invoke(app, ["new", "from-develop", "--base", "develop", "--no-cd"])
 
     assert result.exit_code == 0
     expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-from-develop"
@@ -102,7 +73,7 @@ def test_new_command_custom_path(temp_git_repo: Path, disable_claude) -> None:
     """Test new command with custom path."""
     custom_path = temp_git_repo.parent / "my-custom-worktree"
 
-    result = runner.invoke(app, ["new", "custom", "--path", str(custom_path), "--no-cd", "--no-ai"])
+    result = runner.invoke(app, ["new", "custom", "--path", str(custom_path), "--no-cd"])
 
     assert result.exit_code == 0
     assert custom_path.exists()
@@ -127,7 +98,7 @@ def test_finish_command_help() -> None:
 def test_finish_command_execution(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
     """Test finish command with real execution."""
     # Create worktree
-    result = runner.invoke(app, ["new", "finish-me", "--no-cd", "--no-ai"])
+    result = runner.invoke(app, ["new", "finish-me", "--no-cd"])
     assert result.exit_code == 0
 
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-finish-me"
@@ -166,8 +137,8 @@ def test_list_command_help() -> None:
 def test_list_command_execution(temp_git_repo: Path, disable_claude) -> None:
     """Test list command with real worktrees."""
     # Create some worktrees
-    runner.invoke(app, ["new", "wt1", "--no-cd", "--no-ai"])
-    runner.invoke(app, ["new", "wt2", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "wt1", "--no-cd"])
+    runner.invoke(app, ["new", "wt2", "--no-cd"])
 
     # List worktrees
     result = runner.invoke(app, ["list"])
@@ -186,7 +157,7 @@ def test_status_command_help() -> None:
 def test_status_command_execution(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
     """Test status command from within worktree."""
     # Create worktree
-    runner.invoke(app, ["new", "status-test", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "status-test", "--no-cd"])
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-status-test"
 
     # Change to worktree
@@ -208,7 +179,7 @@ def test_delete_command_help() -> None:
 def test_delete_command_by_branch(temp_git_repo: Path, disable_claude) -> None:
     """Test delete command by branch name."""
     # Create worktree
-    runner.invoke(app, ["new", "delete-me", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "delete-me", "--no-cd"])
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-delete-me"
     assert worktree_path.exists()
 
@@ -223,7 +194,7 @@ def test_delete_command_by_branch(temp_git_repo: Path, disable_claude) -> None:
 def test_delete_command_by_path(temp_git_repo: Path, disable_claude) -> None:
     """Test delete command by path."""
     # Create worktree
-    runner.invoke(app, ["new", "delete-path", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "delete-path", "--no-cd"])
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-delete-path"
 
     # Delete by path
@@ -235,7 +206,7 @@ def test_delete_command_by_path(temp_git_repo: Path, disable_claude) -> None:
 def test_delete_command_keep_branch(temp_git_repo: Path, disable_claude) -> None:
     """Test delete command with keep-branch flag."""
     # Create worktree
-    runner.invoke(app, ["new", "keep-br", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "keep-br", "--no-cd"])
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-keep-br"
 
     # Delete with keep-branch
@@ -265,7 +236,7 @@ def test_prune_command_help() -> None:
 def test_prune_command_execution(temp_git_repo: Path, disable_claude) -> None:
     """Test prune command with real stale worktree."""
     # Create worktree
-    runner.invoke(app, ["new", "prune-me", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "prune-me", "--no-cd"])
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-prune-me"
 
     # Manually remove directory to make it stale
@@ -296,7 +267,7 @@ def test_attach_command_no_claude(temp_git_repo: Path, disable_claude) -> None:
 def test_attach_command_with_worktree(temp_git_repo: Path, disable_claude) -> None:
     """Test attach command with worktree argument."""
     # Create a worktree
-    result = runner.invoke(app, ["new", "test-feature", "--no-ai", "--no-cd"])
+    result = runner.invoke(app, ["new", "test-feature", "--no-cd"])
     assert result.exit_code == 0
 
     # Attach to the worktree by name (from main repo)
@@ -327,7 +298,7 @@ def test_attach_command_shows_deprecation_warning(temp_git_repo: Path, disable_c
 def test_attach_command_redirects_to_resume(temp_git_repo: Path, disable_claude) -> None:
     """Test that attach command redirects to resume internally."""
     # Create a worktree
-    runner.invoke(app, ["new", "attach-test", "--no-ai", "--no-cd"])
+    runner.invoke(app, ["new", "attach-test", "--no-cd"])
 
     # Use attach command (should redirect to resume)
     result = runner.invoke(app, ["attach", "attach-test"])
@@ -345,7 +316,7 @@ def test_attach_command_redirects_to_resume(temp_git_repo: Path, disable_claude)
 
 def test_new_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
     """Test that new command accepts --iterm-tab flag."""
-    result = runner.invoke(app, ["new", "iterm-tab-test", "--no-cd", "--no-ai"])
+    result = runner.invoke(app, ["new", "iterm-tab-test", "--no-cd"])
     assert result.exit_code == 0
 
     # Verify worktree was created
@@ -359,10 +330,10 @@ def test_new_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) ->
 def test_resume_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
     """Test that resume command accepts --iterm-tab flag."""
     # Create a worktree first
-    runner.invoke(app, ["new", "resume-tab-test", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "resume-tab-test", "--no-cd"])
 
     # Resume with --iterm-tab flag (won't actually launch on non-macOS, but should accept the flag)
-    result = runner.invoke(app, ["resume", "resume-tab-test", "--no-ai"])
+    result = runner.invoke(app, ["resume", "resume-tab-test"])
     assert result.exit_code == 0
 
     # Clean up
@@ -372,7 +343,7 @@ def test_resume_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude)
 def test_attach_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
     """Test that deprecated attach command accepts --iterm-tab flag."""
     # Create a worktree first
-    runner.invoke(app, ["new", "attach-tab-test", "--no-cd", "--no-ai"])
+    runner.invoke(app, ["new", "attach-tab-test", "--no-cd"])
 
     # Attach with --iterm-tab flag
     result = runner.invoke(app, ["attach", "attach-tab-test"])
