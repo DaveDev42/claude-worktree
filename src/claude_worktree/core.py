@@ -51,10 +51,10 @@ def create_worktree(
         base_branch: Base branch to branch from (defaults to current branch)
         path: Custom path for worktree (defaults to ../<repo>-<branch>)
         no_cd: Don't change directory after creation
-        no_claude: Don't launch Claude Code
-        bg: Launch Claude in background
-        iterm: Launch Claude in new iTerm window (macOS only)
-        tmux_session: Launch Claude in new tmux session
+        no_claude: Don't launch AI tool (parameter name kept for backward compatibility)
+        bg: Launch AI tool in background
+        iterm: Launch AI tool in new iTerm window (macOS only)
+        tmux_session: Launch AI tool in new tmux session
 
     Returns:
         Path to the created worktree
