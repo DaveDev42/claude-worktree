@@ -171,17 +171,39 @@ This allows the `finish` command to know:
 
 ## Common Development Tasks
 
-### Running tests
+### Running tests (MANDATORY before commits)
+**IMPORTANT**: Always run the full test suite locally before committing changes!
+
 ```bash
+# Run all tests
 uv run pytest
-uv run pytest -v  # verbose
-uv run pytest tests/test_core.py  # specific file
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_core.py
+
+# Run with coverage report
+uv run pytest --cov=claude_worktree --cov-report=term
 ```
+
+**Pre-commit checklist:**
+1. ✅ Run `uv run pytest` - all tests must pass
+2. ✅ Run `ruff check src/ tests/` - no linting errors
+3. ✅ Run `mypy src/claude_worktree` - no type errors
+4. ✅ Verify changes work as expected locally
+
+The pre-commit hooks will automatically run ruff and mypy, but **you must run pytest manually** before committing. GitHub Actions will run all checks, but catching issues locally saves time and CI resources.
 
 ### Running the CLI during development
 ```bash
 uv run python -m claude_worktree --help
 uv run python -m claude_worktree new my-feature
+
+# Or install in editable mode for easier testing
+uv pip install -e .
+cw --help
 ```
 
 ### Building the package
