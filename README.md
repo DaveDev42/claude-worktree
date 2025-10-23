@@ -88,8 +88,8 @@ cw new fix-bug --base develop
 # Custom path
 cw new hotfix --path /tmp/urgent-fix
 
-# Skip Claude launch
-cw new refactor --no-claude
+# Skip AI tool launch
+cw new refactor --no-ai
 
 # Launch Claude in iTerm (macOS)
 cw new feature --iterm
@@ -245,7 +245,7 @@ For example, if your repository is at `/Users/dave/myproject` and you run `cw ne
 
 ### Launch Options
 
-- `--no-claude`: Skip launching AI tool
+- `--no-ai`: Skip launching AI tool (deprecated: `--no-claude`)
 - `--bg`: Launch in background
 - `--iterm`: Launch in new iTerm window (macOS only)
 - `--tmux <name>`: Launch in new tmux session
@@ -302,7 +302,7 @@ Install your preferred AI coding assistant:
 - **Codex**: Follow OpenAI's installation instructions
 - **Happy**: Check Happy's documentation
 
-Or use `--no-claude` flag to skip AI tool launch.
+Or use `--no-ai` flag to skip AI tool launch.
 
 Alternatively, configure a different AI tool:
 ```bash

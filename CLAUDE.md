@@ -69,7 +69,7 @@ claude-worktree/
   - `--bg`: Background process
   - `--iterm`: New iTerm2 window (macOS)
   - `--tmux <session>`: New tmux session
-  - `--no-claude`: Skip AI tool launch
+  - `--no-ai`: Skip AI tool launch (deprecated: `--no-claude`)
 - Supports multiple AI tools:
   - Claude Code (default)
   - Codex

@@ -120,7 +120,7 @@ def new(
         False,
         "--no-ai",
         "--no-claude",
-        help="Don't launch AI coding assistant",
+        help="Don't launch AI coding assistant (--no-claude is deprecated)",
     ),
     bg: bool = typer.Option(
         False,
