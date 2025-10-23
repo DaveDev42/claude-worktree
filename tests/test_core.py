@@ -454,12 +454,18 @@ def test_resume_worktree_current_directory(
     temp_git_repo: Path, disable_claude, monkeypatch, capsys
 ) -> None:
     """Test resuming in current directory without existing session."""
+    from claude_worktree import session_manager
+
     # Create worktree
     worktree_path = create_worktree(
         branch_name="resume-test",
         no_cd=True,
         no_claude=True,
     )
+
+    # Clean up any existing session (from previous test runs)
+    if session_manager.session_exists("resume-test"):
+        session_manager.delete_session("resume-test")
 
     # Change to worktree directory
     monkeypatch.chdir(worktree_path)
@@ -551,6 +557,10 @@ def test_resume_worktree_creates_session_metadata(
         no_cd=True,
         no_claude=True,
     )
+
+    # Clean up any existing session (from previous test runs)
+    if session_manager.session_exists("metadata-test"):
+        session_manager.delete_session("metadata-test")
 
     # Verify no session exists initially
     assert not session_manager.session_exists("metadata-test")
