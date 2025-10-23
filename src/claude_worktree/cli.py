@@ -18,7 +18,7 @@ from .config import (
     list_presets as list_ai_presets,
 )
 from .core import (
-    attach_claude,
+    attach_ai_tool,
     create_worktree,
     delete_worktree,
     finish_worktree,
@@ -118,31 +118,32 @@ def new(
     ),
     no_claude: bool = typer.Option(
         False,
+        "--no-ai",
         "--no-claude",
-        help="Don't launch Claude Code",
+        help="Don't launch AI coding assistant",
     ),
     bg: bool = typer.Option(
         False,
         "--bg",
-        help="Launch Claude in background",
+        help="Launch AI tool in background",
     ),
     iterm: bool = typer.Option(
         False,
         "--iterm",
-        help="Launch Claude in new iTerm window (macOS only)",
+        help="Launch AI tool in new iTerm window (macOS only)",
     ),
     tmux: str | None = typer.Option(
         None,
         "--tmux",
-        help="Launch Claude in new tmux session with given name",
+        help="Launch AI tool in new tmux session with given name",
     ),
 ) -> None:
     """
     Create a new worktree with a feature branch.
 
     Creates a new git worktree at ../<repo>-<branch_name> by default,
-    or at a custom path if specified. Automatically launches Claude Code
-    in the new worktree unless --no-claude is specified.
+    or at a custom path if specified. Automatically launches your configured
+    AI tool in the new worktree unless --no-ai is specified.
 
     Example:
         cw new fix-auth
@@ -202,24 +203,24 @@ def attach(
     bg: bool = typer.Option(
         False,
         "--bg",
-        help="Launch Claude in background",
+        help="Launch AI tool in background",
     ),
     iterm: bool = typer.Option(
         False,
         "--iterm",
-        help="Launch Claude in new iTerm window (macOS only)",
+        help="Launch AI tool in new iTerm window (macOS only)",
     ),
     tmux: str | None = typer.Option(
         None,
         "--tmux",
-        help="Launch Claude in new tmux session with given name",
+        help="Launch AI tool in new tmux session with given name",
     ),
 ) -> None:
     """
-    Reattach Claude Code to a worktree.
+    Reattach AI coding assistant to a worktree.
 
-    Launches Claude Code in the specified worktree or current directory.
-    Useful if you closed the Claude session and want to restart it.
+    Launches your configured AI tool in the specified worktree or current directory.
+    Useful if you closed the AI session and want to restart it.
 
     Example:
         cw attach                  # Attach to current directory
@@ -248,7 +249,7 @@ def attach(
             os.chdir(worktree_path)
             console.print(f"[dim]Attaching to worktree at: {worktree_path}[/dim]")
 
-        attach_claude(bg=bg, iterm=iterm, tmux_session=tmux)
+        attach_ai_tool(bg=bg, iterm=iterm, tmux_session=tmux)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

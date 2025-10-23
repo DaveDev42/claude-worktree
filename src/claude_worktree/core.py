@@ -116,9 +116,9 @@ def create_worktree(
         os.chdir(worktree_path)
         console.print(f"Changed directory to: {worktree_path}")
 
-    # Launch Claude Code
+    # Launch AI tool
     if not no_claude:
-        launch_claude(worktree_path, bg=bg, iterm=iterm, tmux_session=tmux_session)
+        launch_ai_tool(worktree_path, bg=bg, iterm=iterm, tmux_session=tmux_session)
 
     return worktree_path
 
@@ -430,7 +430,7 @@ def prune_worktrees() -> None:
     console.print("[bold green]✓[/bold green] Prune complete\n")
 
 
-def launch_claude(
+def launch_ai_tool(
     path: Path,
     bg: bool = False,
     iterm: bool = False,
@@ -502,7 +502,7 @@ APPLESCRIPT
         subprocess.run(["bash", "-lc", cmd], cwd=str(path), check=False)
 
 
-def attach_claude(
+def attach_ai_tool(
     bg: bool = False,
     iterm: bool = False,
     tmux_session: str | None = None,
@@ -518,4 +518,4 @@ def attach_claude(
     path = Path.cwd()
     ai_tool_name = get_ai_tool_command()[0]
     console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
-    launch_claude(path, bg=bg, iterm=iterm, tmux_session=tmux_session)
+    launch_ai_tool(path, bg=bg, iterm=iterm, tmux_session=tmux_session)

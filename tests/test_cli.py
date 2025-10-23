@@ -257,7 +257,7 @@ def test_attach_command_help() -> None:
     """Test attach command help."""
     result = runner.invoke(app, ["attach", "--help"])
     assert result.exit_code == 0
-    assert "Reattach Claude Code" in result.stdout
+    assert "Reattach AI coding assistant" in result.stdout
 
 
 def test_attach_command_no_claude(temp_git_repo: Path, disable_claude) -> None:
