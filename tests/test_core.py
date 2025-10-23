@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from claude_worktree.core import (
-    attach_ai_tool,
     create_worktree,
     delete_worktree,
     finish_worktree,
@@ -342,15 +341,6 @@ def test_prune_worktrees(temp_git_repo: Path, disable_claude) -> None:
         text=True,
     )
     assert str(worktree_path) not in result.stdout
-
-
-def test_attach_ai_tool_no_cli(temp_git_repo: Path, disable_claude, capsys) -> None:
-    """Test attach when AI tool CLI is not available."""
-    # Should not error, just warn
-    attach_ai_tool(bg=False, iterm=False, tmux_session=None)
-
-    captured = capsys.readouterr()
-    assert "not detected" in captured.out or "Skipping" in captured.out
 
 
 def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude) -> None:

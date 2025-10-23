@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **Deprecated `cw attach` command**: Removed after deprecation period
+  - The command was deprecated in v0.4.0 and has now been fully removed
+  - Use `cw resume` instead for better context management and session restoration
+  - Breaking change: `cw attach` will no longer work
+
 ## [0.7.0] - 2025-10-24
 
 ### Changed

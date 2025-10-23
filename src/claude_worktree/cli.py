@@ -256,69 +256,6 @@ def resume(
         raise typer.Exit(code=1)
 
 
-@app.command()
-def attach(
-    worktree: str | None = typer.Argument(
-        None,
-        help="Worktree branch to attach to (optional, defaults to current directory)",
-        autocompletion=complete_worktree_branches,
-    ),
-    bg: bool = typer.Option(
-        False,
-        "--bg",
-        help="Launch AI tool in background",
-    ),
-    iterm: bool = typer.Option(
-        False,
-        "--iterm",
-        help="Launch AI tool in new iTerm window (macOS only)",
-    ),
-    iterm_tab: bool = typer.Option(
-        False,
-        "--iterm-tab",
-        help="Launch AI tool in new iTerm tab (macOS only)",
-    ),
-    tmux: str | None = typer.Option(
-        None,
-        "--tmux",
-        help="Launch AI tool in new tmux session with given name",
-    ),
-) -> None:
-    """
-    [DEPRECATED] Reattach AI coding assistant to a worktree.
-
-    ⚠️  Warning: 'cw attach' is deprecated and will be removed in v2.0.
-    Use 'cw resume' instead for better context management and session restoration.
-
-    This command now redirects to 'cw resume' for backward compatibility.
-
-    Example:
-        cw resume                  # Resume in current directory (recommended)
-        cw resume fix-auth         # Resume in fix-auth worktree (recommended)
-        cw resume feature-api --iterm  # Resume in new iTerm window (recommended)
-    """
-    try:
-        # Show deprecation warning
-        console.print(
-            "[bold yellow]⚠  Warning:[/bold yellow] 'cw attach' is deprecated and will be removed in v2.0."
-        )
-        console.print(
-            "[dim]Use 'cw resume' instead for better context management and session restoration.[/dim]\n"
-        )
-
-        # Redirect to resume_worktree
-        resume_worktree(
-            worktree=worktree,
-            bg=bg,
-            iterm=iterm,
-            iterm_tab=iterm_tab,
-            tmux_session=tmux,
-        )
-    except ClaudeWorktreeError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
 @app.command(name="list")
 def list_cmd() -> None:
     """

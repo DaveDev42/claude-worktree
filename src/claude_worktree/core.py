@@ -554,29 +554,6 @@ APPLESCRIPT
         subprocess.run(["bash", "-lc", cmd], cwd=str(path), check=False)
 
 
-def attach_ai_tool(
-    bg: bool = False,
-    iterm: bool = False,
-    iterm_tab: bool = False,
-    tmux_session: str | None = None,
-) -> None:
-    """
-    Reattach AI coding assistant to the current worktree.
-
-    Args:
-        bg: Launch in background
-        iterm: Launch in new iTerm window (macOS only)
-        iterm_tab: Launch in new iTerm tab (macOS only)
-        tmux_session: Launch in new tmux session
-    """
-    path = Path.cwd()
-    ai_cmd = get_ai_tool_command()
-    if ai_cmd:
-        ai_tool_name = ai_cmd[0]
-        console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
-    launch_ai_tool(path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session)
-
-
 def resume_worktree(
     worktree: str | None = None,
     bg: bool = False,

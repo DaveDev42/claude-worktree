@@ -249,71 +249,6 @@ def test_prune_command_execution(temp_git_repo: Path, disable_claude) -> None:
     assert result.exit_code == 0
 
 
-def test_attach_command_help() -> None:
-    """Test attach command help."""
-    result = runner.invoke(app, ["attach", "--help"])
-    assert result.exit_code == 0
-    assert "Reattach AI coding assistant" in result.stdout
-
-
-def test_attach_command_no_claude(temp_git_repo: Path, disable_claude) -> None:
-    """Test attach command when Claude is not available."""
-    result = runner.invoke(app, ["attach"])
-    # Should not fail, just warn
-    assert result.exit_code == 0
-    assert "not detected" in result.stdout or "Skipping" in result.stdout
-
-
-def test_attach_command_with_worktree(temp_git_repo: Path, disable_claude) -> None:
-    """Test attach command with worktree argument."""
-    # Create a worktree
-    result = runner.invoke(app, ["new", "test-feature", "--no-cd"])
-    assert result.exit_code == 0
-
-    # Attach to the worktree by name (from main repo)
-    result = runner.invoke(app, ["attach", "test-feature"])
-    assert result.exit_code == 0
-    assert "Attaching to worktree" in result.stdout or "not detected" in result.stdout
-
-    # Clean up
-    runner.invoke(app, ["delete", "test-feature"])
-
-
-def test_attach_command_nonexistent_worktree(temp_git_repo: Path, disable_claude) -> None:
-    """Test attach command with nonexistent worktree."""
-    result = runner.invoke(app, ["attach", "nonexistent"])
-    assert result.exit_code == 1
-    assert "No worktree found" in result.stdout
-
-
-def test_attach_command_shows_deprecation_warning(temp_git_repo: Path, disable_claude) -> None:
-    """Test that attach command shows deprecation warning."""
-    result = runner.invoke(app, ["attach"])
-    assert result.exit_code == 0
-    assert "deprecated" in result.stdout.lower()
-    assert "cw resume" in result.stdout or "resume" in result.stdout
-    assert "v2.0" in result.stdout
-
-
-def test_attach_command_redirects_to_resume(temp_git_repo: Path, disable_claude) -> None:
-    """Test that attach command redirects to resume internally."""
-    # Create a worktree
-    runner.invoke(app, ["new", "attach-test", "--no-cd"])
-
-    # Use attach command (should redirect to resume)
-    result = runner.invoke(app, ["attach", "attach-test"])
-    assert result.exit_code == 0
-
-    # Should show deprecation warning
-    assert "deprecated" in result.stdout.lower()
-
-    # Should show session-related messages (from resume, not attach)
-    assert "session" in result.stdout.lower() or "Switched to worktree" in result.stdout
-
-    # Clean up
-    runner.invoke(app, ["delete", "attach-test"])
-
-
 def test_new_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
     """Test that new command accepts --iterm-tab flag."""
     result = runner.invoke(app, ["new", "iterm-tab-test", "--no-cd"])
@@ -338,19 +273,3 @@ def test_resume_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude)
 
     # Clean up
     runner.invoke(app, ["delete", "resume-tab-test"])
-
-
-def test_attach_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
-    """Test that deprecated attach command accepts --iterm-tab flag."""
-    # Create a worktree first
-    runner.invoke(app, ["new", "attach-tab-test", "--no-cd"])
-
-    # Attach with --iterm-tab flag
-    result = runner.invoke(app, ["attach", "attach-tab-test"])
-    assert result.exit_code == 0
-
-    # Should show deprecation warning
-    assert "deprecated" in result.stdout.lower()
-
-    # Clean up
-    runner.invoke(app, ["delete", "attach-tab-test"])
