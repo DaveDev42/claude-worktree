@@ -13,6 +13,7 @@ from claude_worktree.core import (
     get_worktree_status,
     list_worktrees,
     prune_worktrees,
+    resume_worktree,
     show_status,
 )
 from claude_worktree.exceptions import (
@@ -447,3 +448,121 @@ def test_get_worktree_status_clean(temp_git_repo: Path, disable_claude) -> None:
     # Status should be "clean" (no uncommitted changes, not current directory)
     status = get_worktree_status(str(worktree_path), temp_git_repo)
     assert status == "clean"
+
+
+def test_resume_worktree_current_directory(
+    temp_git_repo: Path, disable_claude, monkeypatch, capsys
+) -> None:
+    """Test resuming in current directory without existing session."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="resume-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Change to worktree directory
+    monkeypatch.chdir(worktree_path)
+
+    # Resume without AI tool
+    resume_worktree(worktree=None, no_ai=True)
+
+    # Check output
+    captured = capsys.readouterr()
+    assert "No previous session found" in captured.out
+    assert "resume-test" in captured.out
+
+
+def test_resume_worktree_with_branch_name(
+    temp_git_repo: Path, disable_claude, monkeypatch, capsys
+) -> None:
+    """Test resuming by specifying branch name."""
+    import os
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="resume-branch",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Start from main repo
+    monkeypatch.chdir(temp_git_repo)
+
+    # Resume by branch name
+    resume_worktree(worktree="resume-branch", no_ai=True)
+
+    # Verify we're now in the worktree directory
+    assert os.getcwd() == str(worktree_path)
+
+    # Check output
+    captured = capsys.readouterr()
+    assert "Switched to worktree" in captured.out
+    assert "resume-branch" in captured.out
+
+
+def test_resume_worktree_with_session(
+    temp_git_repo: Path, disable_claude, monkeypatch, capsys
+) -> None:
+    """Test resuming with existing session metadata."""
+    from claude_worktree import session_manager
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="session-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Create session metadata
+    session_manager.save_session_metadata("session-test", "claude", str(worktree_path))
+    session_manager.save_context("session-test", "Working on authentication feature")
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Resume without AI tool
+    resume_worktree(worktree=None, no_ai=True)
+
+    # Check output shows session info
+    captured = capsys.readouterr()
+    assert "Found session" in captured.out
+    assert "session-test" in captured.out
+    assert "claude" in captured.out
+    assert "Previous context" in captured.out
+    assert "Working on authentication feature" in captured.out
+
+
+def test_resume_worktree_nonexistent_branch(temp_git_repo: Path, disable_claude) -> None:
+    """Test error when resuming nonexistent worktree."""
+    with pytest.raises(WorktreeNotFoundError, match="No worktree found"):
+        resume_worktree(worktree="nonexistent-branch", no_ai=True)
+
+
+def test_resume_worktree_creates_session_metadata(
+    temp_git_repo: Path, disable_claude, monkeypatch
+) -> None:
+    """Test that resume creates session metadata."""
+    from claude_worktree import session_manager
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="metadata-test",
+        no_cd=True,
+        no_claude=True,
+    )
+
+    # Verify no session exists initially
+    assert not session_manager.session_exists("metadata-test")
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Resume without AI tool
+    resume_worktree(worktree=None, no_ai=True)
+
+    # Verify session metadata was created
+    assert session_manager.session_exists("metadata-test")
+    metadata = session_manager.load_session_metadata("metadata-test")
+    assert metadata["branch"] == "metadata-test"
+    assert metadata["worktree_path"] == str(worktree_path)
