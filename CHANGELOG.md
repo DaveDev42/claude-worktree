@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-10-24
+
+### Added
+- **Shell function for worktree navigation**: New `cw-cd` shell function for quick directory navigation to worktrees
+  - Enables `cw cd <branch>` to jump directly to a worktree directory
+  - Supports bash and fish shells
+  - Installed automatically or manually with `cw config install-shell-function`
+
+## [0.5.0] - 2025-10-24
+
+### Added
+- **iTerm2 tab support**: New `--iterm-tab` flag for `cw new`, `cw resume`, and `cw attach` commands
+  - Opens AI tool in a new iTerm2 tab instead of a new window
+  - Available on macOS with iTerm2 installed
+  - Comprehensive test coverage for iTerm tab functionality
+
+## [0.4.0] - 2025-10-24
+
+### Added
+- **Multi-AI tool support**: Full configuration system for different AI coding assistants
+  - Support for Claude Code (default), Codex, Happy (with Claude or Codex backend), and custom commands
+  - New `cw config` commands: `show`, `set`, `use-preset`, `list-presets`, `reset`
+  - Environment variable override: `CW_AI_TOOL`
+  - AI tool presets for quick configuration
+- **Session context restoration**: New `cw resume` command for resuming AI work with conversation history
+  - Automatically restores previous AI session state
+  - Optional branch argument to switch worktrees before resuming
+  - Session storage in `~/.config/claude-worktree/sessions/<branch>/`
+  - Support for background, iTerm, and tmux launch modes
+- **Remote worktree completion**: New `target` argument for `cw finish` command
+  - Complete work on a different worktree from current directory
+  - Useful for managing multiple worktrees
+
+### Changed
+- **Renamed AI-tool-specific terminology**: All Claude-specific functions and flags renamed for tool agnostic use
+  - `--no-claude` deprecated in favor of `--no-ai`
+  - Help text updated to use generic AI tool terminology
+- **Deprecated `cw attach` command**: Use `cw resume` instead for better context management
+  - `cw attach` now shows deprecation warning and redirects to `cw resume`
+  - Will be removed in v2.0
+
+### Documentation
+- Added comprehensive documentation for `cw resume` with session restoration
+- Updated CLAUDE.md with mandatory local testing requirements before commits
+- Added TODO.md for tracking planned features
+
+### Development
+- Added test report summary to GitHub Actions
+- Improved test suite with fixes for help text and color code handling
+- Better editable install documentation for modern Python (PEP 668)
+
 ## [0.3.2] - 2025-10-22
 
 ### Fixed
@@ -130,7 +181,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.2.2...v0.3.0
