@@ -23,6 +23,7 @@ claude-worktree/
 │   ├── core.py                   # Core business logic (commands implementation)
 │   ├── config.py                 # Configuration management
 │   ├── git_utils.py              # Git operations wrapper
+│   ├── session_manager.py        # AI session backup/restore (planned)
 │   ├── exceptions.py             # Custom exception classes
 │   └── constants.py              # Constants and default values
 ├── tests/                        # Test suite
@@ -30,6 +31,7 @@ claude-worktree/
 │   ├── test_config.py
 │   ├── test_git_utils.py
 │   ├── test_cli.py
+│   ├── test_session_manager.py   # Session management tests (planned)
 │   └── conftest.py               # pytest fixtures
 ├── .github/workflows/
 │   ├── test.yml                  # CI: Run tests on push/PR
@@ -63,18 +65,28 @@ claude-worktree/
 - **`cw status`**: Show current worktree metadata
 - **`cw prune`**: Clean up orphaned worktrees
 
-### 2. AI Tool Integration
-- **`cw attach`**: Reattach AI tool to current worktree
-- Launch options:
-  - `--bg`: Background process
-  - `--iterm`: New iTerm2 window (macOS)
-  - `--tmux <session>`: New tmux session
-  - `--no-ai`: Skip AI tool launch (deprecated: `--no-claude`)
-- Supports multiple AI tools:
-  - Claude Code (default)
-  - Codex
-  - Happy (with Claude or Codex backend)
-  - Custom commands
+### 2. AI Tool Integration & Session Management
+- **`cw resume [branch]`**: Resume AI work in a worktree with context restoration
+  - Optional branch argument: switches to specified worktree before resuming
+  - **Context restoration**: Automatically restores previous AI session history
+  - Seamlessly continue conversations from where you left off
+  - Session storage: `~/.config/claude-worktree/sessions/<branch>/`
+  - Launch options:
+    - `--bg`: Background process
+    - `--iterm`: New iTerm2 window (macOS)
+    - `--iterm-tab`: New iTerm2 tab (macOS, planned)
+    - `--tmux <session>`: New tmux session
+    - `--no-ai`: Skip AI tool launch
+  - Supports multiple AI tools:
+    - Claude Code (default)
+    - Codex
+    - Happy (with Claude or Codex backend)
+    - Custom commands
+
+- **`cw attach`** ⚠️ DEPRECATED
+  - Legacy command, will be removed in v2.0
+  - Use `cw resume` instead for better context management
+  - Currently redirects to `resume` with deprecation warning
 
 ### 3. Configuration Management
 - **`cw config show`**: Display current configuration
@@ -128,7 +140,8 @@ claude-worktree/
 
 ## Metadata Storage
 
-The tool stores metadata in git config:
+### Git Config Metadata
+The tool stores worktree metadata in git config:
 - `branch.<feature>.worktreeBase`: The base branch name
 - `worktree.<feature>.basePath`: Path to the base repository
 
@@ -136,6 +149,27 @@ This allows the `finish` command to know:
 1. Which branch to rebase onto
 2. Where the main repository is located
 3. How to perform the merge safely
+
+### AI Session Storage (Planned)
+AI session data is stored separately in the user's config directory:
+
+```
+~/.config/claude-worktree/
+├── config.json              # Tool configuration
+└── sessions/                # AI session backups
+    ├── fix-auth/
+    │   ├── claude-session.json    # Claude Code session data
+    │   ├── metadata.json          # Session metadata (timestamps, AI tool type)
+    │   └── context.txt            # Additional context (optional)
+    └── feature-api/
+        └── ... (similar structure)
+```
+
+Session restoration workflow:
+1. When `cw resume` is called, the session manager checks for existing session data
+2. If found, it restores the AI tool's conversation history
+3. AI tool continues from the last saved state
+4. Sessions are automatically backed up when AI tool exits (planned)
 
 ## Git Requirements
 
@@ -250,11 +284,17 @@ uv publish
 
 ## Future Enhancements (Ideas)
 
-- Configuration file support (`.cwrc`, `pyproject.toml`)
+### In Progress
+- **AI session context restoration** - `cw resume` with conversation history preservation
+- **`cw cd` shell function** - Direct directory navigation to worktrees
+
+### Planned
 - Interactive mode for command selection
-- Git hook integration
-- Support for alternative Claude Code commands
-- Worktree templates
+- Git hook integration (auto-backup sessions on exit)
+- Worktree templates (`.cwrc`, `pyproject.toml` support)
+- AI-assisted conflict resolution during `cw finish`
+- Multi-session management (switch between different AI conversations)
+- Session export/import for team collaboration
 - Better conflict resolution guidance
 
 ## Troubleshooting
@@ -274,6 +314,16 @@ uv publish
 4. **Shell completion not working**
    - Run `cw --install-completion`
    - Restart your shell
+
+5. **Session restoration not working**
+   - Check session storage directory: `~/.config/claude-worktree/sessions/`
+   - Verify AI tool supports session restoration
+   - Check session metadata for corruption: `cat ~/.config/claude-worktree/sessions/<branch>/metadata.json`
+   - Clear sessions if needed: `rm -rf ~/.config/claude-worktree/sessions/<branch>/`
+
+6. **`cw attach` deprecated warning**
+   - This is expected. Use `cw resume` instead for better functionality
+   - `cw attach` will be removed in v2.0
 
 ## Contributing
 

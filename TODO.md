@@ -6,19 +6,35 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### UX Improvements
 
-- [ ] **iTerm tab support** - Add `--iterm-tab` flag to open AI tool in a new iTerm tab instead of a new window
-  - Applies to: `cw new`, `cw attach`
-  - Related: `--iterm` currently opens new windows
+- [ ] **`cw resume [branch]`** - Resume AI work in a worktree with context restoration
+  - Replaces `cw attach` with better semantics and context management
+  - Optional branch argument: `cw resume fix-auth` or `cw resume` (current dir)
+  - **Context restoration**: Restore previous AI session history for seamless work continuation
+  - Session storage: `~/.config/claude-worktree/sessions/<branch>/`
+  - Support Claude Code, Codex, Happy (pluggable architecture)
+  - Flags: `--no-ai`, `--bg`, `--iterm`, `--iterm-tab`, `--tmux`
+  - Implementation phases:
+    1. Investigate Claude Code CLI session management
+    2. Build session backup/restore system
+    3. Implement `cw resume` command
+    4. Add multi-AI tool support
 
-- [ ] **Consistent flags for `cw attach`** - Add missing flags to match `cw new` behavior
-  - `--no-cd`: Don't change directory when attaching to a worktree by branch name
-  - `--no-ai`: Change directory only, skip launching AI tool
+- [ ] **Deprecate `cw attach`** - Migrate users to `cw resume`
+  - Show deprecation warning: "Warning: 'cw attach' is deprecated and will be removed in v2.0. Use 'cw resume' instead."
+  - Internally calls `resume_worktree()` for backward compatibility
+  - Update all documentation to reference `cw resume`
+  - Remove in next major version (v2.0)
+
+- [ ] **iTerm tab support** - Add `--iterm-tab` flag to open AI tool in a new iTerm tab instead of a new window
+  - Applies to: `cw new`, `cw resume`
+  - Related: `--iterm` currently opens new windows
 
 - [ ] **Shell function for `cw cd`** - Enable direct directory navigation to worktrees
   - Implement `cw _cd <branch>` internal command (outputs worktree path)
   - Add `cw install-shell-function` command to install shell wrapper
   - Support bash, zsh, and fish shells
   - Usage: `cw cd <branch>` changes to the worktree directory
+  - Lower priority: can manually `cd` for now
 
 ### Terminology Cleanup
 
@@ -50,11 +66,6 @@ This document tracks planned features, enhancements, and known issues for the cl
   - `cw clean --older-than <days>` - Delete worktrees older than N days
   - `cw clean --interactive` - Interactive selection UI
   - Use case: Periodic cleanup of accumulated worktrees
-
-- [ ] **`cw resume <branch>`** - Convenient worktree restart
-  - Combines directory change + AI tool attach in one command
-  - More intuitive than separate `cd` + `cw attach`
-  - Flags: `--no-ai`, `--bg`, `--iterm`, `--iterm-tab`, `--tmux`
 
 ### Safety & Preview
 
@@ -155,9 +166,16 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## Testing
 
+- [ ] Add tests for `cw resume` command
+  - Test context restoration with mocked session files
+  - Test optional branch argument behavior
+  - Test backward compatibility with `cw attach`
+- [ ] Add tests for session manager
+  - Session backup/restore logic
+  - Multi-AI tool support
+  - Session file format validation
 - [ ] Add tests for iTerm tab functionality
 - [ ] Add tests for shell function generation (`cw _cd`)
-- [ ] Add integration tests for `cw attach` new flags
 - [ ] Add tests for AI conflict resolution workflow
 - [ ] Add tests for `cw sync` command
 - [ ] Add tests for `cw clean` command
