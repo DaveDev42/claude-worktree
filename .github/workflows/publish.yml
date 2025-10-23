@@ -1,8 +1,9 @@
 name: Publish
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags (e.g., v0.8.1)
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
@@ -69,17 +70,33 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Required to upload release assets
+      contents: write  # Required to create release and upload assets
 
     steps:
+    - uses: actions/checkout@v4
+
     - name: Download distributions
       uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
 
-    - name: Upload release assets
+    - name: Extract version from tag
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Extract changelog for this version
+      id: changelog
+      run: |
+        # Extract the changelog section for this version
+        awk '/^## \[${{ steps.version.outputs.version }}\]/, /^## \[/' CHANGELOG.md | sed '$d' > release_notes.md
+
+    - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        gh release upload '${{ github.ref_name }}' dist/** --repo '${{ github.repository }}' --clobber
+        gh release create '${{ github.ref_name }}' \
+          --repo '${{ github.repository }}' \
+          --title 'Release ${{ github.ref_name }}' \
+          --notes-file release_notes.md \
+          dist/**
