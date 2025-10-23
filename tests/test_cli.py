@@ -67,11 +67,18 @@ def test_new_command_with_deprecated_flag(temp_git_repo: Path, disable_claude) -
 
 def test_new_command_help_shows_deprecated() -> None:
     """Test that help message shows --no-claude as deprecated."""
+    import re
+
     result = runner.invoke(app, ["new", "--help"])
     assert result.exit_code == 0
-    assert "deprecated" in result.stdout.lower()
-    assert "--no-ai" in result.stdout
-    assert "--no-claude" in result.stdout
+
+    # Strip ANSI color codes for reliable string matching
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    clean_output = ansi_escape.sub("", result.stdout)
+
+    assert "deprecated" in clean_output.lower()
+    assert "--no-ai" in clean_output
+    assert "--no-claude" in clean_output
 
 
 def test_new_command_with_base(temp_git_repo: Path, disable_claude) -> None:
