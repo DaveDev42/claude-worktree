@@ -2,14 +2,14 @@
 
 ## Project Overview
 
-**claude-worktree** is a CLI tool that seamlessly integrates git worktree with Claude Code to streamline feature development workflows. It allows developers to quickly create isolated worktrees for feature branches, work with Claude Code in those environments, and cleanly merge changes back to the base branch.
+**claude-worktree** is a CLI tool that seamlessly integrates git worktree with AI coding assistants to streamline feature development workflows. It allows developers to quickly create isolated worktrees for feature branches, work with their preferred AI tool (Claude Code, Codex, Happy, or custom) in those environments, and cleanly merge changes back to the base branch.
 
 ## Core Concept
 
 Instead of switching branches in a single working directory, `claude-worktree` creates separate directories (worktrees) for each feature branch. This allows:
 - Multiple features to be worked on simultaneously
 - Clean isolation between different tasks
-- Automatic Claude Code session management per feature
+- Automatic AI coding assistant session management per feature (configurable per user)
 - Safe merge workflows with automatic cleanup
 
 ## Project Structure
@@ -21,11 +21,13 @@ claude-worktree/
 │   ├── __main__.py               # Entry point for `python -m claude_worktree`
 │   ├── cli.py                    # Typer-based CLI definitions
 │   ├── core.py                   # Core business logic (commands implementation)
+│   ├── config.py                 # Configuration management
 │   ├── git_utils.py              # Git operations wrapper
 │   ├── exceptions.py             # Custom exception classes
 │   └── constants.py              # Constants and default values
 ├── tests/                        # Test suite
 │   ├── test_core.py
+│   ├── test_config.py
 │   ├── test_git_utils.py
 │   ├── test_cli.py
 │   └── conftest.py               # pytest fixtures
@@ -46,7 +48,7 @@ claude-worktree/
 - **`cw new <name>`**: Create new worktree with specified branch name
   - Default path: `../<repo>-<branch>` (e.g., `../myproject-fix-auth/`)
   - Customizable with `--path` option
-  - Automatically launches Claude Code in the new worktree
+  - Automatically launches configured AI tool in the new worktree
 
 - **`cw finish`**: Complete feature work
   - Rebases feature branch on base branch
@@ -61,15 +63,29 @@ claude-worktree/
 - **`cw status`**: Show current worktree metadata
 - **`cw prune`**: Clean up orphaned worktrees
 
-### 2. Claude Code Integration
-- **`cw attach`**: Reattach Claude Code to current worktree
+### 2. AI Tool Integration
+- **`cw attach`**: Reattach AI tool to current worktree
 - Launch options:
   - `--bg`: Background process
   - `--iterm`: New iTerm2 window (macOS)
   - `--tmux <session>`: New tmux session
-  - `--no-claude`: Skip Claude launch
+  - `--no-claude`: Skip AI tool launch
+- Supports multiple AI tools:
+  - Claude Code (default)
+  - Codex
+  - Happy (with Claude or Codex backend)
+  - Custom commands
 
-### 3. Shell Completion
+### 3. Configuration Management
+- **`cw config show`**: Display current configuration
+- **`cw config set <key> <value>`**: Set configuration value
+- **`cw config use-preset <name>`**: Use predefined AI tool preset
+- **`cw config list-presets`**: List available presets
+- **`cw config reset`**: Reset to defaults
+- Configuration stored in `~/.config/claude-worktree/config.json`
+- Environment variable override: `CW_AI_TOOL`
+
+### 4. Shell Completion
 - Typer provides automatic shell completion for bash/zsh/fish
 - Install with: `cw --install-completion`
 

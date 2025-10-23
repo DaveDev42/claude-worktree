@@ -8,6 +8,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from .config import get_ai_tool_command
 from .constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from .exceptions import (
     GitError,
@@ -436,19 +437,32 @@ def launch_claude(
     tmux_session: str | None = None,
 ) -> None:
     """
-    Launch Claude Code in the specified directory.
+    Launch AI coding assistant in the specified directory.
 
     Args:
-        path: Directory to launch Claude in
+        path: Directory to launch AI tool in
         bg: Launch in background
         iterm: Launch in new iTerm window (macOS only)
         tmux_session: Launch in new tmux session
     """
-    if not has_command("claude"):
-        console.print("[yellow]⚠[/yellow] Claude CLI not detected. Skipping Claude launch.\n")
+    # Get configured AI tool command
+    ai_cmd_parts = get_ai_tool_command()
+    ai_tool_name = ai_cmd_parts[0]
+
+    # Check if the command exists
+    if not has_command(ai_tool_name):
+        console.print(
+            f"[yellow]⚠[/yellow] {ai_tool_name} not detected. "
+            f"Install it or update your config with 'cw config set ai-tool <tool>'.\n"
+        )
         return
 
-    cmd = "claude --dangerously-skip-permissions"
+    # Build command - add --dangerously-skip-permissions for Claude only
+    cmd_parts = ai_cmd_parts.copy()
+    if ai_tool_name == "claude":
+        cmd_parts.append("--dangerously-skip-permissions")
+
+    cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 
     if tmux_session:
         if not has_command("tmux"):
@@ -458,7 +472,7 @@ def launch_claude(
             cwd=str(path),
         )
         console.print(
-            f"[bold green]✓[/bold green] Claude running in tmux session '{tmux_session}'\n"
+            f"[bold green]✓[/bold green] {ai_tool_name} running in tmux session '{tmux_session}'\n"
         )
         return
 
@@ -477,14 +491,14 @@ def launch_claude(
 APPLESCRIPT
         """
         subprocess.run(["bash", "-lc", script], check=True)
-        console.print("[bold green]✓[/bold green] Claude running in new iTerm window\n")
+        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in new iTerm window\n")
         return
 
     if bg:
         subprocess.Popen(["bash", "-lc", cmd], cwd=str(path))
-        console.print("[bold green]✓[/bold green] Claude running in background\n")
+        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in background\n")
     else:
-        console.print("[cyan]Starting Claude Code (Ctrl+C to exit)...[/cyan]\n")
+        console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
         subprocess.run(["bash", "-lc", cmd], cwd=str(path), check=False)
 
 
@@ -494,7 +508,7 @@ def attach_claude(
     tmux_session: str | None = None,
 ) -> None:
     """
-    Reattach Claude Code to the current worktree.
+    Reattach AI coding assistant to the current worktree.
 
     Args:
         bg: Launch in background
@@ -502,5 +516,6 @@ def attach_claude(
         tmux_session: Launch in new tmux session
     """
     path = Path.cwd()
-    console.print(f"[cyan]Attaching Claude to:[/cyan] {path}\n")
+    ai_tool_name = get_ai_tool_command()[0]
+    console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
     launch_claude(path, bg=bg, iterm=iterm, tmux_session=tmux_session)

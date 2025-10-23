@@ -6,6 +6,17 @@ import typer
 from rich.console import Console
 
 from . import __version__
+from .config import (
+    ConfigError,
+    reset_config,
+    set_ai_tool,
+    set_config_value,
+    show_config,
+    use_preset,
+)
+from .config import (
+    list_presets as list_ai_presets,
+)
 from .core import (
     attach_claude,
     create_worktree,
@@ -351,6 +362,138 @@ def upgrade() -> None:
         console.print("\n\n[yellow]Upgrade cancelled[/yellow]")
         raise typer.Exit(code=1)
     except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+# Configuration commands
+config_app = typer.Typer(
+    name="config",
+    help="Manage configuration settings",
+    no_args_is_help=True,
+)
+app.add_typer(config_app, name="config")
+
+
+@config_app.command()
+def show() -> None:
+    """
+    Show current configuration.
+
+    Displays all configuration settings including the AI tool command,
+    launch method, and default base branch.
+
+    Example:
+        cw config show
+    """
+    try:
+        output = show_config()
+        console.print(output)
+    except (ClaudeWorktreeError, ConfigError) as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command(name="set")
+def set_cmd(
+    key: str = typer.Argument(
+        ...,
+        help="Configuration key (e.g., 'ai-tool', 'git.default_base_branch')",
+    ),
+    value: str = typer.Argument(
+        ...,
+        help="Configuration value",
+    ),
+) -> None:
+    """
+    Set a configuration value.
+
+    Supports the following keys:
+    - ai-tool: Set the AI coding assistant command
+    - git.default_base_branch: Set default base branch
+
+    Example:
+        cw config set ai-tool claude
+        cw config set ai-tool "happy --backend claude"
+        cw config set git.default_base_branch develop
+    """
+    try:
+        # Special handling for ai-tool
+        if key == "ai-tool":
+            # Parse value as command with potential arguments
+            parts = value.split()
+            command = parts[0]
+            args = parts[1:] if len(parts) > 1 else []
+            set_ai_tool(command, args)
+            console.print(f"[bold green]✓[/bold green] AI tool set to: {value}")
+        else:
+            set_config_value(key, value)
+            console.print(f"[bold green]✓[/bold green] {key} = {value}")
+    except (ClaudeWorktreeError, ConfigError) as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command(name="use-preset")
+def use_preset_cmd(
+    preset: str = typer.Argument(
+        ...,
+        help="Preset name (e.g., 'claude', 'codex', 'happy-claude', 'happy-codex')",
+    ),
+) -> None:
+    """
+    Use a predefined AI tool preset.
+
+    Available presets:
+    - claude: Claude Code CLI
+    - codex: OpenAI Codex
+    - happy-claude: Happy with Claude backend
+    - happy-codex: Happy with Codex backend
+
+    Example:
+        cw config use-preset claude
+        cw config use-preset happy-claude
+    """
+    try:
+        use_preset(preset)
+        console.print(f"[bold green]✓[/bold green] Using preset: {preset}")
+    except (ClaudeWorktreeError, ConfigError) as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command(name="list-presets")
+def list_presets_cmd() -> None:
+    """
+    List all available AI tool presets.
+
+    Shows all predefined presets with their corresponding commands.
+
+    Example:
+        cw config list-presets
+    """
+    try:
+        output = list_ai_presets()
+        console.print(output)
+    except (ClaudeWorktreeError, ConfigError) as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@config_app.command()
+def reset() -> None:
+    """
+    Reset configuration to defaults.
+
+    Restores all configuration values to their default settings.
+
+    Example:
+        cw config reset
+    """
+    try:
+        reset_config()
+        console.print("[bold green]✓[/bold green] Configuration reset to defaults")
+    except (ClaudeWorktreeError, ConfigError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
 

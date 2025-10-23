@@ -9,14 +9,17 @@
 
 ## What is Claude Worktree?
 
-**claude-worktree** (or `cw` for short) is a CLI tool that makes it effortless to work on multiple git branches simultaneously using git worktrees, with automatic Claude Code integration. No more branch switching, stashing changes, or losing context—each feature gets its own directory and Claude session.
+**claude-worktree** (or `cw` for short) is a CLI tool that makes it effortless to work on multiple git branches simultaneously using git worktrees, with automatic AI coding assistant integration. No more branch switching, stashing changes, or losing context—each feature gets its own directory and AI session.
+
+Works with Claude Code, Codex, Happy, and any custom AI tool.
 
 ### Key Features
 
 - 🌳 **Easy Worktree Management**: Create isolated directories for each feature branch
-- 🤖 **Claude Code Integration**: Automatically launch Claude Code in each worktree
+- 🤖 **Multi-AI Support**: Works with Claude Code, Codex, Happy, and custom AI tools
 - 🔄 **Clean Merge Workflow**: Rebase, merge, and cleanup with a single command
 - 📦 **Simple Naming**: Use clean branch names without timestamp clutter
+- ⚙️ **Flexible Configuration**: Customize AI tool, presets, and defaults
 - ⚡ **Shell Completion**: Tab completion for bash/zsh/fish
 - 🎯 **Type-Safe**: Built with type hints and modern Python practices
 
@@ -159,11 +162,17 @@ Removes administrative data for worktrees with "stale" status (directories that 
 |---------|-------------|
 | `cw new <name>` | Create new worktree with specified branch name |
 | `cw finish` | Rebase, merge, and cleanup current worktree |
-| `cw attach` | Reattach Claude Code to current worktree |
+| `cw attach` | Reattach AI tool to current worktree |
 | `cw list` | List all worktrees |
 | `cw status` | Show current worktree status |
 | `cw delete <target>` | Delete worktree by branch name or path |
 | `cw prune` | Prune stale worktree data |
+| `cw config show` | Show current configuration |
+| `cw config set <key> <value>` | Set configuration value |
+| `cw config use-preset <name>` | Use a predefined AI tool preset |
+| `cw config list-presets` | List available presets |
+| `cw config reset` | Reset configuration to defaults |
+| `cw upgrade` | Upgrade to the latest version |
 
 ## Shell Completion
 
@@ -184,7 +193,46 @@ cw new --<TAB>    # Shows available options
 
 ## Configuration
 
-### Default Behavior
+### AI Tool Configuration
+
+By default, `claude-worktree` launches Claude Code, but you can configure it to work with other AI coding assistants like Codex or Happy:
+
+```bash
+# Show current configuration
+cw config show
+
+# Set a custom AI tool
+cw config set ai-tool claude
+cw config set ai-tool codex
+cw config set ai-tool "happy --backend claude"
+
+# Use a predefined preset
+cw config use-preset claude
+cw config use-preset codex
+cw config use-preset happy-claude
+cw config use-preset happy-codex
+
+# List available presets
+cw config list-presets
+
+# Reset to defaults
+cw config reset
+```
+
+Configuration is stored in `~/.config/claude-worktree/config.json`.
+
+#### Configuration Priority
+
+1. Environment variable (`CW_AI_TOOL`)
+2. Config file (`~/.config/claude-worktree/config.json`)
+3. Default (`claude`)
+
+Example using environment variable:
+```bash
+CW_AI_TOOL="happy --backend codex" cw new feature-name
+```
+
+### Default Worktree Path
 
 By default, `cw new <branch>` creates worktrees at:
 ```
@@ -195,10 +243,10 @@ For example, if your repository is at `/Users/dave/myproject` and you run `cw ne
 - Worktree path: `/Users/dave/myproject-fix-auth/`
 - Branch name: `fix-auth` (no timestamp)
 
-### Claude Code Options
+### Launch Options
 
-- `--no-claude`: Skip launching Claude Code
-- `--bg`: Launch Claude in background
+- `--no-claude`: Skip launching AI tool
+- `--bg`: Launch in background
 - `--iterm`: Launch in new iTerm window (macOS only)
 - `--tmux <name>`: Launch in new tmux session
 
@@ -206,7 +254,7 @@ For example, if your repository is at `/Users/dave/myproject` and you run `cw ne
 
 - **Git**: Version 2.31 or higher
 - **Python**: 3.11 or higher
-- **Claude CLI** (optional): For automatic Claude Code integration
+- **AI Tool** (optional): Claude Code, Codex, Happy, or any custom AI coding assistant
 
 ## How It Works
 
@@ -233,7 +281,7 @@ This allows the `finish` command to know:
 2. **Create**: Run `cw new fix-auth`
    - Creates branch `fix-auth` from `main`
    - Creates worktree at `/Users/dave/myproject-fix-auth/`
-   - Launches Claude Code
+   - Launches your configured AI tool (Claude Code by default)
 3. **Work**: Make changes and commit in the worktree
 4. **Finish**: Run `cw finish --push`
    - Rebases `fix-auth` onto `main`
@@ -247,11 +295,19 @@ This allows the `finish` command to know:
 
 Make sure you're running commands from within a git repository.
 
-### "Claude CLI not found"
+### "AI tool not detected"
 
-Install Claude Code CLI from: https://claude.ai/download
+Install your preferred AI coding assistant:
+- **Claude Code**: https://claude.ai/download
+- **Codex**: Follow OpenAI's installation instructions
+- **Happy**: Check Happy's documentation
 
-Or use `--no-claude` flag to skip Claude integration.
+Or use `--no-claude` flag to skip AI tool launch.
+
+Alternatively, configure a different AI tool:
+```bash
+cw config set ai-tool <your-tool>
+```
 
 ### "Rebase failed"
 
