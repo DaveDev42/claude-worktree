@@ -114,7 +114,7 @@ def test_finish_command_help() -> None:
     """Test finish command help."""
     result = runner.invoke(app, ["finish", "--help"])
     assert result.exit_code == 0
-    assert "Finish work on current worktree" in result.stdout
+    assert "Finish work on a worktree" in result.stdout
 
 
 def test_finish_command_execution(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
