@@ -41,6 +41,7 @@ def create_worktree(
     no_claude: bool = False,
     bg: bool = False,
     iterm: bool = False,
+    iterm_tab: bool = False,
     tmux_session: str | None = None,
 ) -> Path:
     """
@@ -54,6 +55,7 @@ def create_worktree(
         no_claude: Don't launch AI tool (parameter name kept for backward compatibility)
         bg: Launch AI tool in background
         iterm: Launch AI tool in new iTerm window (macOS only)
+        iterm_tab: Launch AI tool in new iTerm tab (macOS only)
         tmux_session: Launch AI tool in new tmux session
 
     Returns:
@@ -118,7 +120,9 @@ def create_worktree(
 
     # Launch AI tool
     if not no_claude:
-        launch_ai_tool(worktree_path, bg=bg, iterm=iterm, tmux_session=tmux_session)
+        launch_ai_tool(
+            worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
+        )
 
     return worktree_path
 
@@ -458,6 +462,7 @@ def launch_ai_tool(
     path: Path,
     bg: bool = False,
     iterm: bool = False,
+    iterm_tab: bool = False,
     tmux_session: str | None = None,
 ) -> None:
     """
@@ -467,6 +472,7 @@ def launch_ai_tool(
         path: Directory to launch AI tool in
         bg: Launch in background
         iterm: Launch in new iTerm window (macOS only)
+        iterm_tab: Launch in new iTerm tab (macOS only)
         tmux_session: Launch in new tmux session
     """
     # Get configured AI tool command
@@ -500,6 +506,26 @@ def launch_ai_tool(
         )
         return
 
+    if iterm_tab:
+        if sys.platform != "darwin":
+            raise GitError("--iterm-tab option only works on macOS")
+        script = f"""
+        osascript <<'APPLESCRIPT'
+        tell application "iTerm"
+          activate
+          tell current window
+            create tab with default profile
+            tell current session
+              write text "cd {shlex.quote(str(path))} && {cmd}"
+            end tell
+          end tell
+        end tell
+APPLESCRIPT
+        """
+        subprocess.run(["bash", "-lc", script], check=True)
+        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in new iTerm tab\n")
+        return
+
     if iterm:
         if sys.platform != "darwin":
             raise GitError("--iterm option only works on macOS")
@@ -529,6 +555,7 @@ APPLESCRIPT
 def attach_ai_tool(
     bg: bool = False,
     iterm: bool = False,
+    iterm_tab: bool = False,
     tmux_session: str | None = None,
 ) -> None:
     """
@@ -537,18 +564,20 @@ def attach_ai_tool(
     Args:
         bg: Launch in background
         iterm: Launch in new iTerm window (macOS only)
+        iterm_tab: Launch in new iTerm tab (macOS only)
         tmux_session: Launch in new tmux session
     """
     path = Path.cwd()
     ai_tool_name = get_ai_tool_command()[0]
     console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
-    launch_ai_tool(path, bg=bg, iterm=iterm, tmux_session=tmux_session)
+    launch_ai_tool(path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session)
 
 
 def resume_worktree(
     worktree: str | None = None,
     bg: bool = False,
     iterm: bool = False,
+    iterm_tab: bool = False,
     tmux_session: str | None = None,
     no_ai: bool = False,
 ) -> None:
@@ -559,6 +588,7 @@ def resume_worktree(
         worktree: Branch name of worktree to resume (optional, defaults to current directory)
         bg: Launch AI tool in background
         iterm: Launch AI tool in new iTerm window (macOS only)
+        iterm_tab: Launch AI tool in new iTerm tab (macOS only)
         tmux_session: Launch AI tool in new tmux session
         no_ai: Skip launching AI tool
 
@@ -629,4 +659,6 @@ def resume_worktree(
     # Launch AI tool if not disabled
     if not no_ai:
         console.print(f"[cyan]Resuming {ai_tool_name} in:[/cyan] {worktree_path}\n")
-        launch_ai_tool(worktree_path, bg=bg, iterm=iterm, tmux_session=tmux_session)
+        launch_ai_tool(
+            worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
+        )

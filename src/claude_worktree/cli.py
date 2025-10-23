@@ -132,6 +132,11 @@ def new(
         "--iterm",
         help="Launch AI tool in new iTerm window (macOS only)",
     ),
+    iterm_tab: bool = typer.Option(
+        False,
+        "--iterm-tab",
+        help="Launch AI tool in new iTerm tab (macOS only)",
+    ),
     tmux: str | None = typer.Option(
         None,
         "--tmux",
@@ -159,6 +164,7 @@ def new(
             no_claude=no_claude,
             bg=bg,
             iterm=iterm,
+            iterm_tab=iterm_tab,
             tmux_session=tmux,
         )
     except ClaudeWorktreeError as e:
@@ -221,6 +227,11 @@ def resume(
         "--iterm",
         help="Launch AI tool in new iTerm window (macOS only)",
     ),
+    iterm_tab: bool = typer.Option(
+        False,
+        "--iterm-tab",
+        help="Launch AI tool in new iTerm tab (macOS only)",
+    ),
     tmux: str | None = typer.Option(
         None,
         "--tmux",
@@ -246,7 +257,14 @@ def resume(
         cw resume my-feature --no-ai   # Just switch to worktree without AI
     """
     try:
-        resume_worktree(worktree=worktree, bg=bg, iterm=iterm, tmux_session=tmux, no_ai=no_ai)
+        resume_worktree(
+            worktree=worktree,
+            bg=bg,
+            iterm=iterm,
+            iterm_tab=iterm_tab,
+            tmux_session=tmux,
+            no_ai=no_ai,
+        )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -268,6 +286,11 @@ def attach(
         False,
         "--iterm",
         help="Launch AI tool in new iTerm window (macOS only)",
+    ),
+    iterm_tab: bool = typer.Option(
+        False,
+        "--iterm-tab",
+        help="Launch AI tool in new iTerm tab (macOS only)",
     ),
     tmux: str | None = typer.Option(
         None,
@@ -298,7 +321,14 @@ def attach(
         )
 
         # Redirect to resume_worktree
-        resume_worktree(worktree=worktree, bg=bg, iterm=iterm, tmux_session=tmux, no_ai=False)
+        resume_worktree(
+            worktree=worktree,
+            bg=bg,
+            iterm=iterm,
+            iterm_tab=iterm_tab,
+            tmux_session=tmux,
+            no_ai=False,
+        )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
