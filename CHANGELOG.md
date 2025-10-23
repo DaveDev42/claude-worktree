@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2025-10-24
+
+### Improved
+- **Enhanced shell completion**: Added autocompletion for better user experience
+  - `cw config use-preset <TAB>`: Now autocompletes preset names (claude, codex, happy, happy-codex, happy-yolo, no-op)
+  - `cw _path <TAB>`: Now autocompletes worktree branch names (internal command used by shell functions)
+  - Updated preset documentation to reflect current available presets
+
 ## [0.8.0] - 2025-10-24
 
 ### Removed
@@ -256,7 +264,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.1...v0.6.2
