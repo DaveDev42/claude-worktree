@@ -92,6 +92,12 @@ claude-worktree/
 - **`cw config show`**: Display current configuration
 - **`cw config set <key> <value>`**: Set configuration value
 - **`cw config use-preset <name>`**: Use predefined AI tool preset
+  - Available presets:
+    - `claude`: Claude Code (default)
+    - `codex`: OpenAI Codex
+    - `happy`: Happy with Claude Code (mobile-enabled)
+    - `happy-codex`: Happy with Codex mode
+    - `happy-sonnet`, `happy-opus`, `happy-haiku`: Happy with model selection
 - **`cw config list-presets`**: List available presets
 - **`cw config reset`**: Reset to defaults
 - Configuration stored in `~/.config/claude-worktree/config.json`

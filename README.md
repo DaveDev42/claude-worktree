@@ -209,8 +209,11 @@ cw config set ai-tool "happy --backend claude"
 # Use a predefined preset
 cw config use-preset claude
 cw config use-preset codex
-cw config use-preset happy-claude
+cw config use-preset happy
 cw config use-preset happy-codex
+cw config use-preset happy-sonnet
+cw config use-preset happy-opus
+cw config use-preset happy-haiku
 
 # List available presets
 cw config list-presets
@@ -229,7 +232,71 @@ Configuration is stored in `~/.config/claude-worktree/config.json`.
 
 Example using environment variable:
 ```bash
-CW_AI_TOOL="happy --backend codex" cw new feature-name
+CW_AI_TOOL="aider" cw new feature-name
+```
+
+### Using Happy (Mobile Claude Code)
+
+[Happy](https://github.com/slopus/happy-cli) is a mobile-enabled wrapper for Claude Code that allows you to control coding sessions from your phone.
+
+#### Installation
+
+```bash
+npm install -g happy-coder
+```
+
+#### Quick Start
+
+```bash
+# Use Happy preset (Claude Code with mobile)
+cw config use-preset happy
+
+# Create worktree with Happy
+cw new my-feature
+
+# QR code will appear for mobile connection
+```
+
+#### Model Selection
+
+```bash
+# Use specific Claude model
+cw config use-preset happy-opus
+cw new my-feature
+
+# Or customize directly
+cw config set ai-tool "happy -m sonnet"
+```
+
+#### Using Happy with Codex
+
+```bash
+# Switch to Codex mode
+cw config use-preset happy-codex
+cw new my-feature
+```
+
+#### Advanced Configuration
+
+```bash
+# Custom Happy server
+export HAPPY_SERVER_URL=https://my-server.com
+cw config set ai-tool "happy"
+
+# Pass additional arguments to Claude
+cw config set ai-tool "happy --claude-arg --dangerously-skip-permissions"
+```
+
+### Custom AI Tools
+
+You can use any AI coding assistant by setting a custom command:
+
+```bash
+# Set custom command
+cw config set ai-tool "my-ai-tool --option value"
+
+# Or use environment variable for one-time override
+CW_AI_TOOL="aider" cw new my-feature
 ```
 
 ### Default Worktree Path

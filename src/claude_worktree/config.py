@@ -21,10 +21,17 @@ class ConfigError(ClaudeWorktreeError):
 
 # Predefined AI tool presets
 AI_TOOL_PRESETS = {
+    # Claude Code
     "claude": ["claude"],
+    # Codex
     "codex": ["codex"],
-    "happy-claude": ["happy", "--backend", "claude"],
-    "happy-codex": ["happy", "--backend", "codex"],
+    # Happy (mobile-enabled Claude Code)
+    "happy": ["happy"],  # Default: Claude Code mode
+    "happy-codex": ["happy", "codex"],  # Codex mode
+    # Happy with model selection
+    "happy-sonnet": ["happy", "-m", "sonnet"],
+    "happy-opus": ["happy", "-m", "opus"],
+    "happy-haiku": ["happy", "-m", "haiku"],
 }
 
 

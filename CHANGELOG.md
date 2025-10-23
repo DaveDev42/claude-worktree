@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2025-10-24
+
+### Fixed
+- **Happy-CLI preset commands**: Corrected Happy-CLI integration
+  - Removed incorrect `--backend` option (not supported by Happy)
+  - Renamed `happy-claude` → `happy` (Claude Code is the default mode)
+  - Fixed `happy-codex` to use correct subcommand syntax: `happy codex`
+
+### Added
+- **New Happy presets with model selection**:
+  - `happy-sonnet`: Happy with Sonnet model (`happy -m sonnet`)
+  - `happy-opus`: Happy with Opus model (`happy -m opus`)
+  - `happy-haiku`: Happy with Haiku model (`happy -m haiku`)
+
+### Documentation
+- Added comprehensive Happy-CLI integration guide to README
+  - Installation instructions
+  - Quick start guide
+  - Model selection examples
+  - Codex mode usage
+  - Advanced configuration options
+- Added custom AI tool configuration examples
+- Updated CLAUDE.md with corrected preset information
+- Improved preset usage documentation
+
+### Changed
+- **Breaking**: Removed `happy-claude` preset (use `happy` instead)
+  - Note: This preset was non-functional in previous versions, so impact is minimal
+
 ## [0.6.1] - 2025-10-24
 
 ### Fixed
@@ -189,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.4.0...v0.5.0

@@ -133,7 +133,7 @@ def test_get_ai_tool_command_preset(temp_config_dir: Path) -> None:
     save_config(config)
 
     cmd = get_ai_tool_command()
-    assert cmd == AI_TOOL_PRESETS["happy-codex"]
+    assert cmd == ["happy", "codex"]
 
 
 def test_get_ai_tool_command_preset_with_extra_args(temp_config_dir: Path) -> None:
@@ -186,10 +186,10 @@ def test_set_ai_tool_no_args(temp_config_dir: Path) -> None:
 
 def test_use_preset(temp_config_dir: Path) -> None:
     """Test using a preset."""
-    use_preset("happy-claude")
+    use_preset("happy")
 
     config = load_config()
-    assert config["ai_tool"]["command"] == "happy-claude"
+    assert config["ai_tool"]["command"] == "happy"
     assert config["ai_tool"]["args"] == []
 
 
@@ -338,9 +338,49 @@ def test_config_merges_with_defaults(temp_config_dir: Path) -> None:
 
 def test_ai_tool_presets_defined() -> None:
     """Test that expected presets are defined."""
-    expected_presets = ["claude", "codex", "happy-claude", "happy-codex"]
+    expected_presets = [
+        "claude",
+        "codex",
+        "happy",
+        "happy-codex",
+        "happy-sonnet",
+        "happy-opus",
+        "happy-haiku",
+    ]
 
     for preset in expected_presets:
         assert preset in AI_TOOL_PRESETS
         assert isinstance(AI_TOOL_PRESETS[preset], list)
         assert len(AI_TOOL_PRESETS[preset]) > 0
+
+
+def test_happy_preset_commands() -> None:
+    """Test that Happy presets generate correct commands."""
+    # Test basic happy (Claude Code mode)
+    assert AI_TOOL_PRESETS["happy"] == ["happy"]
+
+    # Test happy-codex (Codex mode)
+    assert AI_TOOL_PRESETS["happy-codex"] == ["happy", "codex"]
+
+    # Test happy with model selection
+    assert AI_TOOL_PRESETS["happy-sonnet"] == ["happy", "-m", "sonnet"]
+    assert AI_TOOL_PRESETS["happy-opus"] == ["happy", "-m", "opus"]
+    assert AI_TOOL_PRESETS["happy-haiku"] == ["happy", "-m", "haiku"]
+
+
+def test_use_happy_presets(temp_config_dir: Path) -> None:
+    """Test using Happy presets."""
+    # Test happy preset
+    use_preset("happy")
+    cmd = get_ai_tool_command()
+    assert cmd == ["happy"]
+
+    # Test happy-codex preset
+    use_preset("happy-codex")
+    cmd = get_ai_tool_command()
+    assert cmd == ["happy", "codex"]
+
+    # Test happy-opus preset
+    use_preset("happy-opus")
+    cmd = get_ai_tool_command()
+    assert cmd == ["happy", "-m", "opus"]
