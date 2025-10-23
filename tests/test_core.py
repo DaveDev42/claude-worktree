@@ -576,3 +576,52 @@ def test_resume_worktree_creates_session_metadata(
     metadata = session_manager.load_session_metadata("metadata-test")
     assert metadata["branch"] == "metadata-test"
     assert metadata["worktree_path"] == str(worktree_path)
+
+
+def test_launch_ai_tool_with_iterm_tab(temp_git_repo: Path, mocker) -> None:
+    """Test launch_ai_tool with iterm_tab parameter on macOS."""
+    from claude_worktree.core import launch_ai_tool
+
+    # Mock has_command to return True for AI tool
+    mocker.patch("claude_worktree.core.has_command", return_value=True)
+
+    # Mock sys.platform to be darwin (macOS)
+    mocker.patch("claude_worktree.core.sys.platform", "darwin")
+
+    # Mock subprocess.run to capture the AppleScript command
+    mock_run = mocker.patch("claude_worktree.core.subprocess.run")
+
+    # Call launch_ai_tool with iterm_tab=True
+    launch_ai_tool(temp_git_repo, iterm_tab=True)
+
+    # Verify subprocess.run was called
+    assert mock_run.called
+    call_args = mock_run.call_args
+
+    # Verify the command includes osascript and expected iTerm tab commands
+    command = call_args[0][0]
+    assert command[0] == "bash"
+    assert command[1] == "-lc"
+
+    # Verify AppleScript content
+    script = command[2]
+    assert "osascript" in script
+    assert 'tell application "iTerm"' in script
+    assert "create tab with default profile" in script
+    assert "tell current window" in script
+
+
+def test_launch_ai_tool_with_iterm_tab_non_macos(temp_git_repo: Path, mocker) -> None:
+    """Test that iterm_tab raises error on non-macOS platforms."""
+    from claude_worktree.core import launch_ai_tool
+    from claude_worktree.exceptions import GitError
+
+    # Mock has_command to return True for AI tool
+    mocker.patch("claude_worktree.core.has_command", return_value=True)
+
+    # Mock sys.platform to be linux (non-macOS)
+    mocker.patch("claude_worktree.core.sys.platform", "linux")
+
+    # Should raise GitError on non-macOS
+    with pytest.raises(GitError, match="--iterm-tab option only works on macOS"):
+        launch_ai_tool(temp_git_repo, iterm_tab=True)

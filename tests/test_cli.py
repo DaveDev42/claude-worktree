@@ -341,3 +341,45 @@ def test_attach_command_redirects_to_resume(temp_git_repo: Path, disable_claude)
 
     # Clean up
     runner.invoke(app, ["delete", "attach-test"])
+
+
+def test_new_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test that new command accepts --iterm-tab flag."""
+    result = runner.invoke(app, ["new", "iterm-tab-test", "--no-cd", "--no-ai"])
+    assert result.exit_code == 0
+
+    # Verify worktree was created
+    expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-iterm-tab-test"
+    assert expected_path.exists()
+
+    # Clean up
+    runner.invoke(app, ["delete", "iterm-tab-test"])
+
+
+def test_resume_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test that resume command accepts --iterm-tab flag."""
+    # Create a worktree first
+    runner.invoke(app, ["new", "resume-tab-test", "--no-cd", "--no-ai"])
+
+    # Resume with --iterm-tab flag (won't actually launch on non-macOS, but should accept the flag)
+    result = runner.invoke(app, ["resume", "resume-tab-test", "--no-ai"])
+    assert result.exit_code == 0
+
+    # Clean up
+    runner.invoke(app, ["delete", "resume-tab-test"])
+
+
+def test_attach_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test that deprecated attach command accepts --iterm-tab flag."""
+    # Create a worktree first
+    runner.invoke(app, ["new", "attach-tab-test", "--no-cd", "--no-ai"])
+
+    # Attach with --iterm-tab flag
+    result = runner.invoke(app, ["attach", "attach-tab-test"])
+    assert result.exit_code == 0
+
+    # Should show deprecation warning
+    assert "deprecated" in result.stdout.lower()
+
+    # Clean up
+    runner.invoke(app, ["delete", "attach-tab-test"])
