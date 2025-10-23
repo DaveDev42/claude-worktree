@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-10-24
+
 ### Removed
 - **Deprecated `cw attach` command**: Removed after deprecation period
   - The command was deprecated in v0.4.0 and has now been fully removed
@@ -254,7 +256,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.0...v0.6.1
