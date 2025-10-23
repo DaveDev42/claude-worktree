@@ -236,6 +236,55 @@ uv run pytest --cov=claude_worktree --cov-report=term
 
 The pre-commit hooks will automatically run ruff and mypy, but **you must run pytest manually** before committing. GitHub Actions will run all checks, but catching issues locally saves time and CI resources.
 
+### Git commit workflow with pre-commit hooks
+
+**IMPORTANT**: Pre-commit hooks may modify files (e.g., code formatting). Always follow this sequence:
+
+1. **Stage and commit** your changes:
+   ```bash
+   git add <files>
+   git commit -m "Your commit message"
+   ```
+
+2. **Check for hook modifications**:
+   - Pre-commit hooks will run automatically
+   - If hooks modify files, they will be shown as "modified" after commit
+   - Check with `git status`
+
+3. **Amend commit if files were modified**:
+   ```bash
+   git add <modified-files>
+   git commit --amend --no-edit
+   ```
+
+4. **Push to remote**:
+   ```bash
+   git push origin main
+   # Use --force only if you already pushed and then amended
+   git push --force origin main  # (if needed after amend)
+   ```
+
+**Example workflow:**
+```bash
+# Make changes
+vim src/claude_worktree/config.py
+
+# Stage and commit
+git add src/claude_worktree/config.py
+git commit -m "feat: Add new config option"
+
+# Pre-commit hooks run and modify files
+# Check status
+git status
+
+# If files were modified by hooks, amend the commit
+git add src/claude_worktree/config.py  # Add formatted files
+git commit --amend --no-edit
+
+# Push
+git push origin main
+```
+
 ### Running the CLI during development
 
 **Option 1: Run with uv (recommended)**
