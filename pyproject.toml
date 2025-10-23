@@ -51,6 +51,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_worktree"]
+include = [
+    "src/claude_worktree/shell_functions/*.bash",
+    "src/claude_worktree/shell_functions/*.fish",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

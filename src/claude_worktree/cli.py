@@ -446,6 +446,100 @@ def upgrade() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command(name="_path", hidden=True)
+def worktree_path(
+    branch: str = typer.Argument(
+        ...,
+        help="Branch name to get worktree path for",
+    ),
+) -> None:
+    """
+    [Internal] Get worktree path for a branch.
+
+    This is an internal command used by shell functions.
+    Outputs only the worktree path to stdout for machine consumption.
+
+    Example:
+        cw _path fix-auth
+    """
+    import sys
+
+    from .git_utils import find_worktree_by_branch, get_repo_root
+
+    try:
+        repo = get_repo_root()
+        # Try to find worktree by branch name
+        worktree_path = find_worktree_by_branch(repo, branch)
+        if not worktree_path:
+            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{branch}")
+
+        if not worktree_path:
+            print(f"Error: No worktree found for branch '{branch}'", file=sys.stderr)
+            raise typer.Exit(code=1)
+
+        # Output only the path (for shell function consumption)
+        print(worktree_path)
+    except ClaudeWorktreeError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+
+@app.command(name="_shell-function", hidden=True)
+def shell_function(
+    shell: str = typer.Argument(
+        ...,
+        help="Shell type (bash, zsh, or fish)",
+    ),
+) -> None:
+    """
+    [Internal] Output shell function for sourcing.
+
+    This is an internal command that outputs the shell function code
+    for the specified shell. Users can source it to enable cw-cd function.
+
+    Example:
+        source <(cw _shell-function bash)
+        cw _shell-function fish | source
+    """
+    import sys
+
+    shell = shell.lower()
+    valid_shells = ["bash", "zsh", "fish"]
+
+    if shell not in valid_shells:
+        print(
+            f"Error: Invalid shell '{shell}'. Must be one of: {', '.join(valid_shells)}",
+            file=sys.stderr,
+        )
+        raise typer.Exit(code=1)
+
+    try:
+        # Read the shell function file
+        if shell in ["bash", "zsh"]:
+            shell_file = "cw.bash"
+        else:
+            shell_file = "cw.fish"
+
+        # Use importlib.resources to read the file from the package
+        try:
+            # Python 3.9+
+            from importlib.resources import files
+
+            shell_functions = files("claude_worktree").joinpath("shell_functions")
+            script_content = (shell_functions / shell_file).read_text()
+        except (ImportError, AttributeError):
+            # Python 3.8 fallback
+            import importlib.resources as pkg_resources
+
+            script_content = pkg_resources.read_text("claude_worktree.shell_functions", shell_file)
+
+        # Output the shell function script
+        print(script_content)
+    except Exception as e:
+        print(f"Error: Failed to read shell function: {e}", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+
 # Configuration commands
 config_app = typer.Typer(
     name="config",
