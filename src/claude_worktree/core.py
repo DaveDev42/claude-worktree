@@ -543,3 +543,90 @@ def attach_ai_tool(
     ai_tool_name = get_ai_tool_command()[0]
     console.print(f"[cyan]Attaching {ai_tool_name} to:[/cyan] {path}\n")
     launch_ai_tool(path, bg=bg, iterm=iterm, tmux_session=tmux_session)
+
+
+def resume_worktree(
+    worktree: str | None = None,
+    bg: bool = False,
+    iterm: bool = False,
+    tmux_session: str | None = None,
+    no_ai: bool = False,
+) -> None:
+    """
+    Resume AI work in a worktree with context restoration.
+
+    Args:
+        worktree: Branch name of worktree to resume (optional, defaults to current directory)
+        bg: Launch AI tool in background
+        iterm: Launch AI tool in new iTerm window (macOS only)
+        tmux_session: Launch AI tool in new tmux session
+        no_ai: Skip launching AI tool
+
+    Raises:
+        WorktreeNotFoundError: If worktree not found
+        GitError: If git operations fail
+    """
+    from . import session_manager
+
+    # Determine target directory
+    if worktree:
+        # Branch name specified - find its worktree path and change to it
+        repo = get_repo_root()
+        worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
+        if not worktree_path_result:
+            worktree_path_result = find_worktree_by_branch(repo, worktree)
+
+        if not worktree_path_result:
+            raise WorktreeNotFoundError(
+                f"No worktree found for branch '{worktree}'. "
+                f"Use 'cw list' to see available worktrees."
+            )
+
+        worktree_path = Path(worktree_path_result)
+        os.chdir(worktree_path)
+        console.print(f"[dim]Switched to worktree: {worktree_path}[/dim]\n")
+
+        # Get branch name for session lookup
+        try:
+            branch_name = get_current_branch(worktree_path)
+        except InvalidBranchError:
+            raise InvalidBranchError(f"Cannot determine branch for worktree: {worktree_path}")
+    else:
+        # No branch specified - use current directory
+        worktree_path = Path.cwd()
+        try:
+            branch_name = get_current_branch(worktree_path)
+        except InvalidBranchError:
+            raise InvalidBranchError("Cannot determine current branch")
+
+    # Check for existing session
+    if session_manager.session_exists(branch_name):
+        console.print(f"[green]✓[/green] Found session for branch: [bold]{branch_name}[/bold]")
+
+        # Load session metadata
+        metadata = session_manager.load_session_metadata(branch_name)
+        if metadata:
+            console.print(f"[dim]  AI tool: {metadata.get('ai_tool', 'unknown')}[/dim]")
+            console.print(f"[dim]  Last updated: {metadata.get('updated_at', 'unknown')}[/dim]")
+
+        # Load context if available
+        context = session_manager.load_context(branch_name)
+        if context:
+            console.print("\n[cyan]Previous context:[/cyan]")
+            console.print(f"[dim]{context}[/dim]")
+
+        console.print()
+    else:
+        console.print(
+            f"[yellow]ℹ[/yellow] No previous session found for branch: [bold]{branch_name}[/bold]"
+        )
+        console.print()
+
+    # Save session metadata
+    ai_tool_name = get_ai_tool_command()[0]
+    session_manager.save_session_metadata(branch_name, ai_tool_name, str(worktree_path))
+
+    # Launch AI tool if not disabled
+    if not no_ai:
+        console.print(f"[cyan]Resuming {ai_tool_name} in:[/cyan] {worktree_path}\n")
+        launch_ai_tool(worktree_path, bg=bg, iterm=iterm, tmux_session=tmux_session)

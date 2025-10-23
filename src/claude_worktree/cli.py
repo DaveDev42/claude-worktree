@@ -24,6 +24,7 @@ from .core import (
     finish_worktree,
     list_worktrees,
     prune_worktrees,
+    resume_worktree,
     show_status,
 )
 from .exceptions import ClaudeWorktreeError
@@ -199,6 +200,54 @@ def finish(
     """
     try:
         finish_worktree(target=target, push=push)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def resume(
+    worktree: str | None = typer.Argument(
+        None,
+        help="Worktree branch to resume (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
+    bg: bool = typer.Option(
+        False,
+        "--bg",
+        help="Launch AI tool in background",
+    ),
+    iterm: bool = typer.Option(
+        False,
+        "--iterm",
+        help="Launch AI tool in new iTerm window (macOS only)",
+    ),
+    tmux: str | None = typer.Option(
+        None,
+        "--tmux",
+        help="Launch AI tool in new tmux session with given name",
+    ),
+    no_ai: bool = typer.Option(
+        False,
+        "--no-ai",
+        help="Don't launch AI tool, just switch to worktree",
+    ),
+) -> None:
+    """
+    Resume AI work in a worktree with context restoration.
+
+    Launches your configured AI tool in the specified worktree or current directory,
+    restoring previous session context if available. This is the recommended way
+    to continue work on a feature branch.
+
+    Example:
+        cw resume                  # Resume in current directory
+        cw resume fix-auth         # Resume in fix-auth worktree
+        cw resume feature-api --iterm  # Resume in new iTerm window
+        cw resume my-feature --no-ai   # Just switch to worktree without AI
+    """
+    try:
+        resume_worktree(worktree=worktree, bg=bg, iterm=iterm, tmux_session=tmux, no_ai=no_ai)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
