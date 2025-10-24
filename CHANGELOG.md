@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2025-10-24
+
+### Fixed
+- **GitHub Actions publish workflow**: Fixed workflow to trigger on tag pushes
+  - Changed trigger from `release: types: [published]` to `push: tags: v*`
+  - Workflow now automatically publishes to PyPI when version tags are pushed
+  - GitHub Releases are now created automatically with changelog notes
+  - Resolves issue where releases weren't published to PyPI since v0.6.1
+
 ## [0.8.1] - 2025-10-24
 
 ### Improved
@@ -264,7 +273,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.6.2...v0.7.0
