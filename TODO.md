@@ -11,14 +11,15 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Optional branch argument: `cw resume fix-auth` or `cw resume` (current dir)
   - Session storage: `~/.config/claude-worktree/sessions/<branch>/`
   - Supports Claude Code, Codex, Happy, and custom AI tools
-  - Flags: `--no-ai`, `--bg`, `--iterm`, `--iterm-tab`, `--tmux`
+  - Flags: `--bg`, `--iterm`, `--iterm-tab`, `--tmux`
+  - Note: `--no-ai` flag was removed in v0.7.0 (use `cw config use-preset no-op` instead)
 
-- [x] **Deprecate `cw attach`** ✅ Implemented in v0.4.0
-  - Shows deprecation warning and redirects to `cw resume`
-  - Backward compatible, will be removed in v2.0
+- [x] **Remove `cw attach` command** ✅ Completed in v0.8.0
+  - Command was deprecated in v0.4.0 and fully removed in v0.8.0
+  - Use `cw resume` instead for better context management
 
 - [x] **iTerm tab support** ✅ Implemented in v0.5.0
-  - `--iterm-tab` flag available for `cw new`, `cw resume`, `cw attach`
+  - `--iterm-tab` flag available for `cw new` and `cw resume`
   - Opens AI tool in new iTerm2 tab instead of window
 
 - [x] **Shell function for `cw cd`** ✅ Implemented in v0.6.0
@@ -28,9 +29,10 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### Terminology Cleanup
 
-- [x] **Update help text** ✅ Implemented in v0.4.0
+- [x] **Update help text and configuration** ✅ Completed in v0.7.0
   - All user-facing text uses generic "AI tool" terminology
-  - `--no-claude` deprecated in favor of `--no-ai`
+  - `--no-claude` and `--no-ai` flags removed in v0.7.0
+  - Use preset-based configuration instead: `cw config use-preset no-op`
   - Project description kept as "Claude Code × git worktree"
 
 ### AI Integration
