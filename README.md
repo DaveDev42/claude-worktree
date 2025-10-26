@@ -207,13 +207,12 @@ cw config set ai-tool codex
 cw config set ai-tool "happy --backend claude"
 
 # Use a predefined preset
-cw config use-preset claude
-cw config use-preset codex
-cw config use-preset happy
-cw config use-preset happy-codex
-cw config use-preset happy-sonnet
-cw config use-preset happy-opus
-cw config use-preset happy-haiku
+cw config use-preset claude         # Claude Code (default)
+cw config use-preset codex          # OpenAI Codex
+cw config use-preset happy          # Happy with Claude Code
+cw config use-preset happy-codex    # Happy with Codex mode
+cw config use-preset happy-yolo     # Happy with bypass all permissions
+cw config use-preset no-op          # Disable AI tool launch
 
 # List available presets
 cw config list-presets
@@ -257,15 +256,19 @@ cw new my-feature
 # QR code will appear for mobile connection
 ```
 
-#### Model Selection
+#### Permission Modes
+
+Happy supports different permission modes for faster iteration:
 
 ```bash
-# Use specific Claude model
-cw config use-preset happy-opus
-cw new my-feature
+# Standard mode (default)
+cw config use-preset happy
 
-# Or customize directly
-cw config set ai-tool "happy -m sonnet"
+# Codex mode with bypass permissions
+cw config use-preset happy-codex
+
+# YOLO mode - bypass all permissions (fastest, use in sandboxes)
+cw config use-preset happy-yolo
 ```
 
 #### Using Happy with Codex
