@@ -46,6 +46,9 @@ DEFAULT_CONFIG = {
     "git": {
         "default_base_branch": "main",
     },
+    "update": {
+        "auto_check": True,  # Automatically check for updates daily
+    },
 }
 
 
