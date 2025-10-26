@@ -103,9 +103,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Shell function for worktree navigation**: New `cw-cd` shell function for quick directory navigation to worktrees
-  - Enables `cw cd <branch>` to jump directly to a worktree directory
-  - Supports bash and fish shells
-  - Installed automatically or manually with `cw config install-shell-function`
+  - Enables `cw-cd <branch>` to jump directly to a worktree directory
+  - Supports bash, zsh, and fish shells
+  - Install with: `source <(cw _shell-function bash)` for bash/zsh, or `cw _shell-function fish | source` for fish
 
 ## [0.5.0] - 2025-10-24
 
