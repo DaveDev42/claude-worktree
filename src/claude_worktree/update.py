@@ -287,12 +287,21 @@ def check_for_updates(auto: bool = True) -> bool:
     Check for updates and optionally prompt user to upgrade.
 
     Args:
-        auto: If True, only check if it's the first run today.
+        auto: If True, only check if it's the first run today and auto-check is enabled.
               If False, always check (for manual upgrade command)
 
     Returns:
         True if an update is available, False otherwise
     """
+    # For auto-check, respect the config setting
+    if auto:
+        from .config import load_config
+
+        config = load_config()
+        if not config.get("update", {}).get("auto_check", True):
+            # Auto-check is disabled
+            return False
+
     # Show current version for manual upgrade
     current_version = __version__
     if not auto:
