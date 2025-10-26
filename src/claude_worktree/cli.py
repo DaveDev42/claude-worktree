@@ -324,6 +324,64 @@ def prune() -> None:
 
 
 @app.command()
+def clean(
+    merged: bool = typer.Option(
+        False,
+        "--merged",
+        help="Delete worktrees for branches already merged to base",
+    ),
+    stale: bool = typer.Option(
+        False,
+        "--stale",
+        help="Delete worktrees with 'stale' status",
+    ),
+    older_than: int | None = typer.Option(
+        None,
+        "--older-than",
+        help="Delete worktrees older than N days",
+        metavar="DAYS",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactive selection UI",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be deleted without actually deleting",
+    ),
+) -> None:
+    """
+    Batch cleanup of worktrees.
+
+    Delete multiple worktrees based on various criteria. Use --dry-run
+    to preview what would be deleted before actually removing anything.
+
+    Example:
+        cw clean --merged           # Delete merged worktrees
+        cw clean --stale            # Delete stale worktrees
+        cw clean --older-than 30    # Delete worktrees older than 30 days
+        cw clean -i                 # Interactive selection
+        cw clean --merged --dry-run # Preview merged worktrees
+    """
+    try:
+        from .core import clean_worktrees
+
+        clean_worktrees(
+            merged=merged,
+            stale=stale,
+            older_than=older_than,
+            interactive=interactive,
+            dry_run=dry_run,
+        )
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def delete(
     target: str = typer.Argument(
         ...,
