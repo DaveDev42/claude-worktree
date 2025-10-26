@@ -4,6 +4,44 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## High Priority
 
+### Bug Fixes & Corrections
+
+- [ ] **Fix `happy-yolo` preset command** - Current preset doesn't use proper YOLO mode
+  - **Current**: `happy --permission-mode bypassPermissions` (incorrect)
+  - **Correct**: `happy --yolo` (sugar syntax for `--dangerously-skip-permissions`)
+  - Update `AI_TOOL_PRESETS` in `config.py:33`
+  - The `--yolo` flag is the proper way to bypass all permissions in Happy
+  - Reference: `happy --help` shows `--yolo` as the correct option
+
+- [ ] **Fix shell function installation documentation** - Incorrect command documented
+  - **Current docs claim**: `cw config install-shell-function`
+  - **Reality**: Command does not exist
+  - **Actual method**: `source <(cw _shell-function bash)` for bash/zsh, or `cw _shell-function fish | source` for fish
+  - Update: TODO.md line 28, CHANGELOG.md line 108, README.md
+  - Internal command exists: `cw _shell-function <shell>` (hidden command in cli.py:417-470)
+  - Consider: Implementing `cw config install-shell-function` as a user-friendly wrapper
+
+### Documentation Sync Issues
+
+- [ ] **Update README.md - Remove deprecated features**
+  - Remove `--no-ai` flag documentation (lines 92, 315)
+    - Replacement: `cw config use-preset no-op`
+  - Remove `cw attach` command documentation (lines 129-133, 165)
+    - Replacement: `cw resume`
+  - Update command reference table to reflect current CLI
+
+- [ ] **Update preset documentation across all files**
+  - **Current incorrect presets**: `happy-sonnet`, `happy-opus`, `happy-haiku`
+  - **Actual available presets**: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
+  - Files to update:
+    - README.md (lines 210-216)
+    - CLAUDE.md (line 100)
+    - Any other docs mentioning preset list
+
+- [ ] **Update CLAUDE.md "In Progress" section**
+  - Move `cw cd` shell function from "In Progress" to completed features
+  - Feature was implemented in v0.6.0 as `cw-cd` shell function
+
 ### UX Improvements
 
 - [x] **`cw resume [branch]`** ✅ Implemented in v0.4.0
@@ -12,7 +50,6 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Session storage: `~/.config/claude-worktree/sessions/<branch>/`
   - Supports Claude Code, Codex, Happy, and custom AI tools
   - Flags: `--bg`, `--iterm`, `--iterm-tab`, `--tmux`
-  - Note: `--no-ai` flag was removed in v0.7.0 (use `cw config use-preset no-op` instead)
 
 - [x] **Remove `cw attach` command** ✅ Completed in v0.8.0
   - Command was deprecated in v0.4.0 and fully removed in v0.8.0
@@ -22,18 +59,36 @@ This document tracks planned features, enhancements, and known issues for the cl
   - `--iterm-tab` flag available for `cw new` and `cw resume`
   - Opens AI tool in new iTerm2 tab instead of window
 
-- [x] **Shell function for `cw cd`** ✅ Implemented in v0.6.0
-  - `cw-cd` shell function enables `cw cd <branch>` navigation
+- [x] **Shell function for `cw-cd`** ✅ Implemented in v0.6.0
+  - `cw-cd <branch>` shell function enables quick navigation to worktrees
   - Supports bash, zsh, and fish shells
-  - Install with `cw config install-shell-function` or manually source
+  - Implementation: `src/claude_worktree/shell_functions/cw.bash` and `cw.fish`
+  - Installation: `source <(cw _shell-function bash)` or `cw _shell-function fish | source`
 
-### Terminology Cleanup
-
-- [x] **Update help text and configuration** ✅ Completed in v0.7.0
+- [x] **Terminology cleanup** ✅ Completed in v0.7.0
   - All user-facing text uses generic "AI tool" terminology
   - `--no-claude` and `--no-ai` flags removed in v0.7.0
   - Use preset-based configuration instead: `cw config use-preset no-op`
   - Project description kept as "Claude Code × git worktree"
+
+### Update Management
+
+- [x] **Automatic update check** ✅ Implemented in v0.8.0
+  - Daily automatic update check on first `cw` command execution (local timezone)
+  - Checks PyPI for new versions silently in background
+  - Prompts user to upgrade if new version is available
+  - Cache stored in `~/.cache/claude-worktree/update_check.json`
+  - Manual upgrade available via `cw upgrade` command
+  - Implementation: `cli.py:99` calls `check_for_updates(auto=True)`
+
+- [ ] **Configurable auto-update behavior** - Allow users to control automatic update checks
+  - Add `update.auto_check` config option (default: `true`)
+  - `cw config set update.auto_check false` - Disable automatic update checks
+  - `cw config set update.auto_check true` - Enable automatic update checks
+  - Setting persists across sessions in `~/.config/claude-worktree/config.json`
+  - Update `DEFAULT_CONFIG` in `config.py`
+  - Manual `cw upgrade` always works regardless of auto-check setting
+  - Use case: Corporate environments, air-gapped systems, or users who prefer manual updates
 
 ### AI Integration
 
@@ -146,53 +201,86 @@ This document tracks planned features, enhancements, and known issues for the cl
   - AI receives context about base branch when starting
   - Include recent commits, active files, project structure
 
-## Documentation
+## Documentation Tasks
 
-- [x] **Update CLAUDE.md with new features** ✅ Partially complete
-  - Resume command and session management documented
-  - AI tool integration documented
-  - Shell function documented
-- [x] **Add dog-fooding section** ✅ Implemented in v0.4.0
-  - Development installation methods documented in CLAUDE.md
-  - Covers uv, pipx, and pip methods with PEP 668 notes
-- [ ] Create troubleshooting guide for iTerm/terminal issues
-- [x] **Document shell function installation** ✅ Implemented in v0.6.0
-  - CLAUDE.md includes shell function documentation
-  - README should include installation instructions
-- [ ] Add more examples for common workflows to README
+- [ ] **Fix shell function installation docs**
+  - Update README.md with correct installation method
+  - Add examples for bash, zsh, and fish
+  - Consider adding `cw config install-shell-function` command for better UX
 
-## Testing
+- [ ] **Remove deprecated feature documentation from README.md**
+  - Remove `--no-ai` flag references
+  - Remove `cw attach` command documentation
+  - Update all examples to use current syntax
+
+- [ ] **Update preset documentation**
+  - List correct presets: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
+  - Document what each preset does
+  - Add examples of custom presets
+
+- [ ] **Create troubleshooting guide**
+  - iTerm/terminal launch issues
+  - Session restoration problems
+  - Common git worktree errors
+  - Network/PyPI connectivity for updates
+
+- [ ] **Add more workflow examples to README**
+  - Multi-feature development workflow
+  - Team collaboration scenarios
+  - CI/CD integration examples
+
+## Testing Tasks
 
 - [x] **Add tests for `cw resume` command** ✅ Implemented in v0.4.0
   - Context restoration with mocked session files
   - Optional branch argument behavior
   - Backward compatibility with `cw attach`
+
 - [x] **Add tests for session manager** ✅ Implemented in v0.4.0
   - Session backup/restore logic (test_session_manager.py has 20+ tests)
   - Multi-AI tool support
   - Session file format validation
   - Special branch name handling
   - Corrupted JSON handling
+
 - [x] **Add tests for iTerm tab functionality** ✅ Implemented in v0.5.0
   - Tests for `--iterm-tab` flag in resume and attach commands
+
 - [x] **Add tests for shell function generation (`cw _path`)** ✅ Implemented in v0.6.0
   - Tests for internal `_path` command
   - Tests for shell function output
-- [ ] Add tests for AI conflict resolution workflow
-- [ ] Add tests for `cw sync` command
-- [ ] Add tests for `cw clean` command
-- [ ] Increase test coverage to >90%
+
+- [ ] **Add tests for auto-update functionality**
+  - Test daily check logic
+  - Test version comparison
+  - Test installer detection
+  - Mock PyPI responses
+
+- [ ] **Add tests for AI conflict resolution workflow**
+  - Mock git conflicts
+  - Test AI launch with conflict context
+
+- [ ] **Add tests for `cw sync` command** (when implemented)
+
+- [ ] **Add tests for `cw clean` command** (when implemented)
+
+- [ ] **Increase test coverage to >90%**
 
 ## Known Issues
 
-_No known issues at this time_
+- **Shell function installation**: Documentation mentions non-existent `cw config install-shell-function` command
+- **`happy-yolo` preset**: Uses wrong flag (`--permission-mode bypassPermissions` instead of `--yolo`)
+- **README.md outdated**: Contains references to removed `--no-ai` flag and `cw attach` command
+- **Preset documentation**: Lists non-existent presets (`happy-sonnet`, `happy-opus`, `happy-haiku`)
 
 ---
 
 ## Contributing
 
 When adding new items to this TODO:
-1. Choose appropriate priority level
-2. Provide clear description of the feature
-3. Include use case or rationale when relevant
+1. Choose appropriate priority level (High/Medium/Low)
+2. Provide clear description of the feature or fix
+3. Include implementation details, file locations, and use cases when relevant
 4. Add related testing requirements to Testing section
+5. Mark items as complete with ✅ and version number when implemented
+6. Move known issues to "Known Issues" section until resolved
