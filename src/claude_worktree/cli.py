@@ -364,6 +364,46 @@ def delete(
 
 
 @app.command()
+def sync(
+    target: str | None = typer.Argument(
+        None,
+        help="Branch to sync (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
+    all_worktrees: bool = typer.Option(
+        False,
+        "--all",
+        help="Sync all worktrees",
+    ),
+    fetch_only: bool = typer.Option(
+        False,
+        "--fetch-only",
+        help="Fetch updates without rebasing",
+    ),
+) -> None:
+    """
+    Synchronize worktree(s) with base branch changes.
+
+    Fetches latest changes from the remote and rebases the feature branch
+    onto the updated base branch. Useful for long-running feature branches
+    that need to stay up-to-date with the base branch.
+
+    Example:
+        cw sync                    # Sync current worktree
+        cw sync fix-auth           # Sync specific worktree
+        cw sync --all              # Sync all worktrees
+        cw sync --fetch-only       # Only fetch, don't rebase
+    """
+    try:
+        from .core import sync_worktree
+
+        sync_worktree(target=target, all_worktrees=all_worktrees, fetch_only=fetch_only)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def upgrade() -> None:
     """
     Upgrade claude-worktree to the latest version.

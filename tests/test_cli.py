@@ -343,3 +343,18 @@ def test_finish_command_short_interactive_flag(temp_git_repo: Path, disable_clau
     assert result.exit_code == 0
     assert "-i" in result.stdout
     assert "Pause for confirmation" in result.stdout
+
+
+def test_sync_command_help(temp_git_repo: Path) -> None:
+    """Test sync command help."""
+    result = runner.invoke(app, ["sync", "--help"])
+    assert result.exit_code == 0
+    assert "Synchronize worktree" in result.stdout
+
+
+def test_sync_command_accepts_flags(temp_git_repo: Path, disable_claude) -> None:
+    """Test sync command accepts all flags."""
+    result = runner.invoke(app, ["sync", "--help"], color=False)
+    assert result.exit_code == 0
+    assert "--all" in result.stdout
+    assert "--fetch-only" in result.stdout

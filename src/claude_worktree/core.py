@@ -395,6 +395,123 @@ def delete_worktree(
                 console.print(f"[yellow]⚠[/yellow] Remote branch deletion failed: {e}\n")
 
 
+def sync_worktree(
+    target: str | None = None, all_worktrees: bool = False, fetch_only: bool = False
+) -> None:
+    """
+    Synchronize worktree(s) with base branch changes.
+
+    Args:
+        target: Branch name of worktree to sync (optional, defaults to current directory)
+        all_worktrees: Sync all worktrees
+        fetch_only: Only fetch updates without rebasing
+
+    Raises:
+        WorktreeNotFoundError: If worktree not found
+        GitError: If git operations fail
+        RebaseError: If rebase fails
+    """
+    repo = get_repo_root()
+
+    # Determine which worktrees to sync
+    if all_worktrees:
+        # Sync all worktrees
+        worktrees_to_sync = []
+        for branch, path in parse_worktrees(repo):
+            # Skip main repository and detached worktrees
+            if str(Path(path).resolve()) == str(repo.resolve()) or branch == "(detached)":
+                continue
+            # Normalize branch name
+            branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+            worktrees_to_sync.append((branch_name, Path(path)))
+    elif target:
+        # Sync specific worktree by branch name
+        worktree_path_result = find_worktree_by_branch(repo, target)
+        if not worktree_path_result:
+            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
+        if not worktree_path_result:
+            raise WorktreeNotFoundError(
+                f"No worktree found for branch '{target}'. "
+                f"Use 'cw list' to see available worktrees."
+            )
+        branch_name = target[11:] if target.startswith("refs/heads/") else target
+        worktrees_to_sync = [(branch_name, Path(worktree_path_result))]
+    else:
+        # Sync current worktree
+        cwd = Path.cwd()
+        try:
+            branch_name = get_current_branch(cwd)
+        except InvalidBranchError:
+            raise InvalidBranchError("Cannot determine current branch")
+        worktrees_to_sync = [(branch_name, cwd)]
+
+    # Fetch from all remotes first
+    console.print("[yellow]Fetching updates from remote...[/yellow]")
+    fetch_result = git_command("fetch", "--all", "--prune", repo=repo, check=False)
+    if fetch_result.returncode != 0:
+        console.print("[yellow]⚠[/yellow] Fetch failed or no remote configured\n")
+
+    if fetch_only:
+        console.print("[bold green]✓[/bold green] Fetch complete\n")
+        return
+
+    # Sync each worktree
+    for branch, worktree_path in worktrees_to_sync:
+        # Get base branch from metadata
+        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
+        if not base_branch:
+            console.print(
+                f"\n[yellow]⚠[/yellow] Skipping {branch}: "
+                f"No base branch metadata (not created with 'cw new')\n"
+            )
+            continue
+
+        console.print("\n[bold cyan]Syncing worktree:[/bold cyan]")
+        console.print(f"  Feature: [green]{branch}[/green]")
+        console.print(f"  Base:    [green]{base_branch}[/green]")
+        console.print(f"  Path:    [blue]{worktree_path}[/blue]\n")
+
+        # Determine rebase target (prefer origin/base if available)
+        rebase_target = base_branch
+        if fetch_result.returncode == 0:
+            check_result = git_command(
+                "rev-parse",
+                "--verify",
+                f"origin/{base_branch}",
+                repo=worktree_path,
+                check=False,
+                capture=True,
+            )
+            if check_result.returncode == 0:
+                rebase_target = f"origin/{base_branch}"
+
+        # Rebase feature branch onto base
+        console.print(f"[yellow]Rebasing {branch} onto {rebase_target}...[/yellow]")
+
+        try:
+            git_command("rebase", rebase_target, repo=worktree_path)
+            console.print("[bold green]✓[/bold green] Rebase successful")
+        except GitError:
+            # Abort the rebase
+            git_command("rebase", "--abort", repo=worktree_path, check=False)
+            console.print(
+                f"[bold red]✗[/bold red] Rebase failed. Please resolve conflicts manually:\n"
+                f"  cd {worktree_path}\n"
+                f"  git rebase {rebase_target}"
+            )
+            if all_worktrees:
+                console.print("[yellow]Continuing with remaining worktrees...[/yellow]")
+                continue
+            else:
+                raise RebaseError(
+                    f"Rebase failed. Please resolve conflicts manually:\n"
+                    f"  cd {worktree_path}\n"
+                    f"  git rebase {rebase_target}"
+                )
+
+    console.print("\n[bold green]✓ Sync complete![/bold green]\n")
+
+
 def get_worktree_status(path: str, repo: Path) -> str:
     """
     Determine the status of a worktree.
