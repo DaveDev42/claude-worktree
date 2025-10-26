@@ -375,6 +375,70 @@ def upgrade() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command()
+def cd(
+    branch: str = typer.Argument(
+        ...,
+        help="Branch name to navigate to",
+        autocompletion=complete_worktree_branches,
+    ),
+    print_only: bool = typer.Option(
+        False,
+        "--print",
+        "-p",
+        help="Print path only (for scripting)",
+    ),
+) -> None:
+    """
+    Print the path to a worktree's directory.
+
+    This command prints the worktree path to stdout. Since a CLI tool cannot
+    directly change your shell's directory, use the cw-cd shell function for
+    actual directory navigation.
+
+    To install the shell function:
+        bash/zsh: source <(cw _shell-function bash)
+        fish:     cw _shell-function fish | source
+
+    Then use: cw-cd <branch>
+
+    Example:
+        cw cd fix-auth          # Show path and installation hint
+        cw cd fix-auth --print  # Print path only (for scripting)
+    """
+
+    from .git_utils import find_worktree_by_branch, get_repo_root
+
+    try:
+        repo = get_repo_root()
+        # Try to find worktree by branch name
+        worktree_path = find_worktree_by_branch(repo, branch)
+        if not worktree_path:
+            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{branch}")
+
+        if not worktree_path:
+            console.print(f"[bold red]Error:[/bold red] No worktree found for branch '{branch}'")
+            raise typer.Exit(code=1)
+
+        if print_only:
+            # Script-friendly output: path only
+            print(worktree_path)
+        else:
+            # User-friendly output: path + helpful message
+            console.print(f"[bold cyan]Worktree path:[/bold cyan] {worktree_path}")
+            console.print()
+            console.print(
+                "[dim]To navigate directly to worktrees, install the cw-cd shell function:[/dim]"
+            )
+            console.print("[dim]  bash/zsh:[/dim] source <(cw _shell-function bash)")
+            console.print("[dim]  fish:    [/dim] cw _shell-function fish | source")
+            console.print()
+            console.print(f"[dim]Then use:[/dim] cw-cd {branch}")
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command(name="_path", hidden=True)
 def worktree_path(
     branch: str = typer.Argument(

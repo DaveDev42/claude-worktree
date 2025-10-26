@@ -65,6 +65,9 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Supports bash, zsh, and fish shells
   - Implementation: `src/claude_worktree/shell_functions/cw.bash` and `cw.fish`
   - Installation: `source <(cw _shell-function bash)` or `cw _shell-function fish | source`
+  - **Enhancement needed**: Add `cw cd <branch>` CLI command for better discoverability
+    - Command would print the worktree path and guide users to install shell function
+    - Alternative: Wrapper that attempts to change directory with helpful error message
 
 - [x] **Terminology cleanup** ✅ Completed in v0.7.0
   - All user-facing text uses generic "AI tool" terminology
@@ -102,6 +105,19 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### Worktree Management
 
+- [ ] **`cw cd <branch>` CLI command** - Improve worktree navigation discoverability
+  - **Problem**: `cw-cd` is only a shell function, not discoverable via `cw --help`
+  - **Solution 1**: Add `cw cd <branch>` command that:
+    - Prints the worktree path: `/path/to/repo-branch`
+    - Provides helpful message: "To navigate directly, install shell function: `source <(cw _shell-function bash)`"
+    - Optionally: `cw cd <branch> --print` outputs path only (for scripting)
+  - **Solution 2**: Make it a wrapper command that:
+    - Attempts to create a subshell in the target directory
+    - Or exports a variable that shell prompt can use
+  - **Recommended approach**: Implement both CLI command (for path printing) and keep shell function (for actual cd)
+  - **Benefits**: Better UX, discoverable in help text, works in scripts
+  - Implementation: Add new command in `cli.py`, reuse existing `_path` logic
+
 - [ ] **`cw sync`** - Synchronize worktrees with base branch changes
   - `cw sync [branch]` - Rebase specified or current worktree onto base
   - `cw sync --all` - Rebase all worktrees
@@ -121,9 +137,11 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Show what would happen: rebase steps, merge result, cleanup actions
   - Detect potential conflicts before starting
 
-- [ ] **`cw finish --interactive`** - Step-by-step merge confirmation
+- [ ] **`cw finish --interactive` (or `-i`)** - Step-by-step merge confirmation
+  - Short form: `cw finish -i`
   - Pause at each step for user confirmation
   - Allow abort at any stage
+  - Interactive prompts for each phase: rebase, merge, cleanup, push
 
 - [ ] **`cw doctor`** - Health check for all worktrees
   - Check Git version compatibility
