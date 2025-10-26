@@ -88,9 +88,6 @@ cw new fix-bug --base develop
 # Custom path
 cw new hotfix --path /tmp/urgent-fix
 
-# Skip AI tool launch
-cw new refactor --no-ai
-
 # Launch Claude in iTerm (macOS)
 cw new feature --iterm
 
@@ -126,10 +123,14 @@ refs/heads/feature-api              modified   ../myproject-feature-api
 cw status
 ```
 
-### Reattach Claude Code
+### Resume AI work in a worktree
 
 ```bash
-cw attach
+# Resume in current worktree
+cw resume
+
+# Resume in a specific worktree
+cw resume fix-auth
 ```
 
 ### Delete a worktree
@@ -162,7 +163,7 @@ Removes administrative data for worktrees with "stale" status (directories that 
 |---------|-------------|
 | `cw new <name>` | Create new worktree with specified branch name |
 | `cw finish` | Rebase, merge, and cleanup current worktree |
-| `cw attach` | Reattach AI tool to current worktree |
+| `cw resume [branch]` | Resume AI work in current or specified worktree |
 | `cw list` | List all worktrees |
 | `cw status` | Show current worktree status |
 | `cw delete <target>` | Delete worktree by branch name or path |
@@ -312,10 +313,17 @@ For example, if your repository is at `/Users/dave/myproject` and you run `cw ne
 
 ### Launch Options
 
-- `--no-ai`: Skip launching AI tool (deprecated: `--no-claude`)
+Control how the AI tool is launched when creating or resuming worktrees:
+
 - `--bg`: Launch in background
 - `--iterm`: Launch in new iTerm window (macOS only)
+- `--iterm-tab`: Launch in new iTerm tab (macOS only)
 - `--tmux <name>`: Launch in new tmux session
+
+To skip AI tool launch entirely, use the `no-op` preset:
+```bash
+cw config use-preset no-op
+```
 
 ## Requirements
 
@@ -367,9 +375,12 @@ Make sure you're running commands from within a git repository.
 Install your preferred AI coding assistant:
 - **Claude Code**: https://claude.ai/download
 - **Codex**: Follow OpenAI's installation instructions
-- **Happy**: Check Happy's documentation
+- **Happy**: npm install -g happy-coder
 
-Or use `--no-ai` flag to skip AI tool launch.
+Or skip AI tool launch with the no-op preset:
+```bash
+cw config use-preset no-op
+```
 
 Alternatively, configure a different AI tool:
 ```bash
