@@ -6,41 +6,42 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### Bug Fixes & Corrections
 
-- [ ] **Fix `happy-yolo` preset command** - Current preset doesn't use proper YOLO mode
-  - **Current**: `happy --permission-mode bypassPermissions` (incorrect)
-  - **Correct**: `happy --yolo` (sugar syntax for `--dangerously-skip-permissions`)
-  - Update `AI_TOOL_PRESETS` in `config.py:33`
+- [x] **Fix `happy-yolo` preset command** ✅ Completed in v0.9.0
+  - **Was**: `happy --permission-mode bypassPermissions` (incorrect)
+  - **Now**: `happy --yolo` (sugar syntax for `--dangerously-skip-permissions`)
+  - Updated `AI_TOOL_PRESETS` in `config.py:33`
   - The `--yolo` flag is the proper way to bypass all permissions in Happy
-  - Reference: `happy --help` shows `--yolo` as the correct option
 
-- [ ] **Fix shell function installation documentation** - Incorrect command documented
-  - **Current docs claim**: `cw config install-shell-function`
-  - **Reality**: Command does not exist
-  - **Actual method**: `source <(cw _shell-function bash)` for bash/zsh, or `cw _shell-function fish | source` for fish
-  - Update: TODO.md line 28, CHANGELOG.md line 108, README.md
+- [x] **Fix shell function installation documentation** ✅ Completed in v0.9.0
+  - **Incorrect docs claimed**: `cw config install-shell-function`
+  - **Command does not exist**
+  - **Correct method**: `source <(cw _shell-function bash)` for bash/zsh, or `cw _shell-function fish | source` for fish
+  - Updated CHANGELOG.md with correct installation instructions
   - Internal command exists: `cw _shell-function <shell>` (hidden command in cli.py:417-470)
-  - Consider: Implementing `cw config install-shell-function` as a user-friendly wrapper
+  - Consider: Implementing `cw config install-shell-function` as a user-friendly wrapper (future enhancement)
 
 ### Documentation Sync Issues
 
-- [ ] **Update README.md - Remove deprecated features**
-  - Remove `--no-ai` flag documentation (lines 92, 315)
+- [x] **Update README.md - Remove deprecated features** ✅ Completed in v0.9.0
+  - Removed `--no-ai` flag documentation
     - Replacement: `cw config use-preset no-op`
-  - Remove `cw attach` command documentation (lines 129-133, 165)
+  - Removed `cw attach` command documentation
     - Replacement: `cw resume`
-  - Update command reference table to reflect current CLI
+  - Updated command reference table to reflect current CLI
+  - Added missing `--iterm-tab` flag documentation
 
-- [ ] **Update preset documentation across all files**
-  - **Current incorrect presets**: `happy-sonnet`, `happy-opus`, `happy-haiku`
-  - **Actual available presets**: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
-  - Files to update:
-    - README.md (lines 210-216)
-    - CLAUDE.md (line 100)
-    - Any other docs mentioning preset list
+- [x] **Update preset documentation across all files** ✅ Completed in v0.9.0
+  - **Removed incorrect presets**: `happy-sonnet`, `happy-opus`, `happy-haiku`
+  - **Documented actual presets**: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
+  - Updated files:
+    - README.md
+    - CLAUDE.md
+    - CHANGELOG.md
 
-- [ ] **Update CLAUDE.md "In Progress" section**
-  - Move `cw cd` shell function from "In Progress" to completed features
+- [x] **Update CLAUDE.md "In Progress" section** ✅ Completed in v0.9.0
+  - Moved `cw-cd` shell function from "In Progress" to "Completed" features
   - Feature was implemented in v0.6.0 as `cw-cd` shell function
+  - Moved AI session context restoration to "Completed" (v0.4.0)
 
 ### UX Improvements
 
@@ -81,12 +82,12 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Manual upgrade available via `cw upgrade` command
   - Implementation: `cli.py:99` calls `check_for_updates(auto=True)`
 
-- [ ] **Configurable auto-update behavior** - Allow users to control automatic update checks
-  - Add `update.auto_check` config option (default: `true`)
+- [x] **Configurable auto-update behavior** ✅ Implemented in v0.9.0
+  - Added `update.auto_check` config option (default: `true`)
   - `cw config set update.auto_check false` - Disable automatic update checks
   - `cw config set update.auto_check true` - Enable automatic update checks
   - Setting persists across sessions in `~/.config/claude-worktree/config.json`
-  - Update `DEFAULT_CONFIG` in `config.py`
+  - Updated `DEFAULT_CONFIG` in `config.py`
   - Manual `cw upgrade` always works regardless of auto-check setting
   - Use case: Corporate environments, air-gapped systems, or users who prefer manual updates
 
@@ -203,20 +204,20 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## Documentation Tasks
 
-- [ ] **Fix shell function installation docs**
-  - Update README.md with correct installation method
-  - Add examples for bash, zsh, and fish
-  - Consider adding `cw config install-shell-function` command for better UX
+- [x] **Fix shell function installation docs** ✅ Completed in v0.9.0
+  - Updated README.md with correct installation method
+  - Added examples for bash, zsh, and fish
+  - Consider adding `cw config install-shell-function` command for better UX (future enhancement)
 
-- [ ] **Remove deprecated feature documentation from README.md**
-  - Remove `--no-ai` flag references
-  - Remove `cw attach` command documentation
-  - Update all examples to use current syntax
+- [x] **Remove deprecated feature documentation from README.md** ✅ Completed in v0.9.0
+  - Removed `--no-ai` flag references
+  - Removed `cw attach` command documentation
+  - Updated all examples to use current syntax
 
-- [ ] **Update preset documentation**
-  - List correct presets: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
-  - Document what each preset does
-  - Add examples of custom presets
+- [x] **Update preset documentation** ✅ Completed in v0.9.0
+  - Listed correct presets: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
+  - Documented what each preset does in README.md
+  - Updated CLAUDE.md and CHANGELOG.md with accurate preset information
 
 - [ ] **Create troubleshooting guide**
   - iTerm/terminal launch issues
@@ -268,10 +269,13 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## Known Issues
 
-- **Shell function installation**: Documentation mentions non-existent `cw config install-shell-function` command
-- **`happy-yolo` preset**: Uses wrong flag (`--permission-mode bypassPermissions` instead of `--yolo`)
-- **README.md outdated**: Contains references to removed `--no-ai` flag and `cw attach` command
-- **Preset documentation**: Lists non-existent presets (`happy-sonnet`, `happy-opus`, `happy-haiku`)
+All high-priority issues from v0.9.0 have been resolved:
+- ✅ Shell function installation documentation - Fixed in v0.9.0
+- ✅ `happy-yolo` preset - Fixed in v0.9.0
+- ✅ README.md deprecated features - Fixed in v0.9.0
+- ✅ Preset documentation - Fixed in v0.9.0
+
+No currently known issues.
 
 ---
 

@@ -74,19 +74,14 @@ claude-worktree/
   - Launch options:
     - `--bg`: Background process
     - `--iterm`: New iTerm2 window (macOS)
-    - `--iterm-tab`: New iTerm2 tab (macOS, planned)
+    - `--iterm-tab`: New iTerm2 tab (macOS) ✅ Implemented in v0.5.0
     - `--tmux <session>`: New tmux session
-    - `--no-ai`: Skip AI tool launch
   - Supports multiple AI tools:
     - Claude Code (default)
     - Codex
     - Happy (with Claude or Codex backend)
     - Custom commands
-
-- **`cw attach`** ⚠️ DEPRECATED
-  - Legacy command, will be removed in v2.0
-  - Use `cw resume` instead for better context management
-  - Currently redirects to `resume` with deprecation warning
+  - Note: To skip AI tool launch, use `cw config use-preset no-op`
 
 ### 3. Configuration Management
 - **`cw config show`**: Display current configuration
@@ -104,13 +99,33 @@ claude-worktree/
 - Configuration stored in `~/.config/claude-worktree/config.json`
 - Environment variable override: `CW_AI_TOOL`
 
+#### Auto-Update Configuration (v0.9.0+)
+By default, `claude-worktree` checks for updates once per day. This can be configured:
+
+```bash
+# Disable automatic update checks
+cw config set update.auto_check false
+
+# Re-enable automatic update checks
+cw config set update.auto_check true
+
+# Manual upgrade always works regardless of setting
+cw upgrade
+```
+
+**When to disable auto-check:**
+- Corporate environments with restricted internet access
+- Air-gapped systems
+- CI/CD pipelines
+- Personal preference for manual updates
+
 ### 4. Shell Completion
 - Typer provides automatic shell completion for bash/zsh/fish
 - Install with: `cw --install-completion`
 
 ## Technology Stack
 
-- **Python 3.8+**: Core language
+- **Python 3.11+**: Core language (minimum version required)
 - **uv**: Fast Python package manager
 - **Typer**: Modern CLI framework with type hints
 - **pytest**: Testing framework
@@ -381,10 +396,6 @@ uv publish
    - Verify AI tool supports session restoration
    - Check session metadata for corruption: `cat ~/.config/claude-worktree/sessions/<branch>/metadata.json`
    - Clear sessions if needed: `rm -rf ~/.config/claude-worktree/sessions/<branch>/`
-
-6. **`cw attach` deprecated warning**
-   - This is expected. Use `cw resume` instead for better functionality
-   - `cw attach` will be removed in v2.0
 
 ## Contributing
 

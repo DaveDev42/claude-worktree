@@ -192,6 +192,31 @@ cw <TAB>          # Shows available commands
 cw new --<TAB>    # Shows available options
 ```
 
+## Shell Function for Quick Navigation
+
+Install the `cw-cd` shell function to quickly navigate between worktrees:
+
+```bash
+# For bash/zsh
+source <(cw _shell-function bash)
+
+# For fish
+cw _shell-function fish | source
+
+# Add to your shell config for permanent installation
+echo 'source <(cw _shell-function bash)' >> ~/.bashrc  # or ~/.zshrc
+```
+
+Usage:
+```bash
+# Navigate to any worktree by branch name
+cw-cd fix-auth
+cw-cd feature-api
+
+# Tab completion works too!
+cw-cd <TAB>
+```
+
 ## Configuration
 
 ### AI Tool Configuration
@@ -327,6 +352,29 @@ To skip AI tool launch entirely, use the `no-op` preset:
 ```bash
 cw config use-preset no-op
 ```
+
+### Auto-Update Settings
+
+By default, `claude-worktree` checks for updates once per day. You can configure this behavior:
+
+```bash
+# Disable automatic update checks
+cw config set update.auto_check false
+
+# Re-enable automatic update checks
+cw config set update.auto_check true
+
+# Manual upgrade always works regardless of setting
+cw upgrade
+```
+
+**When to disable auto-check:**
+- Corporate environments with restricted internet
+- Air-gapped systems
+- CI/CD pipelines
+- Personal preference for manual updates
+
+**Note:** The `cw upgrade` command always works, even if auto-check is disabled.
 
 ## Requirements
 
