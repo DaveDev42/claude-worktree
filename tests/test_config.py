@@ -368,8 +368,8 @@ def test_happy_preset_commands() -> None:
         "bypassPermissions",
     ]
 
-    # Test happy-yolo (with bypass permissions)
-    assert AI_TOOL_PRESETS["happy-yolo"] == ["happy", "--permission-mode", "bypassPermissions"]
+    # Test happy-yolo (with --yolo flag for dangerously skip permissions)
+    assert AI_TOOL_PRESETS["happy-yolo"] == ["happy", "--yolo"]
 
 
 def test_use_happy_presets(temp_config_dir: Path) -> None:
@@ -387,4 +387,4 @@ def test_use_happy_presets(temp_config_dir: Path) -> None:
     # Test happy-yolo preset
     use_preset("happy-yolo")
     cmd = get_ai_tool_command()
-    assert cmd == ["happy", "--permission-mode", "bypassPermissions"]
+    assert cmd == ["happy", "--yolo"]

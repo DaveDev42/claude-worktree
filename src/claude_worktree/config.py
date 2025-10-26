@@ -30,7 +30,7 @@ AI_TOOL_PRESETS = {
     # Happy (mobile-enabled Claude Code)
     "happy": ["happy"],
     "happy-codex": ["happy", "codex", "--permission-mode", "bypassPermissions"],
-    "happy-yolo": ["happy", "--permission-mode", "bypassPermissions"],
+    "happy-yolo": ["happy", "--yolo"],
 }
 
 
