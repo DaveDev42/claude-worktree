@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-10-26
+
+### Fixed
+- **`happy-yolo` preset**: Now uses correct `--yolo` flag instead of `--permission-mode bypassPermissions`
+  - The `--yolo` flag is Happy's sugar syntax for `--dangerously-skip-permissions`
+  - Updated tests to match correct behavior
+
+### Added
+- **Configurable auto-update checks**: Users can now disable automatic daily update checks
+  - New config option: `update.auto_check` (default: `true`)
+  - Set with: `cw config set update.auto_check false`
+  - Manual `cw upgrade` command always works regardless of setting
+  - Useful for corporate environments, air-gapped systems, or CI/CD pipelines
+
+### Documentation
+- **Comprehensive TODO.md rewrite**: Complete audit and reorganization of project tasks
+  - Added "Bug Fixes & Corrections" section with actionable items
+  - Added "Documentation Sync Issues" section tracking doc/code mismatches
+  - Separate "Documentation Tasks" and "Testing Tasks" sections
+  - New "Known Issues" section for transparent issue tracking
+- **Fixed shell function installation docs**: Corrected CHANGELOG.md installation command
+  - Changed from non-existent `cw config install-shell-function` to actual `source <(cw _shell-function bash)`
+  - Added zsh to supported shells list
+- **Removed deprecated features from README.md**:
+  - Removed `--no-ai` flag documentation (removed in v0.7.0)
+  - Removed `cw attach` command documentation (removed in v0.8.0)
+  - Added `--iterm-tab` flag that was missing from docs
+  - Updated all examples to use current syntax
+- **Updated preset documentation**: Corrected preset lists across all files
+  - Removed non-existent presets: `happy-sonnet`, `happy-opus`, `happy-haiku`
+  - Documented actual presets: `no-op`, `claude`, `codex`, `happy`, `happy-codex`, `happy-yolo`
+  - Added descriptions and use cases for each preset
+- **Updated CLAUDE.md**: Moved completed features from "In Progress" to "Completed"
+  - AI session context restoration (v0.4.0)
+  - Shell function for worktree navigation (v0.6.0)
+
+### Summary
+This release focuses on fixing documentation drift between code and documentation, correcting the `happy-yolo` preset bug, and adding user control over automatic update checks. All high-priority documentation sync issues identified in the TODO.md audit have been addressed.
+
 ## [0.8.2] - 2025-10-24
 
 ### Fixed
@@ -273,7 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.7.0...v0.8.0
