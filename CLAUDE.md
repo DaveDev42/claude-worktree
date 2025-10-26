@@ -340,9 +340,14 @@ uv publish
 
 ## Future Enhancements (Ideas)
 
-### In Progress
-- **AI session context restoration** - `cw resume` with conversation history preservation
-- **`cw cd` shell function** - Direct directory navigation to worktrees
+### Completed
+- **AI session context restoration** - ✅ Implemented in v0.4.0 with `cw resume`
+  - Session storage in `~/.config/claude-worktree/sessions/`
+  - Automatic context restoration when resuming work
+- **Shell function for worktree navigation** - ✅ Implemented in v0.6.0 as `cw-cd`
+  - Quick directory navigation with `cw-cd <branch>`
+  - Supports bash, zsh, and fish shells
+  - Install with: `source <(cw _shell-function bash)` or `cw _shell-function fish | source`
 
 ### Planned
 - Interactive mode for command selection
