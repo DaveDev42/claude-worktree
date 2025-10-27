@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from claude_worktree.update import (
+    check_package_available,
     detect_installer,
     is_newer_version,
     load_update_cache,
@@ -165,3 +166,43 @@ def test_check_for_updates_network_failure(mock_get, tmp_path: Path, monkeypatch
     # Should have marked the check as failed
     cache = load_update_cache()
     assert cache["last_check_failed"] is True
+
+
+@patch("claude_worktree.update.httpx.get")
+def test_check_package_available_success(mock_get) -> None:
+    """Test check_package_available when version exists."""
+    # Mock successful response
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_get.return_value = mock_response
+
+    result = check_package_available("0.9.1")
+    assert result is True
+
+    # Verify correct URL was called with cache-busting headers
+    mock_get.assert_called_once()
+    args, kwargs = mock_get.call_args
+    assert args[0] == "https://pypi.org/pypi/claude-worktree/0.9.1/json"
+    assert "Cache-Control" in kwargs["headers"]
+
+
+@patch("claude_worktree.update.httpx.get")
+def test_check_package_available_not_found(mock_get) -> None:
+    """Test check_package_available when version doesn't exist."""
+    # Mock 404 response
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_get.return_value = mock_response
+
+    result = check_package_available("99.99.99")
+    assert result is False
+
+
+@patch("claude_worktree.update.httpx.get")
+def test_check_package_available_network_error(mock_get) -> None:
+    """Test check_package_available when network fails."""
+    # Mock network failure
+    mock_get.side_effect = Exception("Network error")
+
+    result = check_package_available("0.9.1")
+    assert result is False

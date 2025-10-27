@@ -189,12 +189,40 @@ def detect_installer() -> str | None:
     return "pip"
 
 
-def upgrade_package(installer: str | None = None) -> bool:
+def check_package_available(version: str) -> bool:
+    """
+    Check if a specific version is available for download from PyPI.
+
+    Args:
+        version: Version string to check
+
+    Returns:
+        True if the version is downloadable, False otherwise
+    """
+    try:
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+        }
+        response = httpx.get(
+            f"https://pypi.org/pypi/claude-worktree/{version}/json",
+            timeout=5.0,
+            follow_redirects=True,
+            headers=headers,
+        )
+        is_available: bool = response.status_code == 200
+        return is_available
+    except Exception:
+        return False
+
+
+def upgrade_package(installer: str | None = None, target_version: str | None = None) -> bool:
     """
     Upgrade claude-worktree to the latest version.
 
     Args:
         installer: Installation method ('pipx', 'uv-tool', 'uv-pip', 'pip', 'source')
+        target_version: Target version to upgrade to (for retry logic)
 
     Returns:
         True if upgrade succeeded, False otherwise
@@ -223,6 +251,32 @@ def upgrade_package(installer: str | None = None) -> bool:
         console.print("     [cyan]uv tool install --upgrade claude-worktree[/cyan]")
         console.print("     [cyan]pipx install --force claude-worktree[/cyan]\n")
         return False
+
+    # If target version is specified, check if it's available
+    if target_version:
+        console.print(f"[dim]Verifying version {target_version} is available...[/dim]")
+        if not check_package_available(target_version):
+            console.print(
+                f"\n[yellow]⚠[/yellow] Version {target_version} not yet available on PyPI CDN."
+            )
+            console.print(
+                "[dim]This is normal immediately after a release. The CDN may take a few minutes to sync.[/dim]"
+            )
+            console.print("\n[cyan]Retrying in 30 seconds...[/cyan]")
+
+            import time
+
+            time.sleep(30)
+
+            # Check again
+            if not check_package_available(target_version):
+                console.print(
+                    "\n[yellow]⚠[/yellow] Version still not available. Please try again in a few minutes."
+                )
+                console.print("[dim]You can manually retry with:[/dim] [cyan]cw upgrade[/cyan]\n")
+                return False
+
+            console.print("[green]✓[/green] Version is now available!")
 
     console.print(f"\n[cyan]Upgrading using {installer}...[/cyan]")
 
@@ -352,7 +406,7 @@ def check_for_updates(auto: bool = True) -> bool:
     # For manual upgrade command, always ask
     # For auto-check, ask if user wants to upgrade
     if Confirm.ask("Would you like to upgrade now?"):
-        return upgrade_package()
+        return upgrade_package(target_version=latest_version)
 
     if auto:
         console.print("\n[dim]Run 'cw upgrade' anytime to update.[/dim]\n")
