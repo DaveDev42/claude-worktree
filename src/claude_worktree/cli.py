@@ -554,6 +554,29 @@ def diff(
 
 
 @app.command()
+def tree() -> None:
+    """
+    Display worktree hierarchy in a visual tree format.
+
+    Shows all worktrees in an ASCII tree format with:
+    - Base repository at the root
+    - Feature worktrees as branches
+    - Status indicators (clean, modified, stale)
+    - Current worktree highlighting
+
+    Example:
+        cw tree
+    """
+    try:
+        from .core import show_tree
+
+        show_tree()
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def upgrade() -> None:
     """
     Upgrade claude-worktree to the latest version.

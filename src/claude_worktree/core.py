@@ -1369,3 +1369,95 @@ def resume_worktree(
         launch_ai_tool(
             worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
         )
+
+
+def show_tree() -> None:
+    """
+    Display worktree hierarchy in a visual tree format.
+
+    Shows:
+    - Base repository at the root
+    - All feature worktrees as branches
+    - Status indicators for each worktree
+    - Current/active worktree highlighting
+    """
+    repo = get_repo_root()
+    worktrees = parse_worktrees(repo)
+    cwd = Path.cwd()
+
+    console.print(f"\n[bold cyan]{repo.name}/[/bold cyan] (base repository)")
+    console.print(f"[dim]{repo}[/dim]\n")
+
+    # Separate main repo from feature worktrees
+    feature_worktrees = []
+    for branch, path in worktrees:
+        # Skip main repository
+        if path.resolve() == repo.resolve():
+            continue
+        # Skip detached worktrees
+        if branch == "(detached)":
+            continue
+
+        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+        status = get_worktree_status(str(path), repo)
+        is_current = str(cwd).startswith(str(path))
+        feature_worktrees.append((branch_name, path, status, is_current))
+
+    if not feature_worktrees:
+        console.print("[dim]  (no feature worktrees)[/dim]\n")
+        return
+
+    # Status icons
+    status_icons = {
+        "active": "●",  # current worktree
+        "clean": "○",  # clean
+        "modified": "◉",  # has changes
+        "stale": "✗",  # directory missing
+    }
+
+    # Status colors
+    status_colors = {
+        "active": "bold green",
+        "clean": "green",
+        "modified": "yellow",
+        "stale": "red",
+    }
+
+    # Sort by branch name for consistent display
+    feature_worktrees.sort(key=lambda x: x[0])
+
+    # Draw tree
+    for i, (branch_name, path, status, is_current) in enumerate(feature_worktrees):
+        is_last = i == len(feature_worktrees) - 1
+        prefix = "└── " if is_last else "├── "
+
+        # Status icon and color
+        icon = status_icons.get(status, "○")
+        color = status_colors.get(status, "white")
+
+        # Highlight current worktree
+        if is_current:
+            branch_display = f"[bold {color}]★ {branch_name}[/bold {color}]"
+        else:
+            branch_display = f"[{color}]{branch_name}[/{color}]"
+
+        # Show branch with status
+        console.print(f"{prefix}[{color}]{icon}[/{color}] {branch_display}")
+
+        # Show path (relative if possible, absolute otherwise)
+        try:
+            rel_path = path.relative_to(repo.parent)
+            path_display = f"../{rel_path}"
+        except ValueError:
+            path_display = str(path)
+
+        continuation = "    " if is_last else "│   "
+        console.print(f"{continuation}[dim]{path_display}[/dim]")
+
+    # Legend
+    console.print("\n[bold]Legend:[/bold]")
+    console.print(f"  [{status_colors['active']}]●[/{status_colors['active']}] active (current)")
+    console.print(f"  [{status_colors['clean']}]○[/{status_colors['clean']}] clean")
+    console.print(f"  [{status_colors['modified']}]◉[/{status_colors['modified']}] modified")
+    console.print(f"  [{status_colors['stale']}]✗[/{status_colors['stale']}] stale")
+    console.print("  [bold green]★[/bold green] currently active worktree\n")
