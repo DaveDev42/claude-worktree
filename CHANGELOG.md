@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2025-10-27
+
+### Added
+- **`cw cd` command**: Print path to a worktree directory
+  - `cw cd <branch>` shows the worktree path with installation hints for `cw-cd` shell function
+  - `cw cd <branch> --print` outputs path only for scripting
+  - Complements the `cw-cd` shell function for actual directory navigation
+- **`cw finish --interactive/-i` flag**: Interactive mode with step-by-step confirmations
+  - Pause before each major operation (rebase, merge, cleanup)
+  - Options at each step: continue (y), skip (n), or quit (q)
+  - Useful for reviewing changes before proceeding
+- **`cw finish --dry-run` flag**: Preview merge operations without executing
+  - Shows all operations that would be performed
+  - No actual changes made to repository
+  - Helpful for understanding workflow before committing
+- **`cw sync` command**: Synchronize worktree(s) with base branch changes
+  - `cw sync` - Sync current worktree
+  - `cw sync <branch>` - Sync specific worktree
+  - `cw sync --all` - Sync all worktrees
+  - `cw sync --fetch-only` - Fetch without rebasing
+  - Automatically rebases feature branches onto latest base branch
+- **`cw clean` command**: Batch cleanup of worktrees based on criteria
+  - `cw clean --merged` - Delete branches already merged to base
+  - `cw clean --stale` - Delete stale worktrees (missing directories)
+  - `cw clean --older-than N` - Delete worktrees older than N days
+  - `cw clean -i/--interactive` - Interactive selection UI
+  - `cw clean --dry-run` - Preview without deleting
+  - Supports multiple criteria combinations
+
+### Summary
+This release focuses on workflow enhancement and productivity features. The new `cw sync` command keeps long-running feature branches up-to-date, while `cw clean` helps maintain a tidy workspace by removing old or merged worktrees in batch. Interactive and dry-run modes for `cw finish` provide safer, more controlled merge workflows.
+
 ## [0.9.0] - 2025-10-26
 
 ### Fixed
@@ -312,7 +344,8 @@ This release focuses on fixing documentation drift between code and documentatio
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.0...v0.8.1
