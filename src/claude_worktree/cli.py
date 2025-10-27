@@ -190,6 +190,11 @@ def finish(
         "-i",
         help="Pause for confirmation before each step",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview merge without executing",
+    ),
 ) -> None:
     """
     Finish work on a worktree.
@@ -205,15 +210,17 @@ def finish(
     or from within a feature worktree without arguments.
 
     Use --interactive/-i to confirm each step before execution.
+    Use --dry-run to preview what would happen without actually executing.
 
     Example:
-        cw finish                  # Finish current worktree
-        cw finish fix-auth         # Finish fix-auth worktree from anywhere
+        cw finish                     # Finish current worktree
+        cw finish fix-auth            # Finish fix-auth worktree from anywhere
         cw finish feature-api --push  # Finish and push to remote
-        cw finish -i               # Interactive mode with confirmations
+        cw finish -i                  # Interactive mode with confirmations
+        cw finish --dry-run           # Preview merge steps
     """
     try:
-        finish_worktree(target=target, push=push, interactive=interactive)
+        finish_worktree(target=target, push=push, interactive=interactive, dry_run=dry_run)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
