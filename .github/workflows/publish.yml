@@ -10,8 +10,47 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Run tests before publishing
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true  # Stop if any test fails
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+
+    - name: Run linting with ruff
+      run: |
+        ruff check src/ tests/
+
+    - name: Run type checking with mypy
+      run: |
+        mypy src/claude_worktree
+
+    - name: Run tests with pytest
+      run: |
+        pytest -v --cov=claude_worktree --cov-report=xml --cov-report=term
+
   build:
     name: Build distribution
+    needs: [test]  # Only build if tests pass
     runs-on: ubuntu-latest
 
     steps:
