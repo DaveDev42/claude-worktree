@@ -1001,6 +1001,100 @@ def doctor() -> None:
         console.print()
 
 
+def diff_worktrees(branch1: str, branch2: str, summary: bool = False, files: bool = False) -> None:
+    """
+    Compare two worktrees or branches.
+
+    Args:
+        branch1: First branch name
+        branch2: Second branch name
+        summary: Show diff statistics only
+        files: Show changed files only
+
+    Raises:
+        InvalidBranchError: If branches don't exist
+        GitError: If git operations fail
+    """
+    repo = get_repo_root()
+
+    # Verify both branches exist
+    if not branch_exists(branch1, repo):
+        raise InvalidBranchError(f"Branch '{branch1}' not found")
+    if not branch_exists(branch2, repo):
+        raise InvalidBranchError(f"Branch '{branch2}' not found")
+
+    console.print("\n[bold cyan]Comparing branches:[/bold cyan]")
+    console.print(f"  {branch1} [yellow]...[/yellow] {branch2}\n")
+
+    # Choose diff format based on flags
+    if files:
+        # Show only changed files
+        result = git_command(
+            "diff",
+            "--name-status",
+            branch1,
+            branch2,
+            repo=repo,
+            capture=True,
+        )
+        console.print("[bold]Changed files:[/bold]\n")
+        if result.stdout.strip():
+            for line in result.stdout.strip().splitlines():
+                # Format: M  file.txt (Modified)
+                # Format: A  file.txt (Added)
+                # Format: D  file.txt (Deleted)
+                parts = line.split(maxsplit=1)
+                if len(parts) == 2:
+                    status_char, filename = parts
+                    status_color = {
+                        "M": "yellow",
+                        "A": "green",
+                        "D": "red",
+                        "R": "cyan",  # Renamed
+                        "C": "cyan",  # Copied
+                    }.get(status_char[0], "white")
+                    status_name = {
+                        "M": "Modified",
+                        "A": "Added",
+                        "D": "Deleted",
+                        "R": "Renamed",
+                        "C": "Copied",
+                    }.get(status_char[0], "Changed")
+                    console.print(
+                        f"  [{status_color}]{status_char}[/{status_color}]  {filename} ({status_name})"
+                    )
+        else:
+            console.print("  [dim]No differences found[/dim]")
+    elif summary:
+        # Show diff statistics
+        result = git_command(
+            "diff",
+            "--stat",
+            branch1,
+            branch2,
+            repo=repo,
+            capture=True,
+        )
+        console.print("[bold]Diff summary:[/bold]\n")
+        if result.stdout.strip():
+            console.print(result.stdout)
+        else:
+            console.print("  [dim]No differences found[/dim]")
+    else:
+        # Show full diff
+        result = git_command(
+            "diff",
+            branch1,
+            branch2,
+            repo=repo,
+            capture=True,
+        )
+        if result.stdout.strip():
+            console.print(result.stdout)
+        else:
+            console.print("[dim]No differences found[/dim]\n")
+
+
 def get_worktree_status(path: str, repo: Path) -> str:
     """
     Determine the status of a worktree.

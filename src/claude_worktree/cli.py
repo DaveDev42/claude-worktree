@@ -503,6 +503,57 @@ def doctor() -> None:
 
 
 @app.command()
+def diff(
+    branch1: str = typer.Argument(
+        ...,
+        help="First branch name to compare",
+        autocompletion=complete_all_branches,
+    ),
+    branch2: str = typer.Argument(
+        ...,
+        help="Second branch name to compare",
+        autocompletion=complete_all_branches,
+    ),
+    summary: bool = typer.Option(
+        False,
+        "--summary",
+        "-s",
+        help="Show diff statistics only",
+    ),
+    files: bool = typer.Option(
+        False,
+        "--files",
+        "-f",
+        help="Show changed files only",
+    ),
+) -> None:
+    """
+    Compare two worktrees or branches.
+
+    Shows the differences between two branches in various formats:
+    - Default: Full diff output (like `git diff`)
+    - --summary/-s: Diff statistics (files changed, insertions, deletions)
+    - --files/-f: List of changed files with status (Modified, Added, Deleted)
+
+    Useful for reviewing changes before merging or understanding differences
+    between feature branches.
+
+    Example:
+        cw diff main feature-api           # Full diff
+        cw diff main feature-api --summary  # Stats only
+        cw diff main feature-api --files    # Changed files list
+        cw diff fix-auth hotfix-bug -f      # Compare two feature branches
+    """
+    try:
+        from .core import diff_worktrees
+
+        diff_worktrees(branch1=branch1, branch2=branch2, summary=summary, files=files)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def upgrade() -> None:
     """
     Upgrade claude-worktree to the latest version.
