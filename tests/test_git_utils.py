@@ -129,7 +129,7 @@ def test_find_worktree_by_branch(temp_git_repo: Path) -> None:
 
     # Should find the worktree
     found_path = find_worktree_by_branch(temp_git_repo, "refs/heads/my-feature")
-    assert found_path == str(feature_path)
+    assert found_path == feature_path
 
     # Should not find non-existent branch
     assert find_worktree_by_branch(temp_git_repo, "refs/heads/nonexistent") is None
