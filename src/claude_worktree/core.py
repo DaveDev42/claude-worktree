@@ -1369,3 +1369,164 @@ def resume_worktree(
         launch_ai_tool(
             worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
         )
+
+
+def show_stats() -> None:
+    """
+    Display usage analytics for worktrees.
+
+    Shows:
+    - Total worktrees count
+    - Active development time per worktree
+    - Worktree age statistics
+    - Status distribution
+    """
+    import time
+
+    repo = get_repo_root()
+    worktrees = parse_worktrees(repo)
+
+    # Collect worktree data
+    worktree_data: list[tuple[str, Path, str, float, int]] = []
+    for branch, path in worktrees:
+        # Skip main repository
+        if path.resolve() == repo.resolve():
+            continue
+        # Skip detached worktrees
+        if branch == "(detached)":
+            continue
+
+        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+        status = get_worktree_status(str(path), repo)
+
+        # Get creation time (directory mtime)
+        try:
+            if path.exists():
+                creation_time = path.stat().st_mtime
+                age_days = (time.time() - creation_time) / (24 * 3600)
+
+                # Count commits in this worktree
+                try:
+                    commit_count_result = git_command(
+                        "rev-list", "--count", branch_name, repo=path, capture=True, check=False
+                    )
+                    commit_count = (
+                        int(commit_count_result.stdout.strip())
+                        if commit_count_result.returncode == 0
+                        else 0
+                    )
+                except Exception:
+                    commit_count = 0
+            else:
+                creation_time = 0.0
+                age_days = 0.0
+                commit_count = 0
+
+            worktree_data.append((branch_name, path, status, age_days, commit_count))
+        except Exception:
+            continue
+
+    if not worktree_data:
+        console.print("\n[yellow]No feature worktrees found[/yellow]\n")
+        return
+
+    console.print("\n[bold cyan]📊 Worktree Statistics[/bold cyan]\n")
+
+    # Overall statistics
+    total_count = len(worktree_data)
+    status_counts = {"clean": 0, "modified": 0, "active": 0, "stale": 0}
+    for _, _, status, _, _ in worktree_data:
+        status_counts[status] = status_counts.get(status, 0) + 1
+
+    console.print("[bold]Overview:[/bold]")
+    console.print(f"  Total worktrees: {total_count}")
+    console.print(
+        f"  Status: [green]{status_counts.get('clean', 0)} clean[/green], "
+        f"[yellow]{status_counts.get('modified', 0)} modified[/yellow], "
+        f"[bold green]{status_counts.get('active', 0)} active[/bold green], "
+        f"[red]{status_counts.get('stale', 0)} stale[/red]"
+    )
+    console.print()
+
+    # Age statistics
+    ages = [age for _, _, _, age, _ in worktree_data if age > 0]
+    if ages:
+        avg_age = sum(ages) / len(ages)
+        oldest_age = max(ages)
+        newest_age = min(ages)
+
+        console.print("[bold]Age Statistics:[/bold]")
+        console.print(f"  Average age: {avg_age:.1f} days")
+        console.print(f"  Oldest: {oldest_age:.1f} days")
+        console.print(f"  Newest: {newest_age:.1f} days")
+        console.print()
+
+    # Commit statistics
+    commits = [count for _, _, _, _, count in worktree_data if count > 0]
+    if commits:
+        total_commits = sum(commits)
+        avg_commits = total_commits / len(commits)
+        max_commits = max(commits)
+
+        console.print("[bold]Commit Statistics:[/bold]")
+        console.print(f"  Total commits across all worktrees: {total_commits}")
+        console.print(f"  Average commits per worktree: {avg_commits:.1f}")
+        console.print(f"  Most commits in a worktree: {max_commits}")
+        console.print()
+
+    # Top worktrees by age
+    console.print("[bold]Oldest Worktrees:[/bold]")
+    sorted_by_age = sorted(worktree_data, key=lambda x: x[3], reverse=True)[:5]
+    for branch_name, _path, status, age_days, _ in sorted_by_age:
+        if age_days > 0:
+            status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "✗"}.get(
+                status, "○"
+            )
+            status_color = {
+                "clean": "green",
+                "modified": "yellow",
+                "active": "bold green",
+                "stale": "red",
+            }.get(status, "white")
+            age_str = format_age(age_days)
+            console.print(
+                f"  [{status_color}]{status_icon}[/{status_color}] {branch_name:<30} {age_str}"
+            )
+    console.print()
+
+    # Most active worktrees by commit count
+    console.print("[bold]Most Active Worktrees (by commits):[/bold]")
+    sorted_by_commits = sorted(worktree_data, key=lambda x: x[4], reverse=True)[:5]
+    for branch_name, _path, status, _age_days, commit_count in sorted_by_commits:
+        if commit_count > 0:
+            status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "✗"}.get(
+                status, "○"
+            )
+            status_color = {
+                "clean": "green",
+                "modified": "yellow",
+                "active": "bold green",
+                "stale": "red",
+            }.get(status, "white")
+            console.print(
+                f"  [{status_color}]{status_icon}[/{status_color}] {branch_name:<30} {commit_count} commits"
+            )
+    console.print()
+
+
+def format_age(age_days: float) -> str:
+    """Format age in days to human-readable string."""
+    if age_days < 1:
+        hours = int(age_days * 24)
+        return f"{hours}h ago" if hours > 0 else "just now"
+    elif age_days < 7:
+        return f"{int(age_days)}d ago"
+    elif age_days < 30:
+        weeks = int(age_days / 7)
+        return f"{weeks}w ago"
+    elif age_days < 365:
+        months = int(age_days / 30)
+        return f"{months}mo ago"
+    else:
+        years = int(age_days / 365)
+        return f"{years}y ago"

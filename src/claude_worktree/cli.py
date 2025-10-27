@@ -554,6 +554,30 @@ def diff(
 
 
 @app.command()
+def stats() -> None:
+    """
+    Display usage analytics for worktrees.
+
+    Shows comprehensive statistics about your worktrees:
+    - Total worktrees count and status distribution
+    - Age statistics (average, oldest, newest)
+    - Commit activity across worktrees
+    - Top 5 oldest worktrees
+    - Top 5 most active worktrees by commit count
+
+    Example:
+        cw stats
+    """
+    try:
+        from .core import show_stats
+
+        show_stats()
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def upgrade() -> None:
     """
     Upgrade claude-worktree to the latest version.
