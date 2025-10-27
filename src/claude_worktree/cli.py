@@ -184,6 +184,11 @@ def finish(
         "--push",
         help="Push base branch to origin after merge",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview merge without executing",
+    ),
 ) -> None:
     """
     Finish work on a worktree.
@@ -198,13 +203,16 @@ def finish(
     Can be run from any directory by specifying the worktree branch name,
     or from within a feature worktree without arguments.
 
+    Use --dry-run to preview what would happen without actually executing.
+
     Example:
-        cw finish                  # Finish current worktree
-        cw finish fix-auth         # Finish fix-auth worktree from anywhere
+        cw finish                     # Finish current worktree
+        cw finish fix-auth            # Finish fix-auth worktree from anywhere
         cw finish feature-api --push  # Finish and push to remote
+        cw finish --dry-run           # Preview merge steps
     """
     try:
-        finish_worktree(target=target, push=push)
+        finish_worktree(target=target, push=push, dry_run=dry_run)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

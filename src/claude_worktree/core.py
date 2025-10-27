@@ -124,13 +124,14 @@ def create_worktree(
     return worktree_path
 
 
-def finish_worktree(target: str | None = None, push: bool = False) -> None:
+def finish_worktree(target: str | None = None, push: bool = False, dry_run: bool = False) -> None:
     """
     Finish work on a worktree: rebase, merge, and cleanup.
 
     Args:
         target: Branch name of worktree to finish (optional, defaults to current directory)
         push: Push base branch to origin after merge
+        dry_run: Preview merge without executing
 
     Raises:
         GitError: If git operations fail
@@ -189,6 +190,26 @@ def finish_worktree(target: str | None = None, push: bool = False) -> None:
     console.print(f"  Feature:     [green]{feature_branch}[/green]")
     console.print(f"  Base:        [green]{base_branch}[/green]")
     console.print(f"  Repo:        [blue]{repo}[/blue]\n")
+
+    # Dry-run mode: preview operations without executing
+    if dry_run:
+        console.print("[bold yellow]DRY RUN MODE - No changes will be made[/bold yellow]\n")
+        console.print("[bold]The following operations would be performed:[/bold]\n")
+        console.print("  1. [cyan]Fetch[/cyan] updates from remote")
+        console.print(f"  2. [cyan]Rebase[/cyan] {feature_branch} onto {base_branch}")
+        console.print(f"  3. [cyan]Switch[/cyan] to {base_branch} in base repository")
+        console.print(f"  4. [cyan]Merge[/cyan] {feature_branch} into {base_branch} (fast-forward)")
+        if push:
+            console.print(f"  5. [cyan]Push[/cyan] {base_branch} to origin")
+            console.print(f"  6. [cyan]Remove[/cyan] worktree at {cwd}")
+            console.print(f"  7. [cyan]Delete[/cyan] local branch {feature_branch}")
+            console.print("  8. [cyan]Clean up[/cyan] metadata")
+        else:
+            console.print(f"  5. [cyan]Remove[/cyan] worktree at {cwd}")
+            console.print(f"  6. [cyan]Delete[/cyan] local branch {feature_branch}")
+            console.print("  7. [cyan]Clean up[/cyan] metadata")
+        console.print("\n[dim]Run without --dry-run to execute these operations.[/dim]\n")
+        return
 
     # Rebase feature on base
     # Try to fetch from origin if it exists

@@ -190,6 +190,63 @@ def test_finish_worktree_with_rebase(temp_git_repo: Path, disable_claude, monkey
     assert (temp_git_repo / "main.txt").exists()
 
 
+def test_finish_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatch, capsys) -> None:
+    """Test dry-run mode doesn't modify anything."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="dry-run-test",
+        no_cd=True,
+    )
+
+    # Make commit in worktree
+    (worktree_path / "feature.txt").write_text("feature content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Run finish with dry_run=True
+    monkeypatch.chdir(worktree_path)
+    finish_worktree(push=False, dry_run=True)
+
+    # Verify output shows dry-run mode
+    captured = capsys.readouterr()
+    assert "DRY RUN MODE" in captured.out
+    assert "No changes will be made" in captured.out
+    assert "Rebase" in captured.out
+    assert "Merge" in captured.out
+    assert "Remove" in captured.out
+
+    # Verify nothing was actually changed
+    # Worktree should still exist
+    assert worktree_path.exists()
+    assert (worktree_path / "feature.txt").exists()
+
+    # Branch should still exist
+    result = subprocess.run(
+        ["git", "branch", "--list", "dry-run-test"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "dry-run-test" in result.stdout
+
+    # Changes should NOT be merged to main
+    assert not (temp_git_repo / "feature.txt").exists()
+
+    # Worktree should still be registered
+    result = subprocess.run(
+        ["git", "worktree", "list"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert str(worktree_path) in result.stdout
+
+
 def test_delete_worktree_by_branch(temp_git_repo: Path, disable_claude) -> None:
     """Test deleting worktree by branch name."""
     # Create worktree
