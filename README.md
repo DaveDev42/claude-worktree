@@ -18,10 +18,15 @@ Works with Claude Code, Codex, Happy, and any custom AI tool.
 - 🌳 **Easy Worktree Management**: Create isolated directories for each feature branch
 - 🤖 **Multi-AI Support**: Works with Claude Code, Codex, Happy, and custom AI tools
 - 🔄 **Clean Merge Workflow**: Rebase, merge, and cleanup with a single command
-- 📦 **Simple Naming**: Use clean branch names without timestamp clutter
+- 🔧 **Health Monitoring**: Check worktree health, detect stale branches, and get recommendations
+- 📊 **Analytics & Visualization**: View statistics, tree hierarchy, and compare branches
+- 🎯 **AI-Assisted Workflows**: Get AI help with conflict resolution during merges
+- 📦 **Template System**: Save and reuse worktree setups across projects
+- 💾 **Smart Stash Management**: Organize stashes by worktree for easy context switching
+- 🧹 **Batch Cleanup**: Clean up multiple worktrees based on merge status, age, or criteria
+- ⚡ **Shell Completion**: Tab completion for bash/zsh/fish with quick navigation
 - ⚙️ **Flexible Configuration**: Customize AI tool, presets, and defaults
-- ⚡ **Shell Completion**: Tab completion for bash/zsh/fish
-- 🎯 **Type-Safe**: Built with type hints and modern Python practices
+- 🎨 **Type-Safe**: Built with type hints and modern Python practices
 
 ## Installation
 
@@ -157,23 +162,230 @@ cw prune
 
 Removes administrative data for worktrees with "stale" status (directories that have been manually deleted).
 
+### Batch cleanup worktrees
+
+```bash
+# Delete merged worktrees
+cw clean --merged
+
+# Delete stale worktrees
+cw clean --stale
+
+# Delete worktrees older than 30 days
+cw clean --older-than 30
+
+# Interactive selection
+cw clean -i
+
+# Preview what would be deleted
+cw clean --merged --dry-run
+```
+
+Use `--dry-run` to preview which worktrees would be deleted before actually removing them.
+
+### Synchronize with base branch
+
+```bash
+# Sync current worktree
+cw sync
+
+# Sync specific worktree
+cw sync fix-auth
+
+# Sync all worktrees
+cw sync --all
+
+# Only fetch, don't rebase
+cw sync --fetch-only
+```
+
+Fetches latest changes and rebases your feature branch onto the updated base branch. Useful for long-running features.
+
+### Health check
+
+```bash
+cw doctor
+```
+
+Performs comprehensive health checks:
+- Git version compatibility (minimum 2.31.0)
+- Worktree accessibility (detects stale worktrees)
+- Uncommitted changes detection
+- Worktrees behind base branch
+- Existing merge conflicts
+- Cleanup recommendations
+
+### Compare branches
+
+```bash
+# Full diff between branches
+cw diff main feature-api
+
+# Show diff statistics only
+cw diff main feature-api --summary
+
+# Show changed files list
+cw diff main feature-api --files
+```
+
+### Visualize worktree hierarchy
+
+```bash
+cw tree
+```
+
+Displays an ASCII tree showing:
+- Base repository at the root
+- Feature worktrees as branches
+- Status indicators (clean, modified, stale)
+- Current worktree highlighting
+
+### View statistics
+
+```bash
+cw stats
+```
+
+Shows comprehensive analytics:
+- Total worktrees count and status distribution
+- Age statistics (average, oldest, newest)
+- Commit activity across worktrees
+- Top 5 oldest worktrees
+- Top 5 most active worktrees by commit count
+
+### Template management
+
+```bash
+# Create template from current directory
+cw template create my-python-setup
+
+# Create with description
+cw template create my-setup . -d "My project template"
+
+# List all templates
+cw template list
+
+# Show template details
+cw template show my-setup
+
+# Apply template to current directory
+cw template apply my-setup
+
+# Apply to specific path
+cw template apply my-setup ../feature
+
+# Delete template
+cw template delete my-setup
+```
+
+Templates help you reuse common worktree setups across projects.
+
+### Stash management
+
+```bash
+# Save changes in current worktree
+cw stash save
+cw stash save "work in progress"
+
+# List all stashes (organized by worktree)
+cw stash list
+
+# Apply stash to different worktree
+cw stash apply fix-auth
+cw stash apply feature-api --stash stash@{1}
+```
+
+Worktree-aware stashing makes it easy to move changes between worktrees.
+
+### Finish with advanced options
+
+```bash
+# Interactive mode with confirmations
+cw finish -i
+
+# Preview merge without executing
+cw finish --dry-run
+
+# Get AI help with conflict resolution
+cw finish --ai-merge
+
+# Finish specific worktree from anywhere
+cw finish fix-auth --push
+```
+
+The `--ai-merge` flag launches your configured AI tool if conflicts are detected during rebase.
+
 ## Command Reference
+
+### Core Commands
 
 | Command | Description |
 |---------|-------------|
 | `cw new <name>` | Create new worktree with specified branch name |
-| `cw finish` | Rebase, merge, and cleanup current worktree |
-| `cw resume [branch]` | Resume AI work in current or specified worktree |
-| `cw list` | List all worktrees |
-| `cw status` | Show current worktree status |
+| `cw finish [branch]` | Rebase, merge, and cleanup worktree |
+| `cw resume [branch]` | Resume AI work in worktree with context restoration |
+| `cw list` | List all worktrees with status |
+| `cw status` | Show current worktree metadata |
 | `cw delete <target>` | Delete worktree by branch name or path |
-| `cw prune` | Prune stale worktree data |
+| `cw prune` | Prune stale worktree administrative data |
+
+### Maintenance & Cleanup
+
+| Command | Description |
+|---------|-------------|
+| `cw clean --merged` | Delete worktrees for merged branches |
+| `cw clean --stale` | Delete worktrees with stale status |
+| `cw clean --older-than <days>` | Delete worktrees older than N days |
+| `cw clean -i` | Interactive cleanup with selection UI |
+| `cw sync [branch]` | Sync worktree(s) with base branch |
+| `cw sync --all` | Sync all worktrees |
+| `cw doctor` | Health check and diagnostics |
+
+### Analysis & Visualization
+
+| Command | Description |
+|---------|-------------|
+| `cw tree` | Display worktree hierarchy in tree format |
+| `cw stats` | Show usage analytics and statistics |
+| `cw diff <branch1> <branch2>` | Compare two branches |
+| `cw diff <branch1> <branch2> --summary` | Show diff statistics only |
+| `cw diff <branch1> <branch2> --files` | Show changed files list |
+
+### Template Management
+
+| Command | Description |
+|---------|-------------|
+| `cw template create <name> [path]` | Create template from directory |
+| `cw template list` | List all available templates |
+| `cw template show <name>` | Show template details |
+| `cw template apply <name> [path]` | Apply template to directory |
+| `cw template delete <name>` | Delete template |
+
+### Stash Management
+
+| Command | Description |
+|---------|-------------|
+| `cw stash save [message]` | Save changes with worktree prefix |
+| `cw stash list` | List stashes organized by worktree |
+| `cw stash apply <branch>` | Apply stash to different worktree |
+
+### Configuration
+
+| Command | Description |
+|---------|-------------|
 | `cw config show` | Show current configuration |
 | `cw config set <key> <value>` | Set configuration value |
-| `cw config use-preset <name>` | Use a predefined AI tool preset |
+| `cw config use-preset <name>` | Use AI tool preset |
 | `cw config list-presets` | List available presets |
-| `cw config reset` | Reset configuration to defaults |
-| `cw upgrade` | Upgrade to the latest version |
+| `cw config reset` | Reset to defaults |
+| `cw upgrade` | Upgrade to latest version |
+
+### Navigation
+
+| Command | Description |
+|---------|-------------|
+| `cw cd <branch>` | Print worktree path (or use `cw-cd` shell function) |
+| `cw _shell-function <shell>` | Output shell function for sourcing |
 
 ## Shell Completion
 
@@ -440,8 +652,15 @@ cw config set ai-tool <your-tool>
 
 ### "Rebase failed"
 
-Conflicts were detected during rebase. The tool automatically aborts the rebase. Resolve conflicts manually:
+Conflicts were detected during rebase. You have two options:
 
+**Option 1: AI-Assisted Resolution (Recommended)**
+```bash
+cw finish --ai-merge
+```
+If conflicts occur, your configured AI tool will launch to help resolve them.
+
+**Option 2: Manual Resolution**
 ```bash
 cd <worktree-path>
 git rebase origin/<base-branch>
