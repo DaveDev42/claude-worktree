@@ -4,12 +4,7 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## High Priority
 
-### AI Integration
-
-- [ ] **AI-assisted conflict resolution** - Automatically offer AI help when rebase conflicts occur
-  - Add `--ai-merge` flag to `cw finish` for automatic AI conflict resolution
-  - Interactive prompt when conflicts detected: "Would you like AI to help resolve conflicts?"
-  - Launch AI tool with context about conflicted files and resolution steps
+No high priority items at this time.
 
 ## Medium Priority
 
