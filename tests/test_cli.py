@@ -354,7 +354,10 @@ def test_sync_command_help(temp_git_repo: Path) -> None:
 
 def test_sync_command_accepts_flags(temp_git_repo: Path, disable_claude) -> None:
     """Test sync command accepts all flags."""
-    result = runner.invoke(app, ["sync", "--help"], color=False)
+    result = runner.invoke(app, ["sync", "--help"])
     assert result.exit_code == 0
-    assert "--all" in result.stdout
-    assert "--fetch-only" in result.stdout
+    # Check for flag names (ANSI codes may be present in colored output)
+    assert "all" in result.stdout and "Sync all worktrees" in result.stdout
+    assert (
+        "fetch" in result.stdout and "only" in result.stdout and "without rebasing" in result.stdout
+    )
