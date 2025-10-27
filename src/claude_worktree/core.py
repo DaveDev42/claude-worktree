@@ -129,6 +129,7 @@ def finish_worktree(
     push: bool = False,
     interactive: bool = False,
     dry_run: bool = False,
+    ai_merge: bool = False,
 ) -> None:
     """
     Finish work on a worktree: rebase, merge, and cleanup.
@@ -138,6 +139,7 @@ def finish_worktree(
         push: Push base branch to origin after merge
         interactive: Pause for confirmation before each step
         dry_run: Preview merge without executing
+        ai_merge: Launch AI tool to help resolve conflicts if rebase fails
 
     Raises:
         GitError: If git operations fail
@@ -252,13 +254,64 @@ def finish_worktree(
     try:
         git_command("rebase", rebase_target, repo=cwd)
     except GitError:
+        # Rebase failed - check if there are conflicts
+        conflicts_result = git_command(
+            "diff", "--name-only", "--diff-filter=U", repo=cwd, capture=True, check=False
+        )
+        conflicted_files = (
+            conflicts_result.stdout.strip().splitlines() if conflicts_result.returncode == 0 else []
+        )
+
+        if conflicted_files and ai_merge:
+            # Offer AI assistance for conflict resolution
+            console.print("\n[bold yellow]⚠ Rebase conflicts detected![/bold yellow]\n")
+            console.print("[cyan]Conflicted files:[/cyan]")
+            for file in conflicted_files:
+                console.print(f"  • {file}")
+            console.print()
+
+            from rich.prompt import Confirm
+
+            if Confirm.ask("Would you like AI to help resolve these conflicts?", default=True):
+                console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
+
+                # Create context message for AI
+                context = "# Merge Conflict Resolution\n\n"
+                context += f"Branch '{feature_branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
+                context += f"Conflicted files ({len(conflicted_files)}):\n"
+                for file in conflicted_files:
+                    context += f"  - {file}\n"
+                context += "\n"
+                context += "Please help resolve these conflicts. For each file:\n"
+                context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
+                context += "2. Choose or merge the appropriate changes\n"
+                context += "3. Remove the conflict markers\n"
+                context += "4. Stage the resolved files with: git add <file>\n"
+                context += "5. Continue the rebase with: git rebase --continue\n"
+
+                # Save context to temporary file
+                from .session_manager import save_context
+
+                save_context(feature_branch, context)
+
+                # Launch AI tool in the worktree
+                launch_ai_tool(cwd, bg=False)
+
+                console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
+                console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
+                console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
+                console.print("  3. Re-run: [cyan]cw finish[/cyan]\n")
+                sys.exit(0)
+
         # Abort the rebase
         git_command("rebase", "--abort", repo=cwd, check=False)
-        raise RebaseError(
-            f"Rebase failed. Please resolve conflicts manually:\n"
-            f"  cd {cwd}\n"
-            f"  git rebase {rebase_target}"
-        )
+        error_msg = f"Rebase failed. Please resolve conflicts manually:\n  cd {cwd}\n  git rebase {rebase_target}"
+        if conflicted_files:
+            error_msg += f"\n\nConflicted files ({len(conflicted_files)}):"
+            for file in conflicted_files:
+                error_msg += f"\n  • {file}"
+            error_msg += "\n\nTip: Use --ai-merge flag to get AI assistance with conflicts"
+        raise RebaseError(error_msg)
 
     console.print("[bold green]✓[/bold green] Rebase successful\n")
 

@@ -195,6 +195,11 @@ def finish(
         "--dry-run",
         help="Preview merge without executing",
     ),
+    ai_merge: bool = typer.Option(
+        False,
+        "--ai-merge",
+        help="Launch AI tool to help resolve conflicts if rebase fails",
+    ),
 ) -> None:
     """
     Finish work on a worktree.
@@ -211,6 +216,7 @@ def finish(
 
     Use --interactive/-i to confirm each step before execution.
     Use --dry-run to preview what would happen without actually executing.
+    Use --ai-merge to get AI assistance with conflict resolution if rebase fails.
 
     Example:
         cw finish                     # Finish current worktree
@@ -218,9 +224,12 @@ def finish(
         cw finish feature-api --push  # Finish and push to remote
         cw finish -i                  # Interactive mode with confirmations
         cw finish --dry-run           # Preview merge steps
+        cw finish --ai-merge          # Get AI help with conflicts
     """
     try:
-        finish_worktree(target=target, push=push, interactive=interactive, dry_run=dry_run)
+        finish_worktree(
+            target=target, push=push, interactive=interactive, dry_run=dry_run, ai_merge=ai_merge
+        )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
