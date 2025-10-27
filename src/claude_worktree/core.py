@@ -160,7 +160,7 @@ def finish_worktree(
                 f"No worktree found for branch '{target}'. "
                 f"Use 'cw list' to see available worktrees."
             )
-        cwd = Path(worktree_path_result)
+        cwd = worktree_path_result
         # Normalize branch name
         feature_branch = target[11:] if target.startswith("refs/heads/") else target
     else:
@@ -413,7 +413,7 @@ def delete_worktree(
         # Find branch for this worktree
         branch_name: str | None = None
         for br, path in parse_worktrees(repo):
-            if str(Path(path).resolve()) == worktree_path:
+            if path.resolve() == Path(worktree_path):
                 if br != "(detached)":
                     # Normalize branch name: remove refs/heads/ prefix
                     branch_name = br[11:] if br.startswith("refs/heads/") else br
@@ -434,7 +434,7 @@ def delete_worktree(
             raise WorktreeNotFoundError(
                 f"No worktree found for branch '{branch_name}'. Try specifying the path directly."
             )
-        worktree_path = worktree_path_result
+        worktree_path = str(worktree_path_result)
         # Normalize branch_name to simple name without refs/heads/
         if branch_name.startswith("refs/heads/"):
             branch_name = branch_name[11:]
@@ -496,11 +496,11 @@ def sync_worktree(
         worktrees_to_sync = []
         for branch, path in parse_worktrees(repo):
             # Skip main repository and detached worktrees
-            if str(Path(path).resolve()) == str(repo.resolve()) or branch == "(detached)":
+            if path.resolve() == repo.resolve() or branch == "(detached)":
                 continue
             # Normalize branch name
             branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
-            worktrees_to_sync.append((branch_name, Path(path)))
+            worktrees_to_sync.append((branch_name, path))
     elif target:
         # Sync specific worktree by branch name
         worktree_path_result = find_worktree_by_branch(repo, target)
@@ -512,7 +512,7 @@ def sync_worktree(
                 f"Use 'cw list' to see available worktrees."
             )
         branch_name = target[11:] if target.startswith("refs/heads/") else target
-        worktrees_to_sync = [(branch_name, Path(worktree_path_result))]
+        worktrees_to_sync = [(branch_name, worktree_path_result)]
     else:
         # Sync current worktree
         cwd = Path.cwd()
@@ -612,12 +612,12 @@ def clean_worktrees(
     import time
 
     repo = get_repo_root()
-    worktrees_to_delete = []
+    worktrees_to_delete: list[tuple[str, str, str]] = []
 
     # Collect worktrees matching criteria
     for branch, path in parse_worktrees(repo):
         # Skip main repository
-        if str(Path(path).resolve()) == str(repo.resolve()):
+        if path.resolve() == repo.resolve():
             continue
 
         # Skip detached worktrees
@@ -626,14 +626,13 @@ def clean_worktrees(
 
         # Normalize branch name
         branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
-        path_obj = Path(path)
 
         should_delete = False
         reasons = []
 
         # Check stale status
         if stale:
-            status = get_worktree_status(path, repo)
+            status = get_worktree_status(str(path), repo)
             if status == "stale":
                 should_delete = True
                 reasons.append("stale (directory missing)")
@@ -661,10 +660,10 @@ def clean_worktrees(
                     pass
 
         # Check age
-        if older_than is not None and path_obj.exists():
+        if older_than is not None and path.exists():
             try:
                 # Get last modification time of the worktree directory
-                mtime = path_obj.stat().st_mtime
+                mtime = path.stat().st_mtime
                 age_days = (time.time() - mtime) / (24 * 3600)
                 if age_days > older_than:
                     should_delete = True
@@ -674,7 +673,7 @@ def clean_worktrees(
 
         if should_delete:
             reason_str = ", ".join(reasons)
-            worktrees_to_delete.append((branch_name, path, reason_str))
+            worktrees_to_delete.append((branch_name, str(path), reason_str))
 
     # If no criteria specified, show error
     if not merged and not stale and older_than is None and not interactive:
@@ -692,13 +691,13 @@ def clean_worktrees(
     # Interactive mode: let user select which ones to delete
     if interactive:
         console.print("[bold cyan]Available worktrees:[/bold cyan]\n")
-        all_worktrees = []
+        all_worktrees: list[tuple[str, str, str]] = []
         for branch, path in parse_worktrees(repo):
-            if str(Path(path).resolve()) == str(repo.resolve()) or branch == "(detached)":
+            if path.resolve() == repo.resolve() or branch == "(detached)":
                 continue
             branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
-            status = get_worktree_status(path, repo)
-            all_worktrees.append((branch_name, path, status))
+            status = get_worktree_status(str(path), repo)
+            all_worktrees.append((branch_name, str(path), status))
             console.print(f"  [{status:8}] {branch_name:<30} {path}")
 
         console.print()
@@ -721,9 +720,9 @@ def clean_worktrees(
     console.print(
         f"\n[bold yellow]{'DRY RUN: ' if dry_run else ''}Worktrees to delete:[/bold yellow]\n"
     )
-    for branch, path, reason in worktrees_to_delete:
+    for branch, worktree_path, reason in worktrees_to_delete:
         console.print(f"  • {branch:<30} ({reason})")
-        console.print(f"    Path: {path}")
+        console.print(f"    Path: {worktree_path}")
 
     console.print()
 
@@ -809,14 +808,14 @@ def doctor() -> None:
     stale_count = 0
     for branch, path in parse_worktrees(repo):
         # Skip main repository
-        if str(Path(path).resolve()) == str(repo.resolve()):
+        if path.resolve() == repo.resolve():
             continue
         if branch == "(detached)":
             continue
 
         branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
-        status = get_worktree_status(path, repo)
-        worktrees.append((branch_name, Path(path), status))
+        status = get_worktree_status(str(path), repo)
+        worktrees.append((branch_name, path, status))
 
         if status == "stale":
             stale_count += 1
@@ -835,19 +834,19 @@ def doctor() -> None:
     # 3. Check for uncommitted changes
     console.print("[bold]3. Checking for uncommitted changes...[/bold]")
     dirty_worktrees: list[tuple[str, Path]] = []
-    for branch_name, path, status in worktrees:  # type: ignore[assignment]
+    for branch_name, path, status in worktrees:
         if status in ["modified", "active"]:
             # Check if there are actual uncommitted changes
             try:
                 diff_result = git_command(
                     "status",
                     "--porcelain",
-                    repo=path,  # type: ignore[arg-type]
+                    repo=path,
                     capture=True,
                     check=False,
                 )
                 if diff_result.returncode == 0 and diff_result.stdout.strip():
-                    dirty_worktrees.append((branch_name, path))  # type: ignore[arg-type]
+                    dirty_worktrees.append((branch_name, path))
             except Exception:
                 pass
 
@@ -866,7 +865,7 @@ def doctor() -> None:
     # 4. Check if worktrees are behind base branch
     console.print("[bold]4. Checking if worktrees are behind base branch...[/bold]")
     behind_worktrees: list[tuple[str, str, str]] = []
-    for branch_name, path, status in worktrees:  # type: ignore[assignment]
+    for branch_name, path, status in worktrees:
         if status == "stale":
             continue
 
@@ -877,14 +876,14 @@ def doctor() -> None:
 
         try:
             # Fetch to get latest remote refs
-            git_command("fetch", "--all", "--prune", repo=path, check=False)  # type: ignore[arg-type]
+            git_command("fetch", "--all", "--prune", repo=path, check=False)
 
             # Check if branch is behind origin/base
             merge_base_result = git_command(
                 "merge-base",
                 branch_name,
                 f"origin/{base_branch}",
-                repo=path,  # type: ignore[arg-type]
+                repo=path,
                 capture=True,
                 check=False,
             )
@@ -897,7 +896,7 @@ def doctor() -> None:
             base_commit_result = git_command(
                 "rev-parse",
                 f"origin/{base_branch}",
-                repo=path,  # type: ignore[arg-type]
+                repo=path,
                 capture=True,
                 check=False,
             )
@@ -913,7 +912,7 @@ def doctor() -> None:
                     "rev-list",
                     "--count",
                     f"{branch_name}..origin/{base_branch}",
-                    repo=path,  # type: ignore[arg-type]
+                    repo=path,
                     capture=True,
                     check=False,
                 )
@@ -939,7 +938,7 @@ def doctor() -> None:
     # 5. Check for existing merge conflicts
     console.print("[bold]5. Checking for merge conflicts...[/bold]")
     conflicted_worktrees: list[tuple[str, list[str]]] = []
-    for branch_name, path, status in worktrees:  # type: ignore[assignment]
+    for branch_name, path, status in worktrees:
         if status == "stale":
             continue
 
@@ -949,7 +948,7 @@ def doctor() -> None:
                 "diff",
                 "--name-only",
                 "--diff-filter=U",
-                repo=path,  # type: ignore[arg-type]
+                repo=path,
                 capture=True,
                 check=False,
             )
@@ -1147,8 +1146,8 @@ def list_worktrees() -> None:
     }
 
     for branch, path in worktrees:
-        status = get_worktree_status(path, repo)
-        rel_path = os.path.relpath(path, repo)
+        status = get_worktree_status(str(path), repo)
+        rel_path = os.path.relpath(str(path), repo)
         color = status_colors.get(status, "white")
         console.print(f"{branch[:33]:<35} [{color}]{status:<10}[/{color}] {rel_path}")
 
@@ -1321,7 +1320,7 @@ def resume_worktree(
                 f"Use 'cw list' to see available worktrees."
             )
 
-        worktree_path = Path(worktree_path_result)
+        worktree_path = worktree_path_result
         os.chdir(worktree_path)
         console.print(f"[dim]Switched to worktree: {worktree_path}[/dim]\n")
 

@@ -553,6 +553,125 @@ def diff(
         raise typer.Exit(code=1)
 
 
+# Template commands
+template_app = typer.Typer(
+    name="template",
+    help="Manage worktree templates",
+    no_args_is_help=True,
+)
+app.add_typer(template_app, name="template")
+
+
+@template_app.command(name="create")
+def template_create(
+    name: str = typer.Argument(..., help="Template name"),
+    source: str = typer.Argument(".", help="Source path (defaults to current directory)"),
+    description: str | None = typer.Option(
+        None, "--description", "-d", help="Template description"
+    ),
+) -> None:
+    """
+    Create a new template from a worktree.
+
+    Copies files from the source directory (excluding .git and common build directories)
+    to create a reusable template for future worktrees.
+
+    Example:
+        cw template create my-python-setup      # From current directory
+        cw template create my-setup ./feature   # From specific path
+        cw template create my-setup . -d "My project template"
+    """
+    try:
+        from .template_manager import create_template
+
+        source_path = Path(source).resolve()
+        create_template(name=name, source_path=source_path, description=description)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@template_app.command(name="list")
+def template_list() -> None:
+    """
+    List all available templates.
+
+    Shows template names, descriptions, and file counts.
+
+    Example:
+        cw template list
+    """
+    try:
+        from .template_manager import show_all_templates
+
+        show_all_templates()
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@template_app.command(name="show")
+def template_show(
+    name: str = typer.Argument(..., help="Template name"),
+) -> None:
+    """
+    Show detailed information about a template.
+
+    Example:
+        cw template show my-setup
+    """
+    try:
+        from .template_manager import show_template_info
+
+        show_template_info(name=name)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@template_app.command(name="delete")
+def template_delete(
+    name: str = typer.Argument(..., help="Template name"),
+) -> None:
+    """
+    Delete a template.
+
+    Example:
+        cw template delete my-setup
+    """
+    try:
+        from .template_manager import delete_template
+
+        delete_template(name=name)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@template_app.command(name="apply")
+def template_apply(
+    name: str = typer.Argument(..., help="Template name"),
+    target: str = typer.Argument(".", help="Target path (defaults to current directory)"),
+) -> None:
+    """
+    Apply a template to a directory.
+
+    Copies template files to the target directory, skipping existing files.
+
+    Example:
+        cw template apply my-setup             # To current directory
+        cw template apply my-setup ../feature  # To specific path
+    """
+    try:
+        from .template_manager import apply_template
+
+        target_path = Path(target).resolve()
+        apply_template(name=name, target_path=target_path)
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 @app.command()
 def upgrade() -> None:
     """
