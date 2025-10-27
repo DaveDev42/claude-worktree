@@ -164,7 +164,7 @@ def unset_config(key: str, repo: Path | None = None) -> None:
     git_command("config", "--local", "--unset-all", key, repo=repo, check=False)
 
 
-def parse_worktrees(repo: Path) -> list[tuple[str, str]]:
+def parse_worktrees(repo: Path) -> list[tuple[str, Path]]:
     """
     Parse git worktree list output.
 
@@ -172,12 +172,12 @@ def parse_worktrees(repo: Path) -> list[tuple[str, str]]:
         repo: Repository path
 
     Returns:
-        List of (branch_or_detached, path) tuples
+        List of (branch_or_detached, path) tuples where path is a Path object
     """
     result = git_command("worktree", "list", "--porcelain", repo=repo, capture=True)
     lines = result.stdout.strip().splitlines()
 
-    items: list[tuple[str, str]] = []
+    items: list[tuple[str, Path]] = []
     cur_path: str | None = None
     cur_branch: str | None = None
 
@@ -187,16 +187,16 @@ def parse_worktrees(repo: Path) -> list[tuple[str, str]]:
         elif line.startswith("branch "):
             cur_branch = line.split(" ", 1)[1]
         elif line.strip() == "" and cur_path:
-            items.append((cur_branch or "(detached)", cur_path))
+            items.append((cur_branch or "(detached)", Path(cur_path)))
             cur_path, cur_branch = None, None
 
     if cur_path:
-        items.append((cur_branch or "(detached)", cur_path))
+        items.append((cur_branch or "(detached)", Path(cur_path)))
 
     return items
 
 
-def find_worktree_by_branch(repo: Path, branch: str) -> str | None:
+def find_worktree_by_branch(repo: Path, branch: str) -> Path | None:
     """
     Find worktree path by branch name.
 
@@ -205,7 +205,7 @@ def find_worktree_by_branch(repo: Path, branch: str) -> str | None:
         branch: Branch name
 
     Returns:
-        Worktree path or None if not found
+        Worktree path as Path object or None if not found
     """
     for br, path in parse_worktrees(repo):
         if br == branch:

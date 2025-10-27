@@ -869,5 +869,93 @@ def reset() -> None:
         raise typer.Exit(code=1)
 
 
+# Stash commands
+stash_app = typer.Typer(
+    name="stash",
+    help="Worktree-aware stash management",
+    no_args_is_help=True,
+)
+app.add_typer(stash_app, name="stash")
+
+
+@stash_app.command(name="save")
+def stash_save_cmd(
+    message: str | None = typer.Argument(
+        None,
+        help="Optional message to describe the stash",
+    ),
+) -> None:
+    """
+    Save changes in current worktree to stash.
+
+    Creates a stash with a branch-prefixed message to help organize
+    stashes by worktree. If no message is provided, uses "WIP" as default.
+
+    Example:
+        cw stash save                  # Stash with default "WIP" message
+        cw stash save "work in progress"  # Stash with custom message
+    """
+    try:
+        from .core import stash_save
+
+        stash_save(message=message)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@stash_app.command(name="list")
+def stash_list_cmd() -> None:
+    """
+    List all stashes organized by worktree/branch.
+
+    Shows all stashes grouped by the branch they were created from,
+    making it easy to see which stashes belong to which worktree.
+
+    Example:
+        cw stash list
+    """
+    try:
+        from .core import stash_list
+
+        stash_list()
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@stash_app.command(name="apply")
+def stash_apply_cmd(
+    target_branch: str = typer.Argument(
+        ...,
+        help="Branch name of worktree to apply stash to",
+        autocompletion=complete_worktree_branches,
+    ),
+    stash_ref: str = typer.Option(
+        "stash@{0}",
+        "--stash",
+        "-s",
+        help="Stash reference (default: stash@{0} - most recent)",
+    ),
+) -> None:
+    """
+    Apply a stash to a different worktree.
+
+    Applies the specified stash (or most recent by default) to the
+    target worktree. This allows moving changes between worktrees.
+
+    Example:
+        cw stash apply fix-auth              # Apply most recent stash to fix-auth
+        cw stash apply feature-api --stash stash@{1}  # Apply specific stash
+    """
+    try:
+        from .core import stash_apply
+
+        stash_apply(target_branch=target_branch, stash_ref=stash_ref)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()
