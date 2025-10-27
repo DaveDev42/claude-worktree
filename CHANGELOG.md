@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2025-10-27
+
+### Fixed
+- **PyPI CDN propagation delay handling**: Intelligent retry logic for `cw upgrade`
+  - New `check_package_available()` function verifies version is downloadable before upgrade
+  - Automatically waits 30 seconds and retries if version not yet available on CDN
+  - Clear user messaging about CDN propagation delays
+  - Prevents "Nothing to upgrade" failures immediately after release
+  - Resolves race condition between PyPI JSON API and package download index
+
+### Summary
+This patch release fixes the frustrating upgrade experience that occurs immediately after a new release. When `cw upgrade` detects a new version but the package isn't yet available due to CDN caching, the tool now intelligently waits and retries instead of failing. Users no longer need to manually retry the upgrade command.
+
 ## [0.9.1] - 2025-10-27
 
 ### Added
@@ -344,7 +357,8 @@ This release focuses on fixing documentation drift between code and documentatio
 - Inline documentation with detailed docstrings
 - Type hints throughout codebase
 
-[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/DaveDev42/claude-worktree/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/DaveDev42/claude-worktree/compare/v0.8.1...v0.8.2
