@@ -786,8 +786,13 @@ def doctor() -> None:
             ["git", "--version"], capture_output=True, text=True, check=True, timeout=5
         )
         version_output = result.stdout.strip()
-        # Extract version number (e.g., "git version 2.39.0" -> "2.39.0")
-        version_str = version_output.split()[-1]
+        # Extract version number (e.g., "git version 2.39.0" or "git version 2.50.1 (Apple Git-155)")
+        # Take the third word which is always the version number
+        parts = version_output.split()
+        if len(parts) >= 3:
+            version_str = parts[2]
+        else:
+            version_str = parts[-1]
         git_version = parse(version_str)
         min_version = parse("2.31.0")
 

@@ -13,50 +13,7 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ## Medium Priority
 
-### Worktree Management
-
-- [ ] **`cw doctor`** - Health check for all worktrees
-  - Check Git version compatibility
-  - Verify all worktrees are accessible
-  - Report uncommitted changes
-  - Detect worktrees behind base branch
-  - Identify existing merge conflicts
-  - Show recommendations for cleanup
-
-### Cross-worktree Operations
-
-- [ ] **`cw diff <branch1> <branch2>`** - Compare worktrees
-  - Show diff between two feature branches
-  - `--summary` flag for stats only
-  - `--files` flag to list changed files only
-
-- [ ] **`cw stash`** - Worktree-aware stash management
-  - `cw stash save` - Stash changes in current worktree
-  - `cw stash apply <branch>` - Apply stash to different worktree
-  - `cw stash list` - List stashes organized by worktree
-
-## Low Priority / Future Enhancements
-
-### Visualization
-
-- [ ] **`cw tree`** - Visual worktree hierarchy
-  - ASCII tree showing base repo and all feature worktrees
-  - Show branch names, status indicators, and paths
-  - Highlight current/active worktree
-
-- [ ] **`cw stats`** - Usage analytics
-  - Total worktrees count
-  - Active development time per worktree
-  - Most frequently used worktrees
-  - Average time to finish (creation → merge)
-
 ### Advanced Features
-
-- [ ] **Worktree templates** - Reusable worktree configurations
-  - `cw template create <name>` - Save current setup as template
-  - `cw new <branch> --template <name>` - Create worktree from template
-  - Templates can include: git hooks, IDE settings, env files
-  - Store templates in `~/.config/claude-worktree/templates/`
 
 - [ ] **Git hook integration** - Automated workflow helpers
   - `cw hooks install` - Install claude-worktree-specific hooks
