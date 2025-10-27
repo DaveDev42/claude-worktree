@@ -536,6 +536,175 @@ def sync_worktree(
     console.print("\n[bold green]✓ Sync complete![/bold green]\n")
 
 
+def clean_worktrees(
+    merged: bool = False,
+    stale: bool = False,
+    older_than: int | None = None,
+    interactive: bool = False,
+    dry_run: bool = False,
+) -> None:
+    """
+    Batch cleanup of worktrees based on various criteria.
+
+    Args:
+        merged: Delete worktrees for branches already merged to base
+        stale: Delete worktrees with 'stale' status
+        older_than: Delete worktrees older than N days
+        interactive: Interactive selection UI
+        dry_run: Show what would be deleted without actually deleting
+
+    Raises:
+        GitError: If git operations fail
+    """
+    import time
+
+    repo = get_repo_root()
+    worktrees_to_delete = []
+
+    # Collect worktrees matching criteria
+    for branch, path in parse_worktrees(repo):
+        # Skip main repository
+        if str(Path(path).resolve()) == str(repo.resolve()):
+            continue
+
+        # Skip detached worktrees
+        if branch == "(detached)":
+            continue
+
+        # Normalize branch name
+        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+        path_obj = Path(path)
+
+        should_delete = False
+        reasons = []
+
+        # Check stale status
+        if stale:
+            status = get_worktree_status(path, repo)
+            if status == "stale":
+                should_delete = True
+                reasons.append("stale (directory missing)")
+
+        # Check if merged
+        if merged:
+            base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo)
+            if base_branch:
+                # Check if branch is merged into base
+                try:
+                    # Use git branch --merged to check
+                    result = git_command(
+                        "branch",
+                        "--merged",
+                        base_branch,
+                        "--format=%(refname:short)",
+                        repo=repo,
+                        capture=True,
+                    )
+                    merged_branches = result.stdout.strip().splitlines()
+                    if branch_name in merged_branches:
+                        should_delete = True
+                        reasons.append(f"merged into {base_branch}")
+                except GitError:
+                    pass
+
+        # Check age
+        if older_than is not None and path_obj.exists():
+            try:
+                # Get last modification time of the worktree directory
+                mtime = path_obj.stat().st_mtime
+                age_days = (time.time() - mtime) / (24 * 3600)
+                if age_days > older_than:
+                    should_delete = True
+                    reasons.append(f"older than {older_than} days ({age_days:.1f} days)")
+            except OSError:
+                pass
+
+        if should_delete:
+            reason_str = ", ".join(reasons)
+            worktrees_to_delete.append((branch_name, path, reason_str))
+
+    # If no criteria specified, show error
+    if not merged and not stale and older_than is None and not interactive:
+        console.print(
+            "[bold red]Error:[/bold red] Please specify at least one cleanup criterion:\n"
+            "  --merged, --stale, --older-than, or -i/--interactive"
+        )
+        return
+
+    # If nothing to delete
+    if not worktrees_to_delete and not interactive:
+        console.print("[bold green]✓[/bold green] No worktrees match the cleanup criteria\n")
+        return
+
+    # Interactive mode: let user select which ones to delete
+    if interactive:
+        console.print("[bold cyan]Available worktrees:[/bold cyan]\n")
+        all_worktrees = []
+        for branch, path in parse_worktrees(repo):
+            if str(Path(path).resolve()) == str(repo.resolve()) or branch == "(detached)":
+                continue
+            branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+            status = get_worktree_status(path, repo)
+            all_worktrees.append((branch_name, path, status))
+            console.print(f"  [{status:8}] {branch_name:<30} {path}")
+
+        console.print()
+        console.print("Enter branch names to delete (space-separated), or 'all' for all:")
+        user_input = input("> ").strip()
+
+        if user_input.lower() == "all":
+            worktrees_to_delete = [(b, p, "user selected") for b, p, _ in all_worktrees]
+        else:
+            selected = user_input.split()
+            worktrees_to_delete = [
+                (b, p, "user selected") for b, p, _ in all_worktrees if b in selected
+            ]
+
+        if not worktrees_to_delete:
+            console.print("[yellow]No worktrees selected for deletion[/yellow]")
+            return
+
+    # Show what will be deleted
+    console.print(
+        f"\n[bold yellow]{'DRY RUN: ' if dry_run else ''}Worktrees to delete:[/bold yellow]\n"
+    )
+    for branch, path, reason in worktrees_to_delete:
+        console.print(f"  • {branch:<30} ({reason})")
+        console.print(f"    Path: {path}")
+
+    console.print()
+
+    if dry_run:
+        console.print(f"[bold cyan]Would delete {len(worktrees_to_delete)} worktree(s)[/bold cyan]")
+        console.print("Run without --dry-run to actually delete them")
+        return
+
+    # Confirm deletion (unless in non-interactive mode with specific criteria)
+    if interactive or len(worktrees_to_delete) > 3:
+        console.print(f"[bold red]Delete {len(worktrees_to_delete)} worktree(s)?[/bold red]")
+        confirm = input("Type 'yes' to confirm: ").strip().lower()
+        if confirm != "yes":
+            console.print("[yellow]Deletion cancelled[/yellow]")
+            return
+
+    # Delete worktrees
+    console.print()
+    deleted_count = 0
+    for branch, _path, _ in worktrees_to_delete:
+        console.print(f"[yellow]Deleting {branch}...[/yellow]")
+        try:
+            # Use delete_worktree function
+            delete_worktree(target=branch, keep_branch=False, delete_remote=False, no_force=False)
+            console.print(f"[bold green]✓[/bold green] Deleted {branch}")
+            deleted_count += 1
+        except Exception as e:
+            console.print(f"[bold red]✗[/bold red] Failed to delete {branch}: {e}")
+
+    console.print(
+        f"\n[bold green]✓ Cleanup complete! Deleted {deleted_count} worktree(s)[/bold green]\n"
+    )
+
+
 def get_worktree_status(path: str, repo: Path) -> str:
     """
     Determine the status of a worktree.

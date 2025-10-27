@@ -361,3 +361,22 @@ def test_sync_command_accepts_flags(temp_git_repo: Path, disable_claude) -> None
     assert (
         "fetch" in result.stdout and "only" in result.stdout and "without rebasing" in result.stdout
     )
+
+
+def test_clean_command_help(temp_git_repo: Path) -> None:
+    """Test clean command help."""
+    result = runner.invoke(app, ["clean", "--help"])
+    assert result.exit_code == 0
+    assert "Batch cleanup of worktrees" in result.stdout
+
+
+def test_clean_command_accepts_flags(temp_git_repo: Path, disable_claude) -> None:
+    """Test clean command accepts all flags."""
+    result = runner.invoke(app, ["clean", "--help"])
+    assert result.exit_code == 0
+    # Check for flag names (ANSI codes may be present in colored output)
+    assert "merged" in result.stdout and "branches already merged" in result.stdout
+    assert "stale" in result.stdout and "stale" in result.stdout.lower()
+    assert "older" in result.stdout and "than" in result.stdout and "days" in result.stdout
+    assert "interactive" in result.stdout.lower() or "-i" in result.stdout
+    assert "dry" in result.stdout and "run" in result.stdout
