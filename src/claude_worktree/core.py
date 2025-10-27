@@ -124,13 +124,16 @@ def create_worktree(
     return worktree_path
 
 
-def finish_worktree(target: str | None = None, push: bool = False) -> None:
+def finish_worktree(
+    target: str | None = None, push: bool = False, interactive: bool = False
+) -> None:
     """
     Finish work on a worktree: rebase, merge, and cleanup.
 
     Args:
         target: Branch name of worktree to finish (optional, defaults to current directory)
         push: Push base branch to origin after merge
+        interactive: Pause for confirmation before each step
 
     Raises:
         GitError: If git operations fail
@@ -190,7 +193,23 @@ def finish_worktree(target: str | None = None, push: bool = False) -> None:
     console.print(f"  Base:        [green]{base_branch}[/green]")
     console.print(f"  Repo:        [blue]{repo}[/blue]\n")
 
+    # Helper function for interactive prompts
+    def confirm_step(step_name: str) -> bool:
+        """Prompt user to confirm a step in interactive mode."""
+        if not interactive:
+            return True
+        console.print(f"\n[bold yellow]Next step: {step_name}[/bold yellow]")
+        response = input("Continue? [Y/n/q]: ").strip().lower()
+        if response in ["q", "quit"]:
+            console.print("[yellow]Aborting...[/yellow]")
+            sys.exit(1)
+        return response in ["", "y", "yes"]
+
     # Rebase feature on base
+    if not confirm_step(f"Rebase {feature_branch} onto {base_branch}"):
+        console.print("[yellow]Skipping rebase step...[/yellow]")
+        return
+
     # Try to fetch from origin if it exists
     fetch_result = git_command("fetch", "--all", "--prune", repo=repo, check=False)
 
@@ -224,6 +243,10 @@ def finish_worktree(target: str | None = None, push: bool = False) -> None:
         raise WorktreeNotFoundError(f"Base repository not found at: {base_path}")
 
     # Fast-forward merge into base
+    if not confirm_step(f"Merge {feature_branch} into {base_branch}"):
+        console.print("[yellow]Skipping merge step...[/yellow]")
+        return
+
     console.print(f"[yellow]Merging {feature_branch} into {base_branch}...[/yellow]")
     git_command("fetch", "--all", "--prune", repo=base_path, check=False)
 
@@ -250,14 +273,21 @@ def finish_worktree(target: str | None = None, push: bool = False) -> None:
 
     # Push to remote if requested
     if push:
-        console.print(f"[yellow]Pushing {base_branch} to origin...[/yellow]")
-        try:
-            git_command("push", "origin", base_branch, repo=base_path)
-            console.print("[bold green]✓[/bold green] Pushed to origin\n")
-        except GitError as e:
-            console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
+        if not confirm_step(f"Push {base_branch} to origin"):
+            console.print("[yellow]Skipping push step...[/yellow]")
+        else:
+            console.print(f"[yellow]Pushing {base_branch} to origin...[/yellow]")
+            try:
+                git_command("push", "origin", base_branch, repo=base_path)
+                console.print("[bold green]✓[/bold green] Pushed to origin\n")
+            except GitError as e:
+                console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
 
     # Cleanup: remove worktree and branch
+    if not confirm_step(f"Clean up worktree and delete branch {feature_branch}"):
+        console.print("[yellow]Skipping cleanup step...[/yellow]")
+        return
+
     console.print("[yellow]Cleaning up worktree and branch...[/yellow]")
 
     # Store current worktree path before removal

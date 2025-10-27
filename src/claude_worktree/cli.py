@@ -184,6 +184,12 @@ def finish(
         "--push",
         help="Push base branch to origin after merge",
     ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Pause for confirmation before each step",
+    ),
 ) -> None:
     """
     Finish work on a worktree.
@@ -198,13 +204,16 @@ def finish(
     Can be run from any directory by specifying the worktree branch name,
     or from within a feature worktree without arguments.
 
+    Use --interactive/-i to confirm each step before execution.
+
     Example:
         cw finish                  # Finish current worktree
         cw finish fix-auth         # Finish fix-auth worktree from anywhere
         cw finish feature-api --push  # Finish and push to remote
+        cw finish -i               # Interactive mode with confirmations
     """
     try:
-        finish_worktree(target=target, push=push)
+        finish_worktree(target=target, push=push, interactive=interactive)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

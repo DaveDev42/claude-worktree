@@ -321,3 +321,25 @@ def test_cd_command_nonexistent_branch(temp_git_repo: Path) -> None:
     result = runner.invoke(app, ["cd", "nonexistent-branch"])
     assert result.exit_code != 0
     assert "Error" in result.stdout
+
+
+def test_finish_command_interactive_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test finish command accepts --interactive flag."""
+    # Create worktree
+    runner.invoke(app, ["new", "interactive-test", "--no-cd"])
+
+    # Test that --interactive flag is accepted (we can't test interactive input in unit tests)
+    result = runner.invoke(app, ["finish", "--help"])
+    assert result.exit_code == 0
+    assert "--interactive" in result.stdout or "-i" in result.stdout
+
+    # Clean up
+    runner.invoke(app, ["delete", "interactive-test"])
+
+
+def test_finish_command_short_interactive_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test finish command accepts -i short flag."""
+    result = runner.invoke(app, ["finish", "--help"])
+    assert result.exit_code == 0
+    assert "-i" in result.stdout
+    assert "Pause for confirmation" in result.stdout
