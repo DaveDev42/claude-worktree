@@ -478,6 +478,31 @@ def sync(
 
 
 @app.command()
+def doctor() -> None:
+    """
+    Perform health check on all worktrees.
+
+    Checks for common issues and provides recommendations:
+    - Git version compatibility (minimum 2.31.0)
+    - Worktree accessibility (detects stale worktrees)
+    - Uncommitted changes in worktrees
+    - Worktrees behind their base branch
+    - Existing merge conflicts
+    - Cleanup recommendations
+
+    Example:
+        cw doctor    # Run full health check
+    """
+    try:
+        from .core import doctor as run_doctor
+
+        run_doctor()
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def upgrade() -> None:
     """
     Upgrade claude-worktree to the latest version.
