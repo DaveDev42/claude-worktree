@@ -18,12 +18,14 @@ from .config import (
     list_presets as list_ai_presets,
 )
 from .core import (
+    create_pr_worktree,
     create_worktree,
     delete_worktree,
     export_config,
     finish_worktree,
     import_config,
     list_worktrees,
+    merge_worktree,
     prune_worktrees,
     resume_worktree,
     show_status,
@@ -175,6 +177,125 @@ def new(
 
 
 @app.command()
+def pr(
+    target: str | None = typer.Argument(
+        None,
+        help="Worktree branch (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
+    no_push: bool = typer.Option(
+        False,
+        "--no-push",
+        help="Don't push to remote before creating PR",
+    ),
+    title: str | None = typer.Option(
+        None,
+        "--title",
+        "-t",
+        help="Pull request title",
+    ),
+    body: str | None = typer.Option(
+        None,
+        "--body",
+        "-b",
+        help="Pull request body",
+    ),
+    draft: bool = typer.Option(
+        False,
+        "--draft",
+        help="Create as draft PR",
+    ),
+) -> None:
+    """
+    Create a GitHub Pull Request without merging or cleaning up the worktree.
+
+    This command:
+    1. Rebases feature branch onto base branch
+    2. Pushes to remote (unless --no-push)
+    3. Creates a pull request using GitHub CLI (gh)
+    4. Leaves the worktree intact for further work
+
+    After the PR is merged on GitHub, use 'cw delete <branch>' to clean up.
+
+    Requires: GitHub CLI (gh) - https://cli.github.com/
+
+    Example:
+        cw pr                           # Create PR from current worktree
+        cw pr fix-auth                  # Create PR for fix-auth branch
+        cw pr --title "Fix auth bug"    # Custom PR title
+        cw pr --draft                   # Create draft PR
+        cw pr --no-push                 # Don't push (for testing)
+    """
+    try:
+        create_pr_worktree(
+            target=target,
+            push=not no_push,
+            title=title,
+            body=body,
+            draft=draft,
+        )
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def merge(
+    target: str | None = typer.Argument(
+        None,
+        help="Worktree branch to merge (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
+    push: bool = typer.Option(
+        False,
+        "--push",
+        help="Push base branch to origin after merge",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Pause for confirmation before each step",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview merge without executing",
+    ),
+) -> None:
+    """
+    Complete work on a worktree by merging directly to base branch.
+
+    This command performs a local merge workflow:
+    1. Rebases feature branch onto base branch
+    2. Fast-forward merges into base branch
+    3. Removes the worktree
+    4. Deletes the feature branch
+    5. Optionally pushes to remote with --push
+
+    Use this when you want to merge directly without creating a pull request.
+    For PR-based workflows, use 'cw pr' instead.
+
+    Example:
+        cw merge                     # Merge current worktree
+        cw merge fix-auth            # Merge fix-auth branch
+        cw merge feature-api --push  # Merge and push to remote
+        cw merge -i                  # Interactive mode
+        cw merge --dry-run           # Preview merge steps
+    """
+    try:
+        merge_worktree(
+            target=target,
+            push=push,
+            interactive=interactive,
+            dry_run=dry_run,
+        )
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
 def finish(
     target: str | None = typer.Argument(
         None,
@@ -204,31 +325,30 @@ def finish(
     ),
 ) -> None:
     """
-    Finish work on a worktree.
+    [DEPRECATED] Finish work on a worktree.
 
-    Performs the following steps:
-    1. Rebases feature branch onto base branch
-    2. Fast-forward merges into base branch
-    3. Removes the worktree
-    4. Deletes the feature branch
-    5. Optionally pushes to remote with --push
+    ⚠️  This command is deprecated. Use 'cw merge' or 'cw pr' instead:
+    - 'cw pr' - Create a pull request (recommended for team workflows)
+    - 'cw merge' - Direct merge to base branch (for solo workflows)
 
-    Can be run from any directory by specifying the worktree branch name,
-    or from within a feature worktree without arguments.
-
-    Use --interactive/-i to confirm each step before execution.
-    Use --dry-run to preview what would happen without actually executing.
-    Use --ai-merge to get AI assistance with conflict resolution if rebase fails.
+    This command still works but may be removed in a future version.
 
     Example:
-        cw finish                     # Finish current worktree
-        cw finish fix-auth            # Finish fix-auth worktree from anywhere
-        cw finish feature-api --push  # Finish and push to remote
-        cw finish -i                  # Interactive mode with confirmations
-        cw finish --dry-run           # Preview merge steps
-        cw finish --ai-merge          # Get AI help with conflicts
+        cw merge                     # New way (direct merge)
+        cw pr                        # New way (create PR)
+        cw finish                    # Old way (deprecated)
     """
     try:
+        # Show deprecation warning
+        console.print(
+            "\n[bold yellow]⚠️  Deprecation Warning:[/bold yellow] "
+            "The 'finish' command is deprecated.\n"
+        )
+        console.print("Please use one of these instead:")
+        console.print("  • [cyan]cw pr[/cyan]    - Create a pull request (recommended)")
+        console.print("  • [cyan]cw merge[/cyan] - Direct merge to base branch\n")
+
+        # Still execute the command for backward compatibility
         finish_worktree(
             target=target, push=push, interactive=interactive, dry_run=dry_run, ai_merge=ai_merge
         )

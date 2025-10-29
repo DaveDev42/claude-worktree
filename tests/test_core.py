@@ -6,11 +6,13 @@ from pathlib import Path
 import pytest
 
 from claude_worktree.core import (
+    create_pr_worktree,
     create_worktree,
     delete_worktree,
     finish_worktree,
     get_worktree_status,
     list_worktrees,
+    merge_worktree,
     prune_worktrees,
     resume_worktree,
     show_status,
@@ -668,3 +670,205 @@ def test_launch_ai_tool_with_iterm_tab_non_macos(temp_git_repo: Path, mocker) ->
     # Should raise GitError on non-macOS
     with pytest.raises(GitError, match="--iterm-tab option only works on macOS"):
         launch_ai_tool(temp_git_repo, iterm_tab=True)
+
+
+def test_create_pr_worktree_missing_gh_cli(temp_git_repo: Path, disable_claude, mocker) -> None:
+    """Test create_pr_worktree raises error when gh CLI is not available."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="pr-test",
+        no_cd=True,
+    )
+
+    # Make a commit
+    (worktree_path / "feature.txt").write_text("feature content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Mock has_command to return False for gh
+    mocker.patch("claude_worktree.core.has_command", return_value=False)
+
+    # Should raise GitError about missing gh CLI
+    with pytest.raises(GitError, match="GitHub CLI \\(gh\\) is required"):
+        create_pr_worktree(target="pr-test", push=False)
+
+
+def test_create_pr_worktree_no_push(
+    temp_git_repo: Path, disable_claude, monkeypatch, mocker
+) -> None:
+    """Test create_pr_worktree with --no-push flag."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="pr-no-push",
+        no_cd=True,
+    )
+
+    # Make a commit
+    (worktree_path / "feature.txt").write_text("feature content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree directory
+    monkeypatch.chdir(worktree_path)
+
+    # Mock has_command to return True for gh
+    mocker.patch("claude_worktree.core.has_command", return_value=True)
+
+    # Mock subprocess.run only for gh pr create
+    original_run = subprocess.run
+
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        # Only mock gh pr create
+        if isinstance(cmd, list) and len(cmd) > 0 and cmd[0] == "gh":
+            return mocker.Mock(
+                stdout="https://github.com/user/repo/pull/1\n", returncode=0, stderr=""
+            )
+        # Use original subprocess.run for git commands
+        return original_run(cmd, *args, **kwargs)
+
+    mocker.patch("claude_worktree.core.subprocess.run", side_effect=mock_subprocess_run)
+
+    # Create PR without pushing
+    create_pr_worktree(push=False)
+
+    # Verify worktree still exists (not cleaned up)
+    assert worktree_path.exists()
+
+
+def test_merge_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test merge_worktree successfully merges and cleans up."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="merge-test",
+        no_cd=True,
+    )
+
+    # Make a commit
+    (worktree_path / "merge.txt").write_text("merge content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add merge file"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Merge the worktree (should call finish_worktree internally)
+    merge_worktree(push=False)
+
+    # Change back to main repo
+    monkeypatch.chdir(temp_git_repo)
+
+    # Verify worktree was removed
+    assert not worktree_path.exists()
+
+    # Verify branch was deleted
+    result = subprocess.run(
+        ["git", "branch", "--list", "merge-test"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "merge-test" not in result.stdout
+
+    # Verify changes were merged to main
+    assert (temp_git_repo / "merge.txt").exists()
+    assert (temp_git_repo / "merge.txt").read_text() == "merge content"
+
+
+def test_merge_worktree_with_rebase(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test merge_worktree when base branch has new commits."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="merge-rebase-test",
+        no_cd=True,
+    )
+
+    # Make commit in worktree
+    (worktree_path / "feature.txt").write_text("feature")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Make commit in main repo (simulating other work)
+    (temp_git_repo / "main.txt").write_text("main work")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Work on main"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Merge should rebase and merge
+    monkeypatch.chdir(worktree_path)
+    merge_worktree(push=False)
+
+    # Change back to main repo for verification
+    monkeypatch.chdir(temp_git_repo)
+
+    # Verify both files exist in main
+    assert (temp_git_repo / "feature.txt").exists()
+    assert (temp_git_repo / "main.txt").exists()
+
+
+def test_merge_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatch, capsys) -> None:
+    """Test merge_worktree dry-run mode doesn't modify anything."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="merge-dry-run-test",
+        no_cd=True,
+    )
+
+    # Make commit in worktree
+    (worktree_path / "feature.txt").write_text("feature content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Run merge with dry_run=True
+    monkeypatch.chdir(worktree_path)
+    merge_worktree(push=False, dry_run=True)
+
+    # Verify output shows dry-run mode
+    captured = capsys.readouterr()
+    assert "DRY RUN MODE" in captured.out
+    assert "No changes will be made" in captured.out
+
+    # Verify nothing was actually changed
+    # Worktree should still exist
+    assert worktree_path.exists()
+    assert (worktree_path / "feature.txt").exists()
+
+    # Branch should still exist
+    result = subprocess.run(
+        ["git", "branch", "--list", "merge-dry-run-test"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "merge-dry-run-test" in result.stdout
+
+    # Changes should NOT be merged to main
+    assert not (temp_git_repo / "feature.txt").exists()

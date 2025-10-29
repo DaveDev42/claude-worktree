@@ -52,11 +52,23 @@ claude-worktree/
   - Customizable with `--path` option
   - Automatically launches configured AI tool in the new worktree
 
-- **`cw finish`**: Complete feature work
+- **`cw pr [branch]`**: Create GitHub Pull Request (recommended for teams)
+  - Rebases feature branch on base branch
+  - Pushes to remote
+  - Creates PR using GitHub CLI (`gh`)
+  - Leaves worktree intact for further work
+  - Options: `--title`, `--body`, `--draft`, `--no-push`
+
+- **`cw merge [branch]`**: Direct merge to base branch (for solo development)
   - Rebases feature branch on base branch
   - Fast-forward merges into base branch
   - Cleans up worktree and feature branch
   - Optional `--push` to push to remote
+  - Options: `--interactive`, `--dry-run`
+
+- **`cw finish`**: ⚠️ DEPRECATED - Use `cw pr` or `cw merge` instead
+  - Still functional for backward compatibility
+  - Shows deprecation warning
 
 - **`cw delete <target>`**: Remove worktree by branch name or path
   - Options: `--keep-branch`, `--delete-remote`
@@ -167,7 +179,7 @@ The tool stores worktree metadata in git config:
 - `branch.<feature>.worktreeBase`: The base branch name
 - `worktree.<feature>.basePath`: Path to the base repository
 
-This allows the `finish` command to know:
+This allows the `pr` and `merge` commands to know:
 1. Which branch to rebase onto
 2. Where the main repository is located
 3. How to perform the merge safely
@@ -368,7 +380,6 @@ uv publish
 - Interactive mode for command selection
 - Git hook integration (auto-backup sessions on exit)
 - Worktree templates (`.cwrc`, `pyproject.toml` support)
-- AI-assisted conflict resolution during `cw finish`
 - Multi-session management (switch between different AI conversations)
 - Session export/import for team collaboration
 - Better conflict resolution guidance
