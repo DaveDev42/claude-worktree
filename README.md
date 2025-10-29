@@ -613,21 +613,228 @@ This allows the `finish` command to know:
 2. Where the main repository is located
 3. How to safely perform the merge
 
-### Workflow Example
+## Workflow Examples
 
-1. **Start**: You're on `main` branch in `/Users/dave/myproject`
-2. **Create**: Run `cw new fix-auth`
-   - Creates branch `fix-auth` from `main`
-   - Creates worktree at `/Users/dave/myproject-fix-auth/`
-   - Launches your configured AI tool (Claude Code by default)
-3. **Work**: Make changes and commit in the worktree
-4. **Finish**: Run `cw finish --push`
-   - Rebases `fix-auth` onto `main`
-   - Merges into `main` with fast-forward
-   - Removes worktree and branch
-   - Pushes to `origin/main`
+### Basic Feature Development
+
+The most common workflow for developing a single feature:
+
+```bash
+# 1. Create feature worktree
+cw new add-user-auth
+
+# 2. Work in the worktree (AI tool launches automatically)
+# Make changes, commit as needed...
+
+# 3. Finish and merge
+cw finish --push
+```
+
+### Multi-Feature Parallel Development
+
+Work on multiple features simultaneously without branch switching:
+
+```bash
+# Start three features in parallel
+cw new feature-api
+cw new fix-bug-123
+cw new refactor-db
+
+# Check status of all worktrees
+cw list
+cw tree
+
+# Navigate between features
+cw-cd feature-api    # Jump to feature-api worktree
+cw-cd fix-bug-123    # Jump to bug fix worktree
+
+# Resume AI work in specific feature
+cw resume refactor-db
+
+# Finish features as they're completed
+cw finish feature-api --push
+cw finish fix-bug-123 --push
+```
+
+### Team Collaboration Workflow
+
+Collaborate with team members using shared remote branches:
+
+```bash
+# Create feature and push to remote
+cw new team-feature
+git push -u origin team-feature
+
+# Team member pulls your worktree
+cw new team-feature --base origin/team-feature
+
+# Sync with latest changes from team
+cw sync team-feature
+
+# Or sync all your worktrees
+cw sync --all
+
+# Review changes before merging
+cw diff main team-feature --summary
+cw finish team-feature --dry-run
+
+# Merge with AI assistance if conflicts arise
+cw finish team-feature --ai-merge --push
+```
+
+### Long-Running Feature Branch
+
+Maintain a long-lived feature branch while keeping it up-to-date:
+
+```bash
+# Start feature from develop branch
+cw new big-refactor --base develop
+
+# Work for a few days...
+# Meanwhile, develop branch gets updates
+
+# Stay synchronized with develop
+cw sync big-refactor
+
+# Or fetch without rebasing
+cw sync big-refactor --fetch-only
+
+# Check if you're behind
+cw doctor
+
+# Review changes before finishing
+cw diff develop big-refactor --files
+cw finish big-refactor -i --push  # Interactive mode
+```
+
+### Hotfix Workflow
+
+Quickly create and deploy an urgent hotfix:
+
+```bash
+# Create hotfix from production branch
+cw new hotfix-security --base production
+
+# Make fix and test
+# ...
+
+# Merge to production
+cw finish hotfix-security --push
+
+# Also apply to main/develop
+git checkout main
+git cherry-pick hotfix-security
+git push
+```
+
+### Experimentation & Clean Cleanup
+
+Try experimental features and easily clean up:
+
+```bash
+# Create experimental worktrees
+cw new experiment-approach-a
+cw new experiment-approach-b
+cw new experiment-approach-c
+
+# After testing, keep only what works
+cw delete experiment-approach-a
+cw delete experiment-approach-b
+cw finish experiment-approach-c --push
+
+# Or use batch cleanup
+cw clean --merged           # Remove already-merged features
+cw clean --older-than 7     # Remove week-old experiments
+cw clean --stale            # Remove deleted directories
+```
+
+### Using Templates for Consistency
+
+Create and apply templates for common project setups:
+
+```bash
+# Create a template from current worktree
+cd myproject-feature
+cw template create python-api -d "Python API with tests"
+
+# Apply template to new worktrees
+cw new another-feature
+cw template apply python-api
+
+# Share templates across projects
+cw template list
+cw template show python-api
+```
+
+### Stash Management Across Worktrees
+
+Move work-in-progress between worktrees:
+
+```bash
+# Working on feature-a, need to switch to urgent bug fix
+cd myproject-feature-a
+cw stash save "Half-done refactoring"
+
+# Work on bug fix
+cw resume fix-urgent-bug
+# Fix bug...
+cw finish fix-urgent-bug --push
+
+# Return to original work
+cw resume feature-a
+cw stash list  # See all stashes by worktree
+cw stash apply feature-a
+```
+
+### CI/CD Integration
+
+Use `claude-worktree` in continuous integration pipelines:
+
+```bash
+# In CI pipeline script
+# Disable AI tool and auto-updates
+export CW_AI_TOOL="echo"  # No-op AI tool
+cw config set update.auto_check false
+
+# Create isolated test environment
+cw new ci-test-${CI_BUILD_ID} --base ${CI_COMMIT_BRANCH}
+
+# Run tests in worktree
+cd ../repo-ci-test-${CI_BUILD_ID}
+pytest
+
+# Cleanup
+cw delete ci-test-${CI_BUILD_ID}
+```
+
+### Code Review Workflow
+
+Review pull requests in isolated worktrees:
+
+```bash
+# Fetch PR branch
+git fetch origin pull/123/head:pr-123
+
+# Create worktree for review
+cw new review-pr-123 --base pr-123
+
+# Review and test changes
+cw diff main review-pr-123 --summary
+cw diff main review-pr-123 --files
+
+# Run tests in isolated environment
+cd ../myproject-review-pr-123
+npm test
+
+# Clean up after review
+cw delete review-pr-123
+```
 
 ## Troubleshooting
+
+For detailed troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+### Quick Solutions
 
 ### "Not a git repository"
 
@@ -712,6 +919,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Links
 
 - **Documentation**: See [CLAUDE.md](CLAUDE.md) for detailed project information
+- **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions
 - **Issues**: https://github.com/DaveDev42/claude-worktree/issues
 - **PyPI**: https://pypi.org/project/claude-worktree/
 - **Changelog**: See GitHub Releases
