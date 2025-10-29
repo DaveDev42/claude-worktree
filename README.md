@@ -26,6 +26,7 @@ Works with Claude Code, Codex, Happy, and any custom AI tool.
 - 🧹 **Batch Cleanup**: Clean up multiple worktrees based on merge status, age, or criteria
 - ⚡ **Shell Completion**: Tab completion for bash/zsh/fish with quick navigation
 - ⚙️ **Flexible Configuration**: Customize AI tool, presets, and defaults
+- 📤 **Configuration Portability**: Export/import settings and metadata across machines
 - 🎨 **Type-Safe**: Built with type hints and modern Python practices
 
 ## Installation
@@ -369,7 +370,7 @@ The `--ai-merge` flag launches your configured AI tool if conflicts are detected
 | `cw stash list` | List stashes organized by worktree |
 | `cw stash apply <branch>` | Apply stash to different worktree |
 
-### Configuration
+### Configuration & Portability
 
 | Command | Description |
 |---------|-------------|
@@ -378,6 +379,8 @@ The `--ai-merge` flag launches your configured AI tool if conflicts are detected
 | `cw config use-preset <name>` | Use AI tool preset |
 | `cw config list-presets` | List available presets |
 | `cw config reset` | Reset to defaults |
+| `cw export [-o <file>]` | Export configuration and worktree metadata |
+| `cw import <file> [--apply]` | Import configuration from file |
 | `cw upgrade` | Upgrade to latest version |
 
 ### Navigation
@@ -587,6 +590,90 @@ cw upgrade
 - Personal preference for manual updates
 
 **Note:** The `cw upgrade` command always works, even if auto-check is disabled.
+
+### Configuration Portability
+
+Export and import your worktree configuration and metadata to share setups across machines or backup your workspace.
+
+#### Export Configuration
+
+```bash
+# Export to timestamped file (cw-export-TIMESTAMP.json)
+cw export
+
+# Export to specific file
+cw export -o my-worktrees.json
+cw export --output backup.json
+```
+
+The export file contains:
+- Global configuration settings (AI tool, default base branch, etc.)
+- Worktree metadata for all worktrees (branch names, base branches, paths, status)
+- Export timestamp and repository information
+
+#### Import Configuration
+
+```bash
+# Preview import (shows what would change, default mode)
+cw import my-worktrees.json
+
+# Apply import (actually updates configuration)
+cw import my-worktrees.json --apply
+```
+
+**Preview mode** (default):
+- Shows what configuration changes would be applied
+- Lists worktrees that would be imported
+- Shows any warnings or conflicts
+- Does not modify anything
+
+**Apply mode** (`--apply` flag):
+- Updates global configuration settings
+- Restores worktree metadata for matching branches
+- Does not automatically create worktrees (metadata only)
+
+#### Use Cases
+
+**Backup your workspace:**
+```bash
+# Export current setup
+cw export -o backup-$(date +%Y%m%d).json
+
+# Later, restore if needed
+cw import backup-20250101.json --apply
+```
+
+**Share configuration across machines:**
+```bash
+# On machine 1: Export
+cw export -o ~/Dropbox/cw-config.json
+
+# On machine 2: Import
+cw import ~/Dropbox/cw-config.json --apply
+```
+
+**Team onboarding:**
+```bash
+# Team lead exports team configuration
+cw export -o team-setup.json
+
+# New team member imports
+cw import team-setup.json --apply
+# Then create the actual worktrees as needed
+cw new feature-branch-1
+cw new feature-branch-2
+```
+
+**Migration workflow:**
+```bash
+# Old machine
+cw export -o migration.json
+
+# Transfer file to new machine
+# New machine
+cw import migration.json --apply
+# Worktree metadata restored, can continue work seamlessly
+```
 
 ## Requirements
 

@@ -20,7 +20,9 @@ from .config import (
 from .core import (
     create_worktree,
     delete_worktree,
+    export_config,
     finish_worktree,
+    import_config,
     list_worktrees,
     prune_worktrees,
     resume_worktree,
@@ -1118,6 +1120,78 @@ def stash_apply_cmd(
         from .core import stash_apply
 
         stash_apply(target_branch=target_branch, stash_ref=stash_ref)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def export(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output file path (default: cw-export-<timestamp>.json)",
+    ),
+) -> None:
+    """
+    Export worktree configuration and metadata to a file.
+
+    Creates a JSON file containing:
+    - Global configuration settings (AI tool, default base branch, etc.)
+    - Worktree metadata (branch names, base branches, paths, status)
+
+    This allows you to share worktree configurations across machines
+    or back up your worktree setup for later restoration.
+
+    Example:
+        cw export                          # Export to timestamped file
+        cw export -o my-worktrees.json     # Export to specific file
+        cw export --output backup.json     # Alternative syntax
+    """
+    try:
+        export_config(output_file=output)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="import")
+def import_cmd(
+    import_file: Path = typer.Argument(
+        ...,
+        help="Path to the configuration file to import",
+        exists=True,
+    ),
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="Apply the imported configuration (default: preview only)",
+    ),
+) -> None:
+    """
+    Import worktree configuration and metadata from a file.
+
+    By default, shows a preview of what would be imported without making changes.
+    Use --apply to actually apply the imported configuration.
+
+    Preview mode shows:
+    - Configuration changes that would be applied
+    - Worktrees that would be created/updated
+    - Any warnings or conflicts
+
+    Apply mode:
+    - Updates global configuration settings
+    - Stores worktree metadata for matching branches
+    - Does not automatically create worktrees (metadata only)
+
+    Example:
+        cw import backup.json              # Preview import
+        cw import backup.json --apply      # Apply import
+        cw import my-worktrees.json        # Preview from specific file
+    """
+    try:
+        import_config(import_file=import_file, apply=apply)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
