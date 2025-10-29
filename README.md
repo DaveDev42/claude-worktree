@@ -735,6 +735,122 @@ cw import migration.json --apply
 # Worktree metadata restored, can continue work seamlessly
 ```
 
+### Backup & Restore
+
+Create backups of your worktrees with full git history and uncommitted changes, then restore them later or on different machines.
+
+#### Create Backups
+
+```bash
+# Backup current worktree
+cw backup create
+
+# Backup specific worktree by branch name
+cw backup create fix-auth
+
+# Backup all worktrees
+cw backup create --all
+
+# Custom backup location
+cw backup create -o ~/my-backups
+cw backup create --output /external/drive/backups
+```
+
+Backups include:
+- Complete git bundle with full history
+- Uncommitted changes (as patch files)
+- Worktree metadata (branch, base branch, paths)
+- Timestamp for organization
+
+Default backup location: `~/.config/claude-worktree/backups/`
+
+#### List Backups
+
+```bash
+# List all backups
+cw backup list
+
+# List backups for specific branch
+cw backup list fix-auth
+```
+
+Output shows:
+- Branch name
+- Backup timestamp
+- Creation date/time
+- Indicator for uncommitted changes
+
+#### Restore from Backup
+
+```bash
+# Restore latest backup for a branch
+cw backup restore fix-auth
+
+# Restore specific backup by timestamp
+cw backup restore fix-auth --id 20250129-143052
+
+# Restore to custom path
+cw backup restore fix-auth --path /tmp/my-restore
+```
+
+Restore process:
+1. Clones from git bundle (full history restored)
+2. Checks out the branch
+3. Restores worktree metadata
+4. Applies uncommitted changes if they exist
+
+#### Backup & Restore Use Cases
+
+**Before risky operations:**
+```bash
+# Backup before major refactoring
+cw backup create my-feature
+# ... make changes ...
+# If something goes wrong:
+cw backup restore my-feature
+```
+
+**Archive completed work:**
+```bash
+# Backup before cleanup
+cw backup create old-feature
+cw finish old-feature --push
+# Can restore later if needed
+```
+
+**Transfer work between machines:**
+```bash
+# Machine 1
+cw backup create feature-x -o ~/Dropbox/backups
+
+# Machine 2
+cp ~/Dropbox/backups/feature-x/20250129-143052 ~/.config/claude-worktree/backups/
+cw backup restore feature-x
+```
+
+**Disaster recovery:**
+```bash
+# Regular backup schedule
+cw backup create --all  # Backup all worktrees
+
+# After disk failure or accidental deletion
+cw backup list
+cw backup restore important-feature --id 20250128-120000
+```
+
+**Experimentation with safety net:**
+```bash
+# Backup stable state
+cw backup create experiment
+
+# Try risky changes
+# ... changes didn't work out ...
+
+# Restore to stable state
+cw delete experiment
+cw backup restore experiment
+```
+
 ## Requirements
 
 - **Git**: Version 2.31 or higher

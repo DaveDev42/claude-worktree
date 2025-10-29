@@ -18,15 +18,18 @@ from .config import (
     list_presets as list_ai_presets,
 )
 from .core import (
+    backup_worktree,
     create_pr_worktree,
     create_worktree,
     delete_worktree,
     export_config,
     finish_worktree,
     import_config,
+    list_backups,
     list_worktrees,
     merge_worktree,
     prune_worktrees,
+    restore_worktree,
     resume_worktree,
     show_status,
 )
@@ -1312,6 +1315,114 @@ def import_cmd(
     """
     try:
         import_config(import_file=import_file, apply=apply)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+# Backup/Restore commands
+backup_app = typer.Typer(
+    name="backup",
+    help="Backup and restore worktrees",
+    no_args_is_help=True,
+)
+app.add_typer(backup_app, name="backup")
+
+
+@backup_app.command(name="create")
+def backup_create(
+    branch: str | None = typer.Argument(
+        None,
+        help="Branch name to backup (default: current worktree)",
+        autocompletion=complete_worktree_branches,
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Output directory for backups (default: ~/.config/claude-worktree/backups)",
+    ),
+    all_worktrees: bool = typer.Option(
+        False,
+        "--all",
+        help="Backup all worktrees",
+    ),
+) -> None:
+    """
+    Create backup of worktree(s) using git bundle.
+
+    Backs up the complete git history and uncommitted changes to a timestamped
+    directory. Backups can be restored later using 'cw backup restore'.
+
+    Example:
+        cw backup create                   # Backup current worktree
+        cw backup create fix-auth          # Backup specific worktree
+        cw backup create --all             # Backup all worktrees
+        cw backup create -o ~/backups      # Custom backup location
+    """
+    try:
+        backup_worktree(branch=branch, output=output, all_worktrees=all_worktrees)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@backup_app.command(name="list")
+def backup_list(
+    branch: str | None = typer.Argument(
+        None,
+        help="Filter by branch name (default: show all)",
+        autocompletion=complete_worktree_branches,
+    ),
+) -> None:
+    """
+    List available backups.
+
+    Shows all backups organized by branch name with timestamps.
+
+    Example:
+        cw backup list              # List all backups
+        cw backup list fix-auth     # List backups for specific branch
+    """
+    try:
+        list_backups(branch=branch)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@backup_app.command(name="restore")
+def backup_restore(
+    branch: str = typer.Argument(
+        ...,
+        help="Branch name to restore",
+        autocompletion=complete_worktree_branches,
+    ),
+    backup_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Backup timestamp to restore (default: latest)",
+    ),
+    path: Path | None = typer.Option(
+        None,
+        "--path",
+        "-p",
+        help="Custom path for restored worktree (default: ../<repo>-<branch>)",
+    ),
+) -> None:
+    """
+    Restore worktree from backup.
+
+    Restores a worktree from a previously created backup, including
+    the full git history and uncommitted changes if they were backed up.
+
+    Example:
+        cw backup restore fix-auth                          # Restore latest backup
+        cw backup restore fix-auth --id 20250129-143052     # Restore specific backup
+        cw backup restore fix-auth --path /tmp/my-restore   # Custom restore path
+    """
+    try:
+        restore_worktree(branch=branch, backup_id=backup_id, path=path)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
