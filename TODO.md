@@ -17,7 +17,7 @@ No high priority items at this time.
   - 13 comprehensive tests added
   - Documentation added to README with use cases
 
-- [x] **Backup & restore** - Worktree state preservation ✅ Completed in v0.10.0 (PR #TBD)
+- [x] **Backup & restore** - Worktree state preservation ✅ Completed in v0.10.0 (PR #24)
   - `cw backup create [branch]` - Create backup of current or specific worktree
   - `cw backup create --all` - Backup all worktrees
   - `cw backup list [branch]` - List available backups
