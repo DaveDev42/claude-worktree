@@ -380,3 +380,72 @@ def test_clean_command_accepts_flags(temp_git_repo: Path, disable_claude) -> Non
     assert "older" in result.stdout and "than" in result.stdout and "days" in result.stdout
     assert "interactive" in result.stdout.lower() or "-i" in result.stdout
     assert "dry" in result.stdout and "run" in result.stdout
+
+
+def test_pr_command_help(temp_git_repo: Path) -> None:
+    """Test pr command help."""
+    result = runner.invoke(app, ["pr", "--help"])
+    assert result.exit_code == 0
+    assert "pull request" in result.stdout.lower() or "pull-request" in result.stdout.lower()
+    assert "GitHub" in result.stdout
+
+
+def test_pr_command_flags(temp_git_repo: Path) -> None:
+    """Test pr command accepts all flags."""
+    result = runner.invoke(app, ["pr", "--help"])
+    assert result.exit_code == 0
+    # Check for flag names
+    assert "--no-push" in result.stdout
+    assert "--title" in result.stdout or "-t" in result.stdout
+    assert "--body" in result.stdout or "-b" in result.stdout
+    assert "--draft" in result.stdout
+
+
+def test_merge_command_help(temp_git_repo: Path) -> None:
+    """Test merge command help."""
+    result = runner.invoke(app, ["merge", "--help"])
+    assert result.exit_code == 0
+    assert "merge" in result.stdout.lower()
+    assert "base branch" in result.stdout.lower()
+
+
+def test_merge_command_flags(temp_git_repo: Path) -> None:
+    """Test merge command accepts all flags."""
+    result = runner.invoke(app, ["merge", "--help"])
+    assert result.exit_code == 0
+    # Check for flag names
+    assert "--push" in result.stdout
+    assert "--interactive" in result.stdout or "-i" in result.stdout
+    assert "--dry-run" in result.stdout
+
+
+def test_finish_command_shows_deprecation_warning(
+    temp_git_repo: Path, disable_claude, monkeypatch, mocker
+) -> None:
+    """Test finish command shows deprecation warning."""
+    from claude_worktree.core import create_worktree
+
+    # Create a worktree
+    worktree_path = create_worktree(branch_name="deprecation-test", no_cd=True)
+
+    # Make a commit
+    import subprocess
+
+    (worktree_path / "test.txt").write_text("test")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Test"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Run finish command
+    result = runner.invoke(app, ["finish", "--dry-run"])
+
+    # Check for deprecation warning
+    assert "deprecated" in result.stdout.lower() or "Deprecation" in result.stdout
+    assert "cw pr" in result.stdout or "cw merge" in result.stdout
