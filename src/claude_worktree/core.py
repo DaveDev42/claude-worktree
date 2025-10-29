@@ -1963,6 +1963,141 @@ def format_age(age_days: float) -> str:
         return f"{years}y ago"
 
 
+def change_base_branch(
+    new_base: str,
+    target: str | None = None,
+    interactive: bool = False,
+    dry_run: bool = False,
+) -> None:
+    """
+    Change the base branch for a worktree and rebase onto it.
+
+    Args:
+        new_base: New base branch name
+        target: Branch name of worktree (optional, defaults to current directory)
+        interactive: Use interactive rebase
+        dry_run: Preview changes without executing
+
+    Raises:
+        WorktreeNotFoundError: If worktree not found
+        InvalidBranchError: If base branch is invalid
+        RebaseError: If rebase fails
+        GitError: If git operations fail
+    """
+    # Determine the worktree to work on
+    if target:
+        # Target branch specified - find its worktree path
+        repo = get_repo_root()
+        worktree_path_result = find_worktree_by_branch(repo, target)
+        if not worktree_path_result:
+            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
+        if not worktree_path_result:
+            raise WorktreeNotFoundError(
+                f"No worktree found for branch '{target}'. "
+                f"Use 'cw list' to see available worktrees."
+            )
+        worktree_path = worktree_path_result
+        # Normalize branch name
+        feature_branch = target[11:] if target.startswith("refs/heads/") else target
+    else:
+        # No target specified - use current directory
+        worktree_path = Path.cwd()
+        try:
+            feature_branch = get_current_branch(worktree_path)
+        except InvalidBranchError:
+            raise InvalidBranchError("Cannot determine current branch")
+
+    # Get repo root
+    repo = get_repo_root(worktree_path)
+
+    # Get current base branch metadata
+    current_base = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), repo)
+    if not current_base:
+        raise GitError(
+            f"No base branch metadata found for '{feature_branch}'. "
+            "Was this worktree created with 'cw new'?"
+        )
+
+    # Verify new base branch exists
+    if not branch_exists(new_base, repo):
+        raise InvalidBranchError(f"Base branch '{new_base}' not found")
+
+    console.print("\n[bold cyan]Changing base branch:[/bold cyan]")
+    console.print(f"  Worktree:    [green]{feature_branch}[/green]")
+    console.print(f"  Current base: [yellow]{current_base}[/yellow]")
+    console.print(f"  New base:     [green]{new_base}[/green]")
+    console.print(f"  Path:         [blue]{worktree_path}[/blue]\n")
+
+    # Dry-run mode: preview operations without executing
+    if dry_run:
+        console.print("[bold yellow]DRY RUN MODE - No changes will be made[/bold yellow]\n")
+        console.print("[bold]The following operations would be performed:[/bold]\n")
+        console.print("  1. [cyan]Fetch[/cyan] updates from remote")
+        console.print(f"  2. [cyan]Rebase[/cyan] {feature_branch} onto {new_base}")
+        console.print(f"  3. [cyan]Update[/cyan] base branch metadata: {current_base} → {new_base}")
+        console.print("\n[dim]Run without --dry-run to execute these operations.[/dim]\n")
+        return
+
+    # Fetch from remote
+    console.print("[yellow]Fetching updates from remote...[/yellow]")
+    fetch_result = git_command("fetch", "--all", "--prune", repo=repo, check=False)
+
+    # Determine rebase target (prefer origin/new_base if available)
+    rebase_target = new_base
+    if fetch_result.returncode == 0:
+        # Check if origin/new_base exists
+        check_result = git_command(
+            "rev-parse",
+            "--verify",
+            f"origin/{new_base}",
+            repo=worktree_path,
+            check=False,
+            capture=True,
+        )
+        if check_result.returncode == 0:
+            rebase_target = f"origin/{new_base}"
+
+    console.print(f"[yellow]Rebasing {feature_branch} onto {rebase_target}...[/yellow]")
+
+    # Build rebase command
+    rebase_args = ["rebase"]
+    if interactive:
+        rebase_args.append("--interactive")
+    rebase_args.append(rebase_target)
+
+    try:
+        git_command(*rebase_args, repo=worktree_path)
+    except GitError:
+        # Rebase failed - check if there are conflicts
+        conflicts_result = git_command(
+            "diff", "--name-only", "--diff-filter=U", repo=worktree_path, capture=True, check=False
+        )
+        conflicted_files = (
+            conflicts_result.stdout.strip().splitlines() if conflicts_result.returncode == 0 else []
+        )
+
+        # Abort the rebase
+        git_command("rebase", "--abort", repo=worktree_path, check=False)
+        error_msg = f"Rebase failed. Please resolve conflicts manually:\n  cd {worktree_path}\n  git rebase {rebase_target}"
+        if conflicted_files:
+            error_msg += f"\n\nConflicted files ({len(conflicted_files)}):"
+            for file in conflicted_files:
+                error_msg += f"\n  • {file}"
+            error_msg += (
+                "\n\nAfter resolving conflicts, run 'cw change-base' again to update metadata."
+            )
+        raise RebaseError(error_msg)
+
+    console.print("[bold green]✓[/bold green] Rebase successful\n")
+
+    # Update base branch metadata
+    console.print("[yellow]Updating base branch metadata...[/yellow]")
+    set_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), new_base, repo=repo)
+    console.print("[bold green]✓[/bold green] Base branch metadata updated\n")
+
+    console.print(f"[bold green]✓ Base branch changed to '{new_base}'![/bold green]\n")
+
+
 def export_config(output_file: Path | None = None) -> None:
     """
     Export worktree configuration and metadata to a file.

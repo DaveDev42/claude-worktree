@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from claude_worktree.core import (
+    change_base_branch,
     create_pr_worktree,
     create_worktree,
     delete_worktree,
