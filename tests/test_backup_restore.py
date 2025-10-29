@@ -154,7 +154,9 @@ def test_list_backups_empty(tmp_path: Path, monkeypatch, capsys) -> None:
     assert "No backups found" in captured.out
 
 
-def test_list_backups(temp_git_repo: Path, disable_claude, tmp_path: Path, capsys) -> None:
+def test_list_backups(
+    temp_git_repo: Path, disable_claude, tmp_path: Path, capsys, monkeypatch
+) -> None:
     """Test listing backups."""
     # Create and backup a worktree
     create_worktree(branch_name="test-branch", no_cd=True)
@@ -164,13 +166,12 @@ def test_list_backups(temp_git_repo: Path, disable_claude, tmp_path: Path, capsy
     # List backups
     from claude_worktree import config
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(config, "get_config_path", lambda: backup_output / "config.json")
+    monkeypatch.setattr(config, "get_config_path", lambda: backup_output / "config.json")
 
     # Override get_backups_dir to use our test backup location
     from claude_worktree import core
 
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     list_backups()
 
@@ -180,7 +181,7 @@ def test_list_backups(temp_git_repo: Path, disable_claude, tmp_path: Path, capsy
 
 
 def test_list_backups_filter_by_branch(
-    temp_git_repo: Path, disable_claude, tmp_path: Path, capsys
+    temp_git_repo: Path, disable_claude, tmp_path: Path, capsys, monkeypatch
 ) -> None:
     """Test listing backups filtered by branch."""
     # Create and backup multiple worktrees
@@ -197,8 +198,7 @@ def test_list_backups_filter_by_branch(
     # List backups for specific branch
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     list_backups(branch="feature-1")
 
@@ -207,7 +207,7 @@ def test_list_backups_filter_by_branch(
     assert "feature-2" not in captured.out
 
 
-def test_restore_worktree(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
+def test_restore_worktree(temp_git_repo: Path, disable_claude, tmp_path: Path, monkeypatch) -> None:
     """Test restoring a worktree from backup."""
     # Create and backup a worktree
     create_worktree(branch_name="test-branch", no_cd=True)
@@ -235,8 +235,7 @@ def test_restore_worktree(temp_git_repo: Path, disable_claude, tmp_path: Path) -
     # Restore the worktree
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     restored_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch-restored"
     restore_worktree(branch="test-branch", path=restored_path)
@@ -248,7 +247,7 @@ def test_restore_worktree(temp_git_repo: Path, disable_claude, tmp_path: Path) -
 
 
 def test_restore_worktree_with_uncommitted_changes(
-    temp_git_repo: Path, disable_claude, tmp_path: Path
+    temp_git_repo: Path, disable_claude, tmp_path: Path, monkeypatch
 ) -> None:
     """Test restoring a worktree with uncommitted changes."""
     # Create a worktree
@@ -286,8 +285,7 @@ def test_restore_worktree_with_uncommitted_changes(
     # Restore the worktree
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     restored_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch-restored"
     restore_worktree(branch="test-branch", path=restored_path)
@@ -300,7 +298,7 @@ def test_restore_worktree_with_uncommitted_changes(
 
 
 def test_restore_worktree_latest_backup(
-    temp_git_repo: Path, disable_claude, tmp_path: Path
+    temp_git_repo: Path, disable_claude, tmp_path: Path, monkeypatch
 ) -> None:
     """Test restoring from latest backup when multiple exist."""
     # Create a worktree
@@ -343,8 +341,7 @@ def test_restore_worktree_latest_backup(
     # Restore without specifying backup_id (should use latest)
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     restored_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch-restored"
     restore_worktree(branch="test-branch", path=restored_path)
@@ -355,7 +352,7 @@ def test_restore_worktree_latest_backup(
 
 
 def test_restore_worktree_specific_backup(
-    temp_git_repo: Path, disable_claude, tmp_path: Path
+    temp_git_repo: Path, disable_claude, tmp_path: Path, monkeypatch
 ) -> None:
     """Test restoring from a specific backup by ID."""
     # Create a worktree and two backups
@@ -395,8 +392,7 @@ def test_restore_worktree_specific_backup(
     # Restore from first backup specifically
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     restored_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch-restored"
     restore_worktree(branch="test-branch", backup_id=first_backup_id, path=restored_path)
@@ -406,19 +402,20 @@ def test_restore_worktree_specific_backup(
     assert (restored_path / "version.txt").read_text() == "version 1"
 
 
-def test_restore_worktree_nonexistent_backup(temp_git_repo: Path, tmp_path: Path) -> None:
+def test_restore_worktree_nonexistent_backup(
+    temp_git_repo: Path, tmp_path: Path, monkeypatch
+) -> None:
     """Test restore fails for nonexistent backup."""
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: tmp_path / "backups")
+    monkeypatch.setattr(core, "get_backups_dir", lambda: tmp_path / "backups")
 
     with pytest.raises(GitError, match="No backups found"):
         restore_worktree(branch="nonexistent")
 
 
 def test_restore_worktree_existing_path(
-    temp_git_repo: Path, disable_claude, tmp_path: Path
+    temp_git_repo: Path, disable_claude, tmp_path: Path, monkeypatch
 ) -> None:
     """Test restore fails when target path already exists."""
     # Create and backup a worktree
@@ -431,8 +428,7 @@ def test_restore_worktree_existing_path(
     # Try to restore to existing path
     from claude_worktree import core
 
-    monkeypatch_attr = pytest.MonkeyPatch()
-    monkeypatch_attr.setattr(core, "get_backups_dir", lambda: backup_output)
+    monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     with pytest.raises(GitError, match="already exists"):
         restore_worktree(branch="test-branch", path=worktree_path)
