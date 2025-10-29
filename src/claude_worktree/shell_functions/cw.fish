@@ -28,4 +28,4 @@ function cw-cd
 end
 
 # Tab completion for cw-cd
-complete -c cw-cd -f -a '(cw list 2>/dev/null | awk \'NR>2 {print $1}\' | grep -v "^-" | sed \'s|refs/heads/||\')'
+complete -c cw-cd -f -a '(git worktree list --porcelain 2>/dev/null | grep "^branch " | sed "s|^branch refs/heads/||" | sort -u)'

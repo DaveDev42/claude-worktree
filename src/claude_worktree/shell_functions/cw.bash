@@ -35,8 +35,8 @@ _cw_cd_completion() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local branches
 
-    # Get list of worktree branches
-    branches=$(cw list 2>/dev/null | awk 'NR>2 {print $1}' | grep -v "^-" | sed 's/refs\/heads\///')
+    # Get list of worktree branches directly from git
+    branches=$(git worktree list --porcelain 2>/dev/null | grep "^branch " | sed 's/^branch refs\/heads\///' | sort -u)
 
     COMPREPLY=($(compgen -W "$branches" -- "$cur"))
 }
@@ -50,7 +50,7 @@ fi
 if [ -n "$ZSH_VERSION" ]; then
     _cw_cd_zsh() {
         local branches
-        branches=($(cw list 2>/dev/null | awk 'NR>2 {print $1}' | grep -v "^-" | sed 's/refs\/heads\///'))
+        branches=($(git worktree list --porcelain 2>/dev/null | grep "^branch " | sed 's/^branch refs\/heads\///' | sort -u))
         _describe 'worktree branches' branches
     }
     compdef _cw_cd_zsh cw-cd
