@@ -25,6 +25,7 @@ AI_TOOL_PRESETS = {
     "no-op": [],
     # Claude Code
     "claude": ["claude"],
+    "claude-yolo": ["claude", "--yolo"],
     # Codex
     "codex": ["codex"],
     # Happy (mobile-enabled Claude Code)
@@ -36,7 +37,7 @@ AI_TOOL_PRESETS = {
 
 DEFAULT_CONFIG = {
     "ai_tool": {
-        "command": "claude",  # Command name or preset name
+        "command": "claude-yolo",  # Command name or preset name
         "args": [],  # Additional arguments
     },
     "launch": {
