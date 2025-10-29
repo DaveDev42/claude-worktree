@@ -158,19 +158,14 @@ def test_list_backups(
     temp_git_repo: Path, disable_claude, tmp_path: Path, capsys, monkeypatch
 ) -> None:
     """Test listing backups."""
+    from claude_worktree import core
+
     # Create and backup a worktree
     create_worktree(branch_name="test-branch", no_cd=True)
     backup_output = tmp_path / "backups"
     backup_worktree(branch="test-branch", output=backup_output)
 
-    # List backups
-    from claude_worktree import config
-
-    monkeypatch.setattr(config, "get_config_path", lambda: backup_output / "config.json")
-
     # Override get_backups_dir to use our test backup location
-    from claude_worktree import core
-
     monkeypatch.setattr(core, "get_backups_dir", lambda: backup_output)
 
     list_backups()
