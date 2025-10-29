@@ -17,11 +17,16 @@ No high priority items at this time.
   - 13 comprehensive tests added
   - Documentation added to README with use cases
 
-- [ ] **Backup & restore** - Worktree state preservation
-  - `cw backup [branch]` - Create backup of worktree state
-  - `cw backup --all` - Backup all worktrees
-  - `cw restore <branch> <backup-id>` - Restore from backup
-  - Implementation: Git bundles or tar archives
+- [x] **Backup & restore** - Worktree state preservation ✅ Completed in v0.10.0 (PR #TBD)
+  - `cw backup create [branch]` - Create backup of current or specific worktree
+  - `cw backup create --all` - Backup all worktrees
+  - `cw backup list [branch]` - List available backups
+  - `cw backup restore <branch>` - Restore from latest backup
+  - `cw backup restore <branch> --id <timestamp>` - Restore from specific backup
+  - Implementation: Git bundles with full history + uncommitted changes as patches
+  - Storage: `~/.config/claude-worktree/backups/<branch>/<timestamp>/`
+  - 15 comprehensive tests added
+  - Documentation added to README with 5 use cases
 
 ### AI Enhancements
 
