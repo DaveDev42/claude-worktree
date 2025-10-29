@@ -10,18 +10,6 @@ No high priority items at this time.
 
 ### Advanced Features
 
-- [ ] **Git hook integration** - Automated workflow helpers
-  - `cw hooks install` - Install claude-worktree-specific hooks
-  - pre-commit: Check if AI tool is running
-  - post-checkout: Auto-attach AI tool
-  - pre-push: Remind to run `cw finish` if appropriate
-
-- [ ] **AI session management** - Control AI tool lifecycle
-  - `cw ai start [branch]` - Start AI in specified worktree
-  - `cw ai stop [branch]` - Stop AI session
-  - `cw ai restart [branch]` - Restart AI session
-  - `cw ai logs [branch]` - View AI session logs
-
 - [ ] **Configuration portability** - Share setups across machines
   - `cw export` - Export all worktree metadata and config
   - `cw import <file>` - Import worktree setup on another machine
