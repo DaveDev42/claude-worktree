@@ -1769,3 +1769,179 @@ def format_age(age_days: float) -> str:
     else:
         years = int(age_days / 365)
         return f"{years}y ago"
+
+
+def export_config(output_file: Path | None = None) -> None:
+    """
+    Export worktree configuration and metadata to a file.
+
+    Args:
+        output_file: Path to export file (default: cw-export-<timestamp>.json)
+
+    Raises:
+        GitError: If git operations fail
+    """
+    import json
+    from datetime import datetime
+
+    from .config import load_config
+
+    repo = get_repo_root()
+
+    # Collect export data
+    from typing import Any
+
+    export_data: dict[str, Any] = {
+        "export_version": "1.0",
+        "exported_at": datetime.now().isoformat(),
+        "repository": str(repo),
+        "config": load_config(),
+        "worktrees": [],
+    }
+
+    # Collect worktree metadata
+    for branch, path in parse_worktrees(repo):
+        # Skip main repository
+        if path.resolve() == repo.resolve():
+            continue
+        # Skip detached worktrees
+        if branch == "(detached)":
+            continue
+
+        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+
+        # Get metadata for this worktree
+        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo)
+        base_path = get_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo)
+
+        worktree_info = {
+            "branch": branch_name,
+            "base_branch": base_branch,
+            "base_path": base_path,
+            "path": str(path),
+            "status": get_worktree_status(str(path), repo),
+        }
+
+        export_data["worktrees"].append(worktree_info)
+
+    # Determine output file
+    if output_file is None:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        output_file = Path(f"cw-export-{timestamp}.json")
+
+    # Write export file
+    console.print(f"\n[yellow]Exporting configuration to:[/yellow] {output_file}")
+    try:
+        with open(output_file, "w") as f:
+            json.dump(export_data, f, indent=2)
+        console.print("[bold green]✓[/bold green] Export complete!\n")
+        console.print("[bold]Exported:[/bold]")
+        console.print(f"  • {len(export_data['worktrees'])} worktree(s)")
+        console.print("  • Configuration settings")
+        console.print(
+            "\n[dim]Transfer this file to another machine and use 'cw import' to restore.[/dim]\n"
+        )
+    except OSError as e:
+        raise GitError(f"Failed to write export file: {e}")
+
+
+def import_config(import_file: Path, apply: bool = False) -> None:
+    """
+    Import worktree configuration and metadata from a file.
+
+    Args:
+        import_file: Path to import file
+        apply: Apply imported configuration (default: preview only)
+
+    Raises:
+        GitError: If import fails
+    """
+    import json
+
+    from .config import save_config
+
+    if not import_file.exists():
+        raise GitError(f"Import file not found: {import_file}")
+
+    # Load import data
+    console.print(f"\n[yellow]Loading import file:[/yellow] {import_file}\n")
+    try:
+        with open(import_file) as f:
+            import_data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        raise GitError(f"Failed to read import file: {e}")
+
+    # Validate format
+    if "export_version" not in import_data:
+        raise GitError("Invalid export file format")
+
+    # Show import preview
+    console.print("[bold cyan]Import Preview:[/bold cyan]\n")
+    console.print(f"[bold]Exported from:[/bold] {import_data.get('repository', 'unknown')}")
+    console.print(f"[bold]Exported at:[/bold] {import_data.get('exported_at', 'unknown')}")
+    console.print(f"[bold]Worktrees:[/bold] {len(import_data.get('worktrees', []))}\n")
+
+    if import_data.get("worktrees"):
+        console.print("[bold]Worktrees to import:[/bold]")
+        for wt in import_data["worktrees"]:
+            console.print(f"  • {wt.get('branch', 'unknown')}")
+            console.print(f"    Base: {wt.get('base_branch', 'unknown')}")
+            console.print(f"    Original path: {wt.get('path', 'unknown')}")
+            console.print()
+
+    if not apply:
+        console.print(
+            "[bold yellow]Preview mode:[/bold yellow] No changes made. "
+            "Use --apply to import configuration.\n"
+        )
+        return
+
+    # Apply import
+    console.print("[bold yellow]Applying import...[/bold yellow]\n")
+
+    repo = get_repo_root()
+    imported_count = 0
+
+    # Import global configuration
+    if "config" in import_data and import_data["config"]:
+        console.print("[yellow]Importing global configuration...[/yellow]")
+        try:
+            save_config(import_data["config"])
+            console.print("[bold green]✓[/bold green] Configuration imported\n")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Configuration import failed: {e}\n")
+
+    # Import worktree metadata
+    console.print("[yellow]Importing worktree metadata...[/yellow]\n")
+    for wt in import_data.get("worktrees", []):
+        branch = wt.get("branch")
+        base_branch = wt.get("base_branch")
+
+        if not branch or not base_branch:
+            console.print("[yellow]⚠[/yellow] Skipping invalid worktree entry\n")
+            continue
+
+        # Check if branch exists locally
+        if not branch_exists(branch, repo):
+            console.print(
+                f"[yellow]⚠[/yellow] Branch '{branch}' not found locally. "
+                f"Create it with 'cw new {branch} --base {base_branch}'"
+            )
+            continue
+
+        # Set metadata for this branch
+        try:
+            set_config(CONFIG_KEY_BASE_BRANCH.format(branch), base_branch, repo=repo)
+            set_config(CONFIG_KEY_BASE_PATH.format(branch), str(repo), repo=repo)
+            console.print(f"[bold green]✓[/bold green] Imported metadata for: {branch}")
+            imported_count += 1
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Failed to import {branch}: {e}")
+
+    console.print(
+        f"\n[bold green]✓ Import complete! Imported {imported_count} worktree(s)[/bold green]\n"
+    )
+    console.print(
+        "[dim]Note: This only imports metadata. "
+        "Create actual worktrees with 'cw new' if they don't exist.[/dim]\n"
+    )

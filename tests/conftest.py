@@ -44,6 +44,13 @@ def temp_git_repo(tmp_path: Path, monkeypatch) -> Generator[Path, None, None]:
         check=True,
         capture_output=True,
     )
+    # Ensure the default branch is named 'main' (git init may create 'master' in some environments)
+    subprocess.run(
+        ["git", "branch", "-M", "main"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
 
     # Change to repo directory for tests
     monkeypatch.chdir(repo_path)
