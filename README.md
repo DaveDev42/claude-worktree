@@ -68,17 +68,23 @@ This will:
 
 Make changes, commit them, and test your code in the isolated worktree.
 
-### 3. Finish and merge
+### 3. Complete your work
 
+Choose your workflow:
+
+**For team/PR workflows:**
 ```bash
-cw finish --push
+cw pr          # Create pull request, keep worktree
 ```
 
-This will:
-- Rebase your feature onto the base branch
-- Fast-forward merge into the base branch
-- Clean up the worktree and feature branch
-- Optionally push to remote with `--push`
+**For solo/direct merge:**
+```bash
+cw merge --push   # Merge and cleanup
+```
+
+The `cw pr` command creates a GitHub Pull Request and leaves the worktree for further work.
+
+The `cw merge` command rebases, merges, cleans up the worktree, and optionally pushes with `--push`.
 
 ## Usage
 
@@ -298,23 +304,75 @@ cw stash apply feature-api --stash stash@{1}
 
 Worktree-aware stashing makes it easy to move changes between worktrees.
 
-### Finish with advanced options
+### Completing Your Work
+
+**claude-worktree** supports two workflows for completing your feature work:
+
+#### Pull Request Workflow (Recommended for Teams)
+
+Create a GitHub Pull Request without merging locally:
 
 ```bash
-# Interactive mode with confirmations
-cw finish -i
+# Create PR from current worktree
+cw pr
 
-# Preview merge without executing
-cw finish --dry-run
+# Create PR with custom title and body
+cw pr --title "Add authentication" --body "Implements user login"
 
-# Get AI help with conflict resolution
-cw finish --ai-merge
+# Create draft PR
+cw pr --draft
 
-# Finish specific worktree from anywhere
-cw finish fix-auth --push
+# Create PR without pushing (for testing)
+cw pr --no-push
+
+# Create PR from specific worktree
+cw pr fix-auth
 ```
 
-The `--ai-merge` flag launches your configured AI tool if conflicts are detected during rebase.
+The `cw pr` command:
+1. Rebases your feature onto the base branch
+2. Pushes to remote
+3. Creates a GitHub Pull Request using `gh` CLI
+4. **Leaves the worktree intact** for further work
+
+After the PR is merged on GitHub, clean up with:
+```bash
+cw delete fix-auth
+```
+
+**Requires**: GitHub CLI (`gh`) - https://cli.github.com/
+
+#### Direct Merge Workflow (For Solo Development)
+
+Merge directly to the base branch and clean up:
+
+```bash
+# Merge current worktree
+cw merge
+
+# Merge and push to remote
+cw merge --push
+
+# Interactive mode with confirmations
+cw merge -i
+
+# Preview merge without executing
+cw merge --dry-run
+
+# Merge specific worktree from anywhere
+cw merge fix-auth --push
+```
+
+The `cw merge` command:
+1. Rebases your feature onto the base branch
+2. Fast-forward merges into the base branch
+3. Removes the worktree
+4. Deletes the feature branch
+5. Optionally pushes to remote with `--push`
+
+#### Deprecated: `cw finish`
+
+The old `cw finish` command still works but is deprecated. Use `cw pr` or `cw merge` instead for clearer intent.
 
 ## Command Reference
 
@@ -323,12 +381,14 @@ The `--ai-merge` flag launches your configured AI tool if conflicts are detected
 | Command | Description |
 |---------|-------------|
 | `cw new <name>` | Create new worktree with specified branch name |
-| `cw finish [branch]` | Rebase, merge, and cleanup worktree |
+| `cw pr [branch]` | Create GitHub Pull Request (leaves worktree intact) |
+| `cw merge [branch]` | Merge to base branch and cleanup worktree |
 | `cw resume [branch]` | Resume AI work in worktree with context restoration |
 | `cw list` | List all worktrees with status |
 | `cw status` | Show current worktree metadata |
 | `cw delete <target>` | Delete worktree by branch name or path |
 | `cw prune` | Prune stale worktree administrative data |
+| ~~`cw finish [branch]`~~ | ~~Deprecated - use `cw pr` or `cw merge` instead~~ |
 
 ### Maintenance & Cleanup
 
@@ -695,7 +755,7 @@ git config branch.<feature>.worktreeBase <base>
 git config worktree.<feature>.basePath <path>
 ```
 
-This allows the `finish` command to know:
+This allows the `pr` and `merge` commands to know:
 1. Which branch to rebase onto
 2. Where the main repository is located
 3. How to safely perform the merge
@@ -713,8 +773,15 @@ cw new add-user-auth
 # 2. Work in the worktree (AI tool launches automatically)
 # Make changes, commit as needed...
 
-# 3. Finish and merge
-cw finish --push
+# 3. Complete your work
+
+# For PR-based workflow (recommended for teams):
+cw pr                    # Create pull request
+# After PR merged on GitHub:
+cw delete add-user-auth  # Clean up worktree
+
+# For direct merge workflow (solo development):
+cw merge --push          # Merge and cleanup in one step
 ```
 
 ### Multi-Feature Parallel Development
@@ -738,9 +805,12 @@ cw-cd fix-bug-123    # Jump to bug fix worktree
 # Resume AI work in specific feature
 cw resume refactor-db
 
-# Finish features as they're completed
-cw finish feature-api --push
-cw finish fix-bug-123 --push
+# Complete features as they're done (choose your workflow)
+cw pr feature-api        # Create PR
+cw pr fix-bug-123        # Create PR
+# Or for direct merge:
+cw merge feature-api --push
+cw merge fix-bug-123 --push
 ```
 
 ### Team Collaboration Workflow
@@ -763,10 +833,13 @@ cw sync --all
 
 # Review changes before merging
 cw diff main team-feature --summary
-cw finish team-feature --dry-run
 
-# Merge with AI assistance if conflicts arise
-cw finish team-feature --ai-merge --push
+# Create PR for team review
+cw pr team-feature --title "Implement team feature"
+
+# Or preview merge locally
+cw merge team-feature --dry-run
+cw merge team-feature --push
 ```
 
 ### Long-Running Feature Branch
@@ -791,7 +864,11 @@ cw doctor
 
 # Review changes before finishing
 cw diff develop big-refactor --files
-cw finish big-refactor -i --push  # Interactive mode
+
+# Create PR or merge with interactive confirmation
+cw pr big-refactor --draft
+# Or for direct merge:
+cw merge big-refactor -i --push  # Interactive mode
 ```
 
 ### Hotfix Workflow
@@ -805,8 +882,8 @@ cw new hotfix-security --base production
 # Make fix and test
 # ...
 
-# Merge to production
-cw finish hotfix-security --push
+# Merge to production (direct merge for hotfixes)
+cw merge hotfix-security --push
 
 # Also apply to main/develop
 git checkout main
@@ -827,7 +904,7 @@ cw new experiment-approach-c
 # After testing, keep only what works
 cw delete experiment-approach-a
 cw delete experiment-approach-b
-cw finish experiment-approach-c --push
+cw merge experiment-approach-c --push  # Keep the winner
 
 # Or use batch cleanup
 cw clean --merged           # Remove already-merged features
@@ -865,7 +942,7 @@ cw stash save "Half-done refactoring"
 # Work on bug fix
 cw resume fix-urgent-bug
 # Fix bug...
-cw finish fix-urgent-bug --push
+cw merge fix-urgent-bug --push
 
 # Return to original work
 cw resume feature-a
@@ -946,21 +1023,17 @@ cw config set ai-tool <your-tool>
 
 ### "Rebase failed"
 
-Conflicts were detected during rebase. You have two options:
+Conflicts were detected during rebase. Resolve them manually:
 
-**Option 1: AI-Assisted Resolution (Recommended)**
-```bash
-cw finish --ai-merge
-```
-If conflicts occur, your configured AI tool will launch to help resolve them.
-
-**Option 2: Manual Resolution**
 ```bash
 cd <worktree-path>
 git rebase origin/<base-branch>
 # Resolve conflicts
 git rebase --continue
-# Then run: cw finish
+
+# Then complete your work:
+cw pr              # Create PR, or
+cw merge --push    # Direct merge
 ```
 
 ### Shell completion not working
