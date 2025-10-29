@@ -1139,8 +1139,14 @@ def list_worktrees() -> None:
     worktrees = parse_worktrees(repo)
 
     console.print(f"\n[bold cyan]Worktrees for repository:[/bold cyan] {repo}\n")
-    console.print(f"{'BRANCH':<35} {'STATUS':<10} PATH")
-    console.print("-" * 80)
+
+    # Calculate maximum branch name length for dynamic column width
+    max_branch_len = max((len(branch) for branch, _ in worktrees), default=20)
+    # Cap at reasonable maximum but allow for long names
+    col_width = min(max(max_branch_len + 2, 35), 60)
+
+    console.print(f"{'BRANCH':<{col_width}} {'STATUS':<10} PATH")
+    console.print("-" * (col_width + 50))
 
     # Status color mapping
     status_colors = {
@@ -1154,7 +1160,7 @@ def list_worktrees() -> None:
         status = get_worktree_status(str(path), repo)
         rel_path = os.path.relpath(str(path), repo)
         color = status_colors.get(status, "white")
-        console.print(f"{branch[:33]:<35} [{color}]{status:<10}[/{color}] {rel_path}")
+        console.print(f"{branch:<{col_width}} [{color}]{status:<10}[/{color}] {rel_path}")
 
     console.print()
 
