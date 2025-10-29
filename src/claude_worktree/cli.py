@@ -18,6 +18,7 @@ from .config import (
     list_presets as list_ai_presets,
 )
 from .core import (
+    change_base_branch,
     create_worktree,
     delete_worktree,
     export_config,
@@ -474,6 +475,64 @@ def sync(
         from .core import sync_worktree
 
         sync_worktree(target=target, all_worktrees=all_worktrees, fetch_only=fetch_only)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(name="change-base")
+def change_base_cmd(
+    new_base: str = typer.Argument(
+        ...,
+        help="New base branch name",
+        autocompletion=complete_all_branches,
+    ),
+    target: str | None = typer.Option(
+        None,
+        "--target",
+        "-t",
+        help="Worktree branch to change (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Use interactive rebase",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview changes without executing",
+    ),
+) -> None:
+    """
+    Change the base branch for a worktree and rebase onto it.
+
+    This is useful when you realize after creating a worktree that you should
+    have based it on a different branch (e.g., 'master' instead of 'develop').
+
+    The command will:
+    1. Fetch latest changes from remote
+    2. Rebase the feature branch onto the new base branch
+    3. Update the base branch metadata
+
+    If the rebase fails due to conflicts, you'll need to resolve them manually
+    and then run this command again to update the metadata.
+
+    Example:
+        cw change-base master              # Change current worktree to master
+        cw change-base develop -t fix-auth # Change fix-auth to develop
+        cw change-base main -i             # Interactive rebase
+        cw change-base master --dry-run    # Preview changes
+    """
+    try:
+        change_base_branch(
+            new_base=new_base,
+            target=target,
+            interactive=interactive,
+            dry_run=dry_run,
+        )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

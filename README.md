@@ -202,6 +202,24 @@ cw sync --fetch-only
 
 Fetches latest changes and rebases your feature branch onto the updated base branch. Useful for long-running features.
 
+### Change base branch
+
+```bash
+# Change base branch for current worktree
+cw change-base master
+
+# Change base for specific worktree
+cw change-base develop -t fix-auth
+
+# Interactive rebase
+cw change-base main -i
+
+# Preview changes
+cw change-base master --dry-run
+```
+
+Use this when you realize after creating a worktree that you should have based it on a different branch. The command will rebase your feature branch onto the new base and update the metadata.
+
 ### Health check
 
 ```bash
@@ -340,6 +358,7 @@ The `--ai-merge` flag launches your configured AI tool if conflicts are detected
 | `cw clean -i` | Interactive cleanup with selection UI |
 | `cw sync [branch]` | Sync worktree(s) with base branch |
 | `cw sync --all` | Sync all worktrees |
+| `cw change-base <new-base>` | Change base branch and rebase |
 | `cw doctor` | Health check and diagnostics |
 
 ### Analysis & Visualization
