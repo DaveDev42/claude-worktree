@@ -46,16 +46,24 @@ No high priority items at this time.
 
 ## Documentation Tasks
 
-- [ ] **Create troubleshooting guide**
+- [x] **Create troubleshooting guide** ✅ Completed in v0.9.6 (PR #21)
   - iTerm/terminal launch issues
   - Session restoration problems
   - Common git worktree errors
   - Network/PyPI connectivity for updates
+  - Platform-specific issues (macOS, Linux, WSL)
+  - Quick reference table for common errors
+  - TROUBLESHOOTING.md: 692 lines of comprehensive solutions
 
-- [ ] **Add more workflow examples to README**
+- [x] **Add more workflow examples to README** ✅ Completed in v0.9.6 (PR #21)
   - Multi-feature development workflow
   - Team collaboration scenarios
   - CI/CD integration examples
+  - Code review workflow
+  - Hotfix workflow
+  - Template usage patterns
+  - Stash management across worktrees
+  - 10 real-world workflow examples added
 
 ## Testing Tasks
 
