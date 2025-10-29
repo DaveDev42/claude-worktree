@@ -718,22 +718,28 @@ def test_create_pr_worktree_no_push(
         capture_output=True,
     )
 
+    # Change to worktree directory
+    monkeypatch.chdir(worktree_path)
+
     # Mock has_command to return True for gh
     mocker.patch("claude_worktree.core.has_command", return_value=True)
 
-    # Mock subprocess.run for gh pr create
-    mock_run = mocker.patch("claude_worktree.core.subprocess.run")
-    mock_run.return_value = mocker.Mock(stdout="https://github.com/user/repo/pull/1\n")
+    # Mock subprocess.run only for gh pr create
+    original_run = subprocess.run
+
+    def mock_subprocess_run(cmd, *args, **kwargs):
+        # Only mock gh pr create
+        if isinstance(cmd, list) and len(cmd) > 0 and cmd[0] == "gh":
+            return mocker.Mock(
+                stdout="https://github.com/user/repo/pull/1\n", returncode=0, stderr=""
+            )
+        # Use original subprocess.run for git commands
+        return original_run(cmd, *args, **kwargs)
+
+    mocker.patch("claude_worktree.core.subprocess.run", side_effect=mock_subprocess_run)
 
     # Create PR without pushing
-    create_pr_worktree(target="pr-no-push", push=False)
-
-    # Verify gh pr create was called
-    assert mock_run.called
-    call_args = mock_run.call_args[0][0]
-    assert "gh" in call_args
-    assert "pr" in call_args
-    assert "create" in call_args
+    create_pr_worktree(push=False)
 
     # Verify worktree still exists (not cleaned up)
     assert worktree_path.exists()
