@@ -10,10 +10,12 @@ No high priority items at this time.
 
 ### Advanced Features
 
-- [ ] **Configuration portability** - Share setups across machines
+- [x] **Configuration portability** - Share setups across machines ✅ Completed in v0.9.8 (PR #23)
   - `cw export` - Export all worktree metadata and config
   - `cw import <file>` - Import worktree setup on another machine
   - Use case: Team collaboration, multiple development machines
+  - 13 comprehensive tests added
+  - Documentation added to README with use cases
 
 - [ ] **Backup & restore** - Worktree state preservation
   - `cw backup [branch]` - Create backup of worktree state
