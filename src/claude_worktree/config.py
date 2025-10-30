@@ -25,7 +25,7 @@ AI_TOOL_PRESETS = {
     "no-op": [],
     # Claude Code
     "claude": ["claude"],
-    "claude-yolo": ["claude", "--yolo"],
+    "claude-yolo": ["claude", "--dangerously-skip-permissions"],
     # Codex
     "codex": ["codex"],
     # Happy (mobile-enabled Claude Code)
