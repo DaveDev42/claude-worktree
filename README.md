@@ -204,9 +204,12 @@ cw sync --all
 
 # Only fetch, don't rebase
 cw sync --fetch-only
+
+# Get AI help with rebase conflicts
+cw sync --ai-merge
 ```
 
-Fetches latest changes and rebases your feature branch onto the updated base branch. Useful for long-running features.
+Fetches latest changes and rebases your feature branch onto the updated base branch. Useful for long-running features. Use `--ai-merge` to get AI assistance when rebase conflicts occur.
 
 ### Change base branch
 
