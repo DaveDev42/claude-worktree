@@ -357,6 +357,35 @@ uv build
 uv publish
 ```
 
+### Release & Versioning Policy
+
+**IMPORTANT**: Version bumps and releases require explicit user approval based on semantic versioning:
+
+- **Patch version (x.x.N)**: Default for all releases unless specified otherwise
+  - Bug fixes, minor improvements, documentation updates
+  - Can be released automatically when requested
+  - Example: `0.10.0 → 0.10.1`
+
+- **Minor version (x.N.0)**: Requires explicit user approval
+  - New features, backward-compatible changes
+  - Must ask user before bumping
+  - Example: `0.10.8 → 0.11.0`
+
+- **Major version (N.0.0)**: Requires explicit user approval
+  - Breaking changes, API changes, major redesigns
+  - Must ask user before bumping
+  - Example: `0.11.5 → 1.0.0`
+
+**Default behavior**: When user requests "release" or "new version" without specifying the version type, ALWAYS use patch version bump.
+
+**Release workflow**:
+1. Determine version type (default: patch)
+2. Get user approval for minor/major bumps
+3. Update version in `pyproject.toml`
+4. Commit changes
+5. Create GitHub release with tag
+6. Optionally publish to PyPI (requires explicit request)
+
 ## Code Style Guidelines
 
 - Type hints for all function signatures
