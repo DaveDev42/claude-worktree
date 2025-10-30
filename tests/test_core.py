@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from claude_worktree.core import (
+    change_base_branch,
     create_pr_worktree,
     create_worktree,
     delete_worktree,
@@ -872,3 +873,233 @@ def test_merge_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatch
 
     # Changes should NOT be merged to main
     assert not (temp_git_repo / "feature.txt").exists()
+
+
+def test_change_base_branch_success(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test successfully changing base branch."""
+    # Create master branch
+    subprocess.run(
+        ["git", "branch", "master"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree from main
+    worktree_path = create_worktree(
+        branch_name="feature-test",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Make a commit in the worktree
+    (worktree_path / "feature.txt").write_text("feature content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Change base to master
+    change_base_branch(new_base="master")
+
+    # Verify base branch metadata was updated
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", "branch.feature-test.worktreeBase"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "master"
+
+
+def test_change_base_branch_with_target(temp_git_repo: Path, disable_claude) -> None:
+    """Test changing base branch with --target option."""
+    # Create master branch
+    subprocess.run(
+        ["git", "branch", "master"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree from main
+    worktree_path = create_worktree(
+        branch_name="target-test",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Make a commit
+    (worktree_path / "file.txt").write_text("content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add file"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change base from main repo (not from within worktree)
+    change_base_branch(new_base="master", target="target-test")
+
+    # Verify base branch metadata was updated
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", "branch.target-test.worktreeBase"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "master"
+
+
+def test_change_base_branch_dry_run(
+    temp_git_repo: Path, disable_claude, monkeypatch, capsys
+) -> None:
+    """Test dry-run mode for change-base."""
+    # Create master branch
+    subprocess.run(
+        ["git", "branch", "master"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="dry-run-base",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Run change-base with dry_run=True
+    change_base_branch(new_base="master", dry_run=True)
+
+    # Verify output shows dry-run mode
+    captured = capsys.readouterr()
+    assert "DRY RUN MODE" in captured.out
+    assert "No changes will be made" in captured.out
+    assert "Fetch" in captured.out
+    assert "Rebase" in captured.out
+    assert "Update" in captured.out
+    assert "main → master" in captured.out
+
+    # Verify base branch was NOT changed
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", "branch.dry-run-base.worktreeBase"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "main"  # Still the original
+
+
+def test_change_base_branch_invalid_base(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test error when new base branch doesn't exist."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="invalid-base-test",
+        no_cd=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Try to change to nonexistent base
+    with pytest.raises(InvalidBranchError, match="not found"):
+        change_base_branch(new_base="nonexistent-branch")
+
+
+def test_change_base_branch_no_metadata(temp_git_repo: Path, disable_claude) -> None:
+    """Test error when worktree has no base branch metadata."""
+
+    # Create a branch manually (without metadata)
+    subprocess.run(
+        ["git", "branch", "manual-branch"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree manually
+    manual_path = temp_git_repo.parent / "manual-worktree"
+    subprocess.run(
+        ["git", "worktree", "add", str(manual_path), "manual-branch"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Try to change base (should fail - no metadata)
+    with pytest.raises(GitError, match="No base branch metadata found"):
+        change_base_branch(new_base="main", target="manual-branch")
+
+
+def test_change_base_branch_with_conflicts(
+    temp_git_repo: Path, disable_claude, monkeypatch
+) -> None:
+    """Test change-base when rebase has conflicts."""
+    from claude_worktree.exceptions import RebaseError
+
+    # Create develop branch with conflicting change
+    subprocess.run(
+        ["git", "checkout", "-b", "develop"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+    (temp_git_repo / "conflict.txt").write_text("develop content")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Develop change"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Switch back to main
+    subprocess.run(
+        ["git", "checkout", "main"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree from main with conflicting change
+    worktree_path = create_worktree(
+        branch_name="conflict-test",
+        base_branch="main",
+        no_cd=True,
+    )
+    (worktree_path / "conflict.txt").write_text("main content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Main change"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Try to change base to develop (should fail with conflicts)
+    with pytest.raises(RebaseError, match="Rebase failed"):
+        change_base_branch(new_base="develop")
+
+    # Verify base branch was NOT changed (rebase was aborted)
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", "branch.conflict-test.worktreeBase"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert result.stdout.strip() == "main"  # Still the original
