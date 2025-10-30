@@ -579,6 +579,11 @@ def sync(
         "--fetch-only",
         help="Fetch updates without rebasing",
     ),
+    ai_merge: bool = typer.Option(
+        False,
+        "--ai-merge",
+        help="Launch AI tool to help resolve conflicts if rebase fails",
+    ),
 ) -> None:
     """
     Synchronize worktree(s) with base branch changes.
@@ -587,16 +592,23 @@ def sync(
     onto the updated base branch. Useful for long-running feature branches
     that need to stay up-to-date with the base branch.
 
+    If rebase conflicts occur, use --ai-merge to get AI assistance with
+    conflict resolution. The AI tool will be launched with context about
+    the conflicted files.
+
     Example:
         cw sync                    # Sync current worktree
         cw sync fix-auth           # Sync specific worktree
         cw sync --all              # Sync all worktrees
         cw sync --fetch-only       # Only fetch, don't rebase
+        cw sync --ai-merge         # Get AI help with conflicts
     """
     try:
         from .core import sync_worktree
 
-        sync_worktree(target=target, all_worktrees=all_worktrees, fetch_only=fetch_only)
+        sync_worktree(
+            target=target, all_worktrees=all_worktrees, fetch_only=fetch_only, ai_merge=ai_merge
+        )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
