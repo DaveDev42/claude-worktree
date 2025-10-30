@@ -260,7 +260,8 @@ uv run pytest --cov=claude_worktree --cov-report=term
 1. ✅ Run `uv run pytest` - all tests must pass
 2. ✅ Run `ruff check src/ tests/` - no linting errors
 3. ✅ Run `mypy src/claude_worktree` - no type errors
-4. ✅ Verify changes work as expected locally
+4. ✅ Check `git status` for `uv.lock` changes - commit if modified
+5. ✅ Verify changes work as expected locally
 
 The pre-commit hooks will automatically run ruff and mypy, but **you must run pytest manually** before committing. GitHub Actions will run all checks, but catching issues locally saves time and CI resources.
 
@@ -382,9 +383,21 @@ uv publish
 1. Determine version type (default: patch)
 2. Get user approval for minor/major bumps
 3. Update version in `pyproject.toml`
-4. Commit changes
-5. Create GitHub release with tag
-6. Optionally publish to PyPI (requires explicit request)
+4. **MANDATORY: Commit `uv.lock` file**
+   - Lock file ensures reproducible builds
+   - MUST be included in every release
+   - Check `git status` before committing version bump
+   - If `uv.lock` is modified, stage it with version bump
+5. Commit changes (including uv.lock if modified)
+6. Create GitHub release with tag
+7. Optionally publish to PyPI (requires explicit request)
+
+**CRITICAL: Lock File Policy**
+- **ALWAYS check `uv.lock` status** before every commit
+- **NEVER skip `uv.lock` commits** - it's as important as `pyproject.toml`
+- If `uv.lock` is modified, it MUST be committed
+- Lock file ensures all users get identical dependency versions
+- Missing lock file commits break reproducible builds
 
 ## Code Style Guidelines
 
