@@ -106,7 +106,7 @@ def main(
     check_for_updates(auto=True)
 
 
-@app.command()
+@app.command(rich_help_panel="Core Workflow")
 def new(
     branch_name: str = typer.Argument(
         ..., help="Name for the new branch (e.g., 'fix-auth', 'feature-api')"
@@ -179,7 +179,7 @@ def new(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Core Workflow")
 def pr(
     target: str | None = typer.Argument(
         None,
@@ -242,7 +242,7 @@ def pr(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Core Workflow")
 def merge(
     target: str | None = typer.Argument(
         None,
@@ -298,7 +298,7 @@ def merge(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Deprecated")
 def finish(
     target: str | None = typer.Argument(
         None,
@@ -360,7 +360,7 @@ def finish(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Core Workflow")
 def resume(
     worktree: str | None = typer.Argument(
         None,
@@ -413,7 +413,7 @@ def resume(
         raise typer.Exit(code=1)
 
 
-@app.command(name="list")
+@app.command(name="list", rich_help_panel="Worktree Management")
 def list_cmd() -> None:
     """
     List all worktrees in the current repository.
@@ -427,7 +427,7 @@ def list_cmd() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Worktree Management")
 def status() -> None:
     """
     Show status of current worktree and list all worktrees.
@@ -442,7 +442,7 @@ def status() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Worktree Management")
 def prune() -> None:
     """
     Prune stale worktree administrative data.
@@ -457,7 +457,7 @@ def prune() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Worktree Management")
 def clean(
     merged: bool = typer.Option(
         False,
@@ -515,7 +515,7 @@ def clean(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Worktree Management")
 def delete(
     target: str = typer.Argument(
         ...,
@@ -562,7 +562,7 @@ def delete(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Worktree Management")
 def sync(
     target: str | None = typer.Argument(
         None,
@@ -602,7 +602,7 @@ def sync(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Inspection & Analysis")
 def doctor() -> None:
     """
     Perform health check on all worktrees.
@@ -627,7 +627,7 @@ def doctor() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Inspection & Analysis")
 def diff(
     branch1: str = typer.Argument(
         ...,
@@ -684,7 +684,7 @@ template_app = typer.Typer(
     help="Manage worktree templates",
     no_args_is_help=True,
 )
-app.add_typer(template_app, name="template")
+app.add_typer(template_app, name="template", rich_help_panel="Configuration")
 
 
 @template_app.command(name="create")
@@ -797,7 +797,7 @@ def template_apply(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Inspection & Analysis")
 def tree() -> None:
     """
     Display worktree hierarchy in a visual tree format.
@@ -820,7 +820,7 @@ def tree() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Inspection & Analysis")
 def stats() -> None:
     """
     Display usage analytics for worktrees.
@@ -844,7 +844,7 @@ def stats() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Maintenance")
 def upgrade() -> None:
     """
     Upgrade claude-worktree to the latest version.
@@ -865,7 +865,7 @@ def upgrade() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Configuration")
 def cd(
     branch: str = typer.Argument(
         ...,
@@ -1030,7 +1030,7 @@ config_app = typer.Typer(
     help="Manage configuration settings",
     no_args_is_help=True,
 )
-app.add_typer(config_app, name="config")
+app.add_typer(config_app, name="config", rich_help_panel="Configuration")
 
 
 @config_app.command()
@@ -1166,7 +1166,7 @@ stash_app = typer.Typer(
     help="Worktree-aware stash management",
     no_args_is_help=True,
 )
-app.add_typer(stash_app, name="stash")
+app.add_typer(stash_app, name="stash", rich_help_panel="Configuration")
 
 
 @stash_app.command(name="save")
@@ -1248,7 +1248,7 @@ def stash_apply_cmd(
         raise typer.Exit(code=1)
 
 
-@app.command()
+@app.command(rich_help_panel="Configuration")
 def export(
     output: Path | None = typer.Option(
         None,
@@ -1279,7 +1279,7 @@ def export(
         raise typer.Exit(code=1)
 
 
-@app.command(name="import")
+@app.command(name="import", rich_help_panel="Configuration")
 def import_cmd(
     import_file: Path = typer.Argument(
         ...,
@@ -1326,7 +1326,7 @@ backup_app = typer.Typer(
     help="Backup and restore worktrees",
     no_args_is_help=True,
 )
-app.add_typer(backup_app, name="backup")
+app.add_typer(backup_app, name="backup", rich_help_panel="Backup & Recovery")
 
 
 @backup_app.command(name="create")
