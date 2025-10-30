@@ -107,7 +107,7 @@ def test_save_config_creates_directory(tmp_path: Path, monkeypatch) -> None:
 def test_get_ai_tool_command_default(temp_config_dir: Path) -> None:
     """Test getting default AI tool command."""
     cmd = get_ai_tool_command()
-    assert cmd == ["claude"]
+    assert cmd == ["claude", "--yolo"]
 
 
 def test_get_ai_tool_command_custom(temp_config_dir: Path) -> None:
@@ -270,8 +270,8 @@ def test_show_config(temp_config_dir: Path) -> None:
     output = show_config()
 
     # Should contain key information
-    assert "AI Tool: claude" in output
-    assert "Effective command: claude" in output
+    assert "AI Tool: claude-yolo" in output
+    assert "Effective command: claude --yolo" in output
     assert "Default base branch: main" in output
     assert "Config file:" in output
 
@@ -341,6 +341,7 @@ def test_ai_tool_presets_defined() -> None:
     expected_presets = [
         "no-op",
         "claude",
+        "claude-yolo",
         "codex",
         "happy",
         "happy-codex",
@@ -353,6 +354,15 @@ def test_ai_tool_presets_defined() -> None:
         # no-op preset can be empty
         if preset != "no-op":
             assert len(AI_TOOL_PRESETS[preset]) > 0
+
+
+def test_claude_preset_commands() -> None:
+    """Test that Claude presets generate correct commands."""
+    # Test basic claude
+    assert AI_TOOL_PRESETS["claude"] == ["claude"]
+
+    # Test claude-yolo (with --yolo flag)
+    assert AI_TOOL_PRESETS["claude-yolo"] == ["claude", "--yolo"]
 
 
 def test_happy_preset_commands() -> None:
