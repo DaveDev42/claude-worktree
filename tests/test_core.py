@@ -899,3 +899,109 @@ def test_change_base_branch_with_conflicts(
         text=True,
     )
     assert result.stdout.strip() == "main"  # Still the original
+
+
+def test_sync_worktree_with_ai_merge_conflicts(
+    temp_git_repo: Path, disable_claude, monkeypatch
+) -> None:
+    """Test sync with --ai-merge when conflicts occur."""
+    from claude_worktree.core import sync_worktree
+    from claude_worktree.exceptions import RebaseError
+
+    # Create develop branch with conflicting change
+    subprocess.run(
+        ["git", "checkout", "-b", "develop"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+    (temp_git_repo / "sync-conflict.txt").write_text("develop content")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Develop change"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Switch back to main
+    subprocess.run(
+        ["git", "checkout", "main"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create worktree from main
+    worktree_path = create_worktree(
+        branch_name="sync-conflict-test",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Make conflicting change in worktree
+    (worktree_path / "sync-conflict.txt").write_text("main content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Main change"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Update base branch metadata to develop
+    subprocess.run(
+        ["git", "config", "--local", "branch.sync-conflict-test.worktreeBase", "develop"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Try to sync without AI merge (should just fail with helpful message)
+    with pytest.raises(RebaseError, match="Rebase failed"):
+        sync_worktree(ai_merge=False)
+
+
+def test_sync_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test successful sync without conflicts."""
+    from claude_worktree.core import sync_worktree
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="sync-success-test",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Make a commit in the worktree
+    (worktree_path / "sync-feature.txt").write_text("feature content")
+    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Make a non-conflicting commit in main
+    (temp_git_repo / "main-work.txt").write_text("main work")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Main work"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # Sync should succeed
+    sync_worktree()
+
+    # Verify both files exist in worktree after rebase
+    assert (worktree_path / "sync-feature.txt").exists()
+    assert (worktree_path / "main-work.txt").exists()
