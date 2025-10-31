@@ -230,7 +230,7 @@ def test_prune_command_help() -> None:
     """Test prune command help."""
     result = runner.invoke(app, ["prune", "--help"])
     assert result.exit_code == 0
-    assert "Prune stale worktree" in result.stdout
+    assert "DEPRECATED" in result.stdout or "deprecated" in result.stdout
 
 
 def test_prune_command_execution(temp_git_repo: Path, disable_claude) -> None:
@@ -376,10 +376,11 @@ def test_clean_command_accepts_flags(temp_git_repo: Path, disable_claude) -> Non
     assert result.exit_code == 0
     # Check for flag names (ANSI codes may be present in colored output)
     assert "merged" in result.stdout and "branches already merged" in result.stdout
-    assert "stale" in result.stdout and "stale" in result.stdout.lower()
     assert "older" in result.stdout and "than" in result.stdout and "days" in result.stdout
     assert "interactive" in result.stdout.lower() or "-i" in result.stdout
     assert "dry" in result.stdout and "run" in result.stdout
+    # Check that auto-prune is mentioned in help
+    assert "prune" in result.stdout.lower()
 
 
 def test_pr_command_help(temp_git_repo: Path) -> None:

@@ -845,7 +845,6 @@ def sync_worktree(
 
 def clean_worktrees(
     merged: bool = False,
-    stale: bool = False,
     older_than: int | None = None,
     interactive: bool = False,
     dry_run: bool = False,
@@ -853,9 +852,11 @@ def clean_worktrees(
     """
     Batch cleanup of worktrees based on various criteria.
 
+    Automatically runs 'git worktree prune' after cleanup to remove stale
+    administrative data.
+
     Args:
         merged: Delete worktrees for branches already merged to base
-        stale: Delete worktrees with 'stale' status
         older_than: Delete worktrees older than N days
         interactive: Interactive selection UI
         dry_run: Show what would be deleted without actually deleting
@@ -883,13 +884,6 @@ def clean_worktrees(
 
         should_delete = False
         reasons = []
-
-        # Check stale status
-        if stale:
-            status = get_worktree_status(str(path), repo)
-            if status == "stale":
-                should_delete = True
-                reasons.append("stale (directory missing)")
 
         # Check if merged
         if merged:
@@ -930,10 +924,10 @@ def clean_worktrees(
             worktrees_to_delete.append((branch_name, str(path), reason_str))
 
     # If no criteria specified, show error
-    if not merged and not stale and older_than is None and not interactive:
+    if not merged and older_than is None and not interactive:
         console.print(
             "[bold red]Error:[/bold red] Please specify at least one cleanup criterion:\n"
-            "  --merged, --stale, --older-than, or -i/--interactive"
+            "  --merged, --older-than, or -i/--interactive"
         )
         return
 
@@ -1009,6 +1003,15 @@ def clean_worktrees(
     console.print(
         f"\n[bold green]✓ Cleanup complete! Deleted {deleted_count} worktree(s)[/bold green]\n"
     )
+
+    # Automatically prune stale worktree administrative data
+    if not dry_run:
+        console.print("[dim]Pruning stale worktree metadata...[/dim]")
+        try:
+            git_command("worktree", "prune", repo=repo)
+            console.print("[dim]✓ Prune complete[/dim]\n")
+        except GitError as e:
+            console.print(f"[dim yellow]Warning: Failed to prune: {e}[/dim yellow]\n")
 
 
 def doctor() -> None:
