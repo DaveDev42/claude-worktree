@@ -1639,6 +1639,83 @@ def resume_worktree(
         )
 
 
+def shell_worktree(
+    worktree: str | None = None,
+    command: list[str] | None = None,
+) -> None:
+    """
+    Open an interactive shell or execute a command in a worktree.
+
+    Args:
+        worktree: Branch name of worktree to shell into (optional, uses current dir)
+        command: Command to execute (optional, opens interactive shell if None)
+
+    Raises:
+        WorktreeNotFoundError: If worktree doesn't exist
+        GitError: If git operations fail
+    """
+    repo = get_repo_root()
+
+    # Determine target worktree path
+    if worktree:
+        # Find worktree by branch name
+        worktree_path = find_worktree_by_branch(repo, worktree)
+        if not worktree_path:
+            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
+
+        if not worktree_path:
+            raise WorktreeNotFoundError(f"No worktree found for branch '{worktree}'")
+
+        target_path = Path(worktree_path)
+    else:
+        # Use current directory
+        target_path = Path.cwd()
+
+        # Verify we're in a worktree
+        try:
+            current_branch = get_current_branch(target_path)
+            if not current_branch:
+                raise WorktreeNotFoundError("Not in a git worktree. Please specify a branch name.")
+        except GitError:
+            raise WorktreeNotFoundError("Not in a git repository or worktree.")
+
+    # Verify target path exists
+    if not target_path.exists():
+        raise WorktreeNotFoundError(f"Worktree directory does not exist: {target_path}")
+
+    # Execute command or open interactive shell
+    if command:
+        # Execute the provided command in the worktree
+        console.print(f"[cyan]Executing in {target_path}:[/cyan] {' '.join(command)}\n")
+        try:
+            result = subprocess.run(
+                command,
+                cwd=target_path,
+                check=False,  # Don't raise exception, let command exit code pass through
+            )
+            sys.exit(result.returncode)
+        except Exception as e:
+            console.print(f"[bold red]Error executing command:[/bold red] {e}")
+            sys.exit(1)
+    else:
+        # Open interactive shell
+        branch_name = worktree if worktree else get_current_branch(target_path)
+        console.print(
+            f"[bold cyan]Opening shell in worktree:[/bold cyan] {branch_name}\n"
+            f"[dim]Path: {target_path}[/dim]\n"
+            f"[dim]Type 'exit' to return[/dim]\n"
+        )
+
+        # Determine shell to use
+        shell = os.environ.get("SHELL", "/bin/bash")
+
+        try:
+            subprocess.run([shell], cwd=target_path, check=False)
+        except Exception as e:
+            console.print(f"[bold red]Error opening shell:[/bold red] {e}")
+            sys.exit(1)
+
+
 def stash_save(message: str | None = None) -> None:
     """
     Save changes in current worktree to stash.

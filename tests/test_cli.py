@@ -275,6 +275,39 @@ def test_resume_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude)
     runner.invoke(app, ["delete", "resume-tab-test"])
 
 
+def test_shell_command_help() -> None:
+    """Test shell command help."""
+    result = runner.invoke(app, ["shell", "--help"])
+    assert result.exit_code == 0
+    assert "shell" in result.stdout.lower()
+    assert "command" in result.stdout.lower()
+
+
+def test_shell_command_with_branch_and_command(temp_git_repo: Path, disable_claude) -> None:
+    """Test shell command executes command in worktree."""
+    # Create worktree
+    runner.invoke(app, ["new", "shell-test", "--no-cd"])
+    worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-shell-test"
+
+    # Execute command in worktree (no -- separator needed)
+    result = runner.invoke(app, ["shell", "shell-test", "echo", "test"])
+    # Command execution exits with the command's exit code
+    assert result.exit_code == 0
+    # Check that command was executed (shows in message)
+    assert "Executing in" in result.stdout
+    assert "shell-test" in result.stdout or str(worktree_path) in result.stdout
+
+    # Clean up
+    runner.invoke(app, ["delete", "shell-test"])
+
+
+def test_shell_command_nonexistent_branch(temp_git_repo: Path) -> None:
+    """Test shell command with nonexistent branch."""
+    result = runner.invoke(app, ["shell", "nonexistent", "ls"])
+    assert result.exit_code != 0
+    assert "Error" in result.stdout
+
+
 def test_cd_command_help() -> None:
     """Test cd command help."""
     result = runner.invoke(app, ["cd", "--help"])
