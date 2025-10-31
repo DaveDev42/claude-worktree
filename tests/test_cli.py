@@ -295,7 +295,10 @@ def test_shell_command_with_branch_and_command(temp_git_repo: Path, disable_clau
     assert result.exit_code == 0
     # Check that command was executed (shows in message)
     assert "Executing in" in result.stdout
-    assert "shell-test" in result.stdout or str(worktree_path) in result.stdout
+    # Check for worktree path (may be split across lines in CI, so check without whitespace)
+    stdout_no_ws = result.stdout.replace("\n", "").replace(" ", "")
+    path_no_ws = str(worktree_path).replace(" ", "")
+    assert path_no_ws in stdout_no_ws
 
     # Clean up
     runner.invoke(app, ["delete", "shell-test"])
