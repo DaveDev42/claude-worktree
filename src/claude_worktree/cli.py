@@ -32,6 +32,7 @@ from .core import (
     prune_worktrees,
     restore_worktree,
     resume_worktree,
+    shell_worktree,
     show_status,
 )
 from .exceptions import ClaudeWorktreeError
@@ -409,6 +410,64 @@ def resume(
             iterm_tab=iterm_tab,
             tmux_session=tmux,
         )
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(
+    rich_help_panel="Core Workflow",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def shell(
+    ctx: typer.Context,
+    worktree: str | None = typer.Argument(
+        None,
+        help="Worktree branch to shell into (optional, defaults to current directory)",
+        autocompletion=complete_worktree_branches,
+    ),
+) -> None:
+    """
+    Open an interactive shell or execute a command in a worktree.
+
+    Without a command, opens an interactive shell in the specified worktree.
+    With a command, executes the command in the worktree and exits.
+
+    Example:
+        cw shell fix-auth                    # Open interactive shell
+        cw shell fix-auth git status         # Execute git status
+        cw shell fix-auth npm test           # Run tests
+        cw shell ls -la                      # Execute in current worktree
+        cw shell                             # Open shell in current worktree
+    """
+    try:
+        # Determine command from extra args
+        # ctx.args contains everything after unrecognized args
+        command = ctx.args if ctx.args else None
+
+        # If worktree was given as positional arg, check if it's valid
+        # If not valid and we have no command yet, treat it as command
+        if worktree:
+            from .git_utils import find_worktree_by_branch, get_repo_root
+
+            try:
+                repo = get_repo_root()
+                wt_path = find_worktree_by_branch(repo, worktree)
+                if not wt_path:
+                    wt_path = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
+
+                if not wt_path:
+                    # Not a valid worktree - treat as command
+                    if command:
+                        command = [worktree] + command
+                    else:
+                        command = [worktree]
+                    worktree = None
+            except Exception:
+                # If error checking repo, pass the error up
+                pass
+
+        shell_worktree(worktree=worktree, command=command)
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
