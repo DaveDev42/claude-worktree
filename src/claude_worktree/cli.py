@@ -443,15 +443,30 @@ def status() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command(rich_help_panel="Worktree Management")
+@app.command(rich_help_panel="Deprecated")
 def prune() -> None:
     """
-    Prune stale worktree administrative data.
+    [DEPRECATED] Prune stale worktree administrative data.
 
-    Removes worktree metadata for directories that no longer exist.
-    Equivalent to 'git worktree prune'.
+    ⚠️  This command is deprecated. The 'cw clean' command now automatically
+    prunes stale worktree metadata after cleanup, so this standalone command
+    is no longer necessary.
+
+    If you need to manually prune without cleanup, use:
+        git worktree prune
+
+    This command still works but may be removed in a future version.
     """
     try:
+        # Show deprecation warning
+        console.print(
+            "\n[bold yellow]⚠️  Deprecation Warning:[/bold yellow] "
+            "The 'prune' command is deprecated.\n"
+        )
+        console.print("The [cyan]cw clean[/cyan] command now automatically prunes after cleanup.")
+        console.print("For manual pruning, use: [cyan]git worktree prune[/cyan]\n")
+
+        # Still execute the command for backward compatibility
         prune_worktrees()
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -464,11 +479,6 @@ def clean(
         False,
         "--merged",
         help="Delete worktrees for branches already merged to base",
-    ),
-    stale: bool = typer.Option(
-        False,
-        "--stale",
-        help="Delete worktrees with 'stale' status",
     ),
     older_than: int | None = typer.Option(
         None,
@@ -494,9 +504,11 @@ def clean(
     Delete multiple worktrees based on various criteria. Use --dry-run
     to preview what would be deleted before actually removing anything.
 
+    Automatically runs 'git worktree prune' after cleanup to remove stale
+    administrative data.
+
     Example:
         cw clean --merged           # Delete merged worktrees
-        cw clean --stale            # Delete stale worktrees
         cw clean --older-than 30    # Delete worktrees older than 30 days
         cw clean -i                 # Interactive selection
         cw clean --merged --dry-run # Preview merged worktrees
@@ -506,7 +518,6 @@ def clean(
 
         clean_worktrees(
             merged=merged,
-            stale=stale,
             older_than=older_than,
             interactive=interactive,
             dry_run=dry_run,
