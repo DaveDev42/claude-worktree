@@ -1,6 +1,6 @@
 [project]
 name = "claude-worktree"
-version = "0.10.4"
+version = "0.10.5"
 description = "CLI tool integrating git worktree with Claude Code for seamless feature development workflows"
 readme = "README.md"
 requires-python = ">=3.11"
