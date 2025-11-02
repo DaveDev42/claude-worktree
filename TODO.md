@@ -65,6 +65,31 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Impact: Better user experience, consistency
   - File: `src/claude_worktree/core.py` or new `src/claude_worktree/messages.py`
 
+### User Experience Improvements
+
+- [ ] **First-run shell completion prompt**
+  - On first run (or when completion not detected), prompt user to install shell completion
+  - Detection: Check if completion is already installed for current shell
+  - Prompt: "Would you like to install shell completion for better productivity? (y/n)"
+  - If yes: Run `cw --install-completion` automatically
+  - Store preference in config to avoid re-prompting
+  - Impact: Helps users discover and enable this productivity feature
+  - File: `src/claude_worktree/cli.py` or `src/claude_worktree/core.py`
+
+- [ ] **Smart `cw new` with worktree detection**
+  - Problem: Running `cw new branch-name` when worktree already exists doesn't provide helpful guidance
+  - Solution 1: Detect existing worktree for same branch name
+    - Prompt: "Worktree for branch 'feature-x' already exists at '../repo-feature-x'. Resume work instead? (y/n)"
+    - If yes: Automatically switch to `cw resume feature-x`
+    - If no: Suggest alternative branch name or path
+  - Solution 2: Detect existing branch without worktree
+    - Prompt: "Branch 'feature-x' already exists. Create worktree from existing branch? (y/n)"
+    - If yes: Create worktree from existing branch
+    - If no: Suggest different branch name or abort
+  - Impact: Better user experience, prevents confusion and mistakes
+  - File: `src/claude_worktree/core.py` (create_worktree function)
+  - Testing: Add tests for existing worktree/branch detection
+
 ### Advanced Features
 
 - [x] **Configuration portability** - Share setups across machines ✅ Completed in v0.9.8 (PR #23)
