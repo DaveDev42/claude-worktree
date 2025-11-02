@@ -500,40 +500,42 @@ uv publish
    gh pr create --title "chore: Release vX.Y.Z" --body "Version bump for [patch/minor/major] release"
    ```
 
-3. **Merge PR** (semi-automated):
+3. **Merge PR** (fully automated):
    - Review and merge PR via GitHub web interface
-   - **🤖 Auto-release creates tag:**
-     - `auto-release.yml` reads version from `pyproject.toml`
+   - **🤖 Auto-release handles everything:**
+     - Reads version from `pyproject.toml`
      - Creates and pushes tag `vX.Y.Z`
-   - **👤 Manual trigger required** (GitHub Actions limitation):
-     ```bash
-     gh workflow run publish.yml --ref vX.Y.Z
-     ```
-   - **🚀 Publish workflow runs:**
-     - Runs tests, builds package, publishes to PyPI
+     - Runs tests (multiple OS/Python versions)
+     - Builds package
+     - Publishes to PyPI
      - Creates GitHub release with artifacts
    - Track progress at: https://github.com/DaveDev42/claude-worktree/actions
+   - Done! No manual steps required ✨
 
 **Workflow files:**
-- `.github/workflows/auto-release.yml`: Auto-tags when `release/*` PR is merged
-- `.github/workflows/publish.yml`: Builds and publishes to PyPI when tag is pushed
+- `.github/workflows/auto-release.yml`: Complete release automation (tag → test → build → publish)
+- `.github/workflows/publish.yml`: Legacy workflow (kept for manual releases via tag push)
 - `.github/workflows/test.yml`: Runs tests on all PRs
 
-**Manual release (if automation fails):**
-If you need to manually create a release:
+**Manual release (if needed):**
+If you need to manually trigger a release:
 ```bash
-git checkout main
-git pull origin main
-gh release create vX.Y.Z --title "vX.Y.Z" --notes "Release notes..."
+# Option 1: Create tag manually to trigger publish.yml
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+
+# Option 2: Use workflow dispatch
+gh workflow run publish.yml --ref vX.Y.Z
 ```
 
-**Why use automated workflow:**
-- ✅ Zero manual steps after PR merge
-- ✅ Consistent release process every time
-- ✅ Automatic PyPI publishing via trusted publishing
-- ✅ All CI/CD checks must pass before publishing
-- ✅ Audit trail maintained through PRs and workflow logs
-- ✅ No need for PyPI credentials on local machine
+**Why this workflow is optimal:**
+- ✅ **Zero manual steps** after PR merge
+- ✅ **Single workflow** handles everything (no multi-workflow triggering issues)
+- ✅ **Consistent** release process every time
+- ✅ **Automatic PyPI publishing** via trusted publishing
+- ✅ **All CI/CD checks** must pass before publishing
+- ✅ **Audit trail** maintained through PRs and workflow logs
+- ✅ **No credentials needed** on local machine
 
 ## Code Style Guidelines
 
