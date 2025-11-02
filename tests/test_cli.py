@@ -266,7 +266,9 @@ def test_cd_command_execution(temp_git_repo: Path, disable_claude) -> None:
     result = runner.invoke(app, ["cd", "cd-test"])
     assert result.exit_code == 0
     # Path should be in output (may be split across lines due to formatting)
-    assert expected_path.name in result.stdout or str(expected_path) in result.stdout
+    # Remove newlines to handle line wrapping from Rich console
+    output_no_newlines = result.stdout.replace("\n", "")
+    assert expected_path.name in output_no_newlines or str(expected_path) in output_no_newlines
     assert "cw-cd" in result.stdout  # Should show shell function hint
 
     # Clean up
