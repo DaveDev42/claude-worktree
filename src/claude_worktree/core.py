@@ -8,7 +8,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .config import get_ai_tool_command
+from .config import get_ai_tool_command, get_ai_tool_resume_command
 from .constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from .exceptions import (
     GitError,
@@ -1584,6 +1584,7 @@ def launch_ai_tool(
     iterm: bool = False,
     iterm_tab: bool = False,
     tmux_session: str | None = None,
+    resume: bool = False,
 ) -> None:
     """
     Launch AI coding assistant in the specified directory.
@@ -1594,9 +1595,10 @@ def launch_ai_tool(
         iterm: Launch in new iTerm window (macOS only)
         iterm_tab: Launch in new iTerm tab (macOS only)
         tmux_session: Launch in new tmux session
+        resume: Use resume command (adds --resume flag)
     """
-    # Get configured AI tool command
-    ai_cmd_parts = get_ai_tool_command()
+    # Get configured AI tool command (with or without --resume)
+    ai_cmd_parts = get_ai_tool_resume_command() if resume else get_ai_tool_command()
 
     # Skip if no AI tool configured (empty array means no-op)
     if not ai_cmd_parts:
@@ -1755,13 +1757,18 @@ def resume_worktree(
         console.print()
 
     # Save session metadata and launch AI tool (if configured)
-    ai_cmd = get_ai_tool_command()
+    ai_cmd = get_ai_tool_resume_command()
     if ai_cmd:
         ai_tool_name = ai_cmd[0]
         session_manager.save_session_metadata(branch_name, ai_tool_name, str(worktree_path))
         console.print(f"[cyan]Resuming {ai_tool_name} in:[/cyan] {worktree_path}\n")
         launch_ai_tool(
-            worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
+            worktree_path,
+            bg=bg,
+            iterm=iterm,
+            iterm_tab=iterm_tab,
+            tmux_session=tmux_session,
+            resume=True,
         )
 
 

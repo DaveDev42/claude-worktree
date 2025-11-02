@@ -28,10 +28,19 @@ AI_TOOL_PRESETS = {
     "claude-yolo": ["claude", "--dangerously-skip-permissions"],
     # Codex
     "codex": ["codex"],
+    "codex-yolo": ["codex", "--dangerously-bypass-approvals-and-sandbox"],
     # Happy (mobile-enabled Claude Code)
     "happy": ["happy"],
     "happy-codex": ["happy", "codex", "--permission-mode", "bypassPermissions"],
     "happy-yolo": ["happy", "--yolo"],
+}
+
+# Predefined resume commands for AI tools that use different resume syntax
+# If a preset is not listed here, the default behavior is to append "--resume" flag
+AI_TOOL_RESUME_PRESETS = {
+    # Codex uses subcommand syntax: "codex resume [OPTIONS]" instead of "codex [OPTIONS] --resume"
+    "codex": ["codex", "resume", "--last"],
+    "codex-yolo": ["codex", "resume", "--dangerously-bypass-approvals-and-sandbox", "--last"],
 }
 
 
@@ -157,6 +166,49 @@ def get_ai_tool_command() -> list[str]:
 
     # Otherwise, use as custom command
     return [command] + args
+
+
+def get_ai_tool_resume_command() -> list[str]:
+    """Get the AI tool command to execute when resuming a session.
+
+    For presets with custom resume syntax (like codex), uses AI_TOOL_RESUME_PRESETS.
+    Otherwise, appends --resume flag to the regular command.
+
+    Returns:
+        List of command parts for resuming a session
+        Empty list [] means no AI tool should be launched.
+    """
+    # Check environment variable first - use default --resume behavior
+    env_tool = os.environ.get("CW_AI_TOOL")
+    if env_tool is not None:
+        if not env_tool.strip():
+            return []
+        # Environment override: append --resume flag
+        return env_tool.split() + ["--resume"]
+
+    # Load from config
+    config = load_config()
+    command: str = config["ai_tool"]["command"]
+    args: list[str] = config["ai_tool"]["args"]
+
+    # Empty command means no AI tool
+    if not command.strip():
+        return []
+
+    # Check if preset has a custom resume command
+    if command in AI_TOOL_RESUME_PRESETS:
+        resume_cmd: list[str] = AI_TOOL_RESUME_PRESETS[command].copy()
+        return resume_cmd + args
+
+    # Check if it's a regular preset
+    if command in AI_TOOL_PRESETS:
+        base_cmd: list[str] = AI_TOOL_PRESETS[command].copy()
+        if not base_cmd:  # no-op preset
+            return []
+        return base_cmd + args + ["--resume"]
+
+    # Custom command: append --resume flag
+    return [command] + args + ["--resume"]
 
 
 def set_ai_tool(tool: str, args: list[str] | None = None) -> None:

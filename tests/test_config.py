@@ -7,9 +7,11 @@ import pytest
 
 from claude_worktree.config import (
     AI_TOOL_PRESETS,
+    AI_TOOL_RESUME_PRESETS,
     DEFAULT_CONFIG,
     ConfigError,
     get_ai_tool_command,
+    get_ai_tool_resume_command,
     get_config_path,
     list_presets,
     load_config,
@@ -321,6 +323,7 @@ def test_ai_tool_presets_defined() -> None:
         "claude",
         "claude-yolo",
         "codex",
+        "codex-yolo",
         "happy",
         "happy-codex",
         "happy-yolo",
@@ -341,6 +344,18 @@ def test_claude_preset_commands() -> None:
 
     # Test claude-yolo (with --dangerously-skip-permissions flag)
     assert AI_TOOL_PRESETS["claude-yolo"] == ["claude", "--dangerously-skip-permissions"]
+
+
+def test_codex_preset_commands() -> None:
+    """Test that Codex presets generate correct commands."""
+    # Test basic codex
+    assert AI_TOOL_PRESETS["codex"] == ["codex"]
+
+    # Test codex-yolo (with --dangerously-bypass-approvals-and-sandbox flag)
+    assert AI_TOOL_PRESETS["codex-yolo"] == [
+        "codex",
+        "--dangerously-bypass-approvals-and-sandbox",
+    ]
 
 
 def test_happy_preset_commands() -> None:
@@ -376,3 +391,102 @@ def test_use_happy_presets(temp_config_dir: Path) -> None:
     use_preset("happy-yolo")
     cmd = get_ai_tool_command()
     assert cmd == ["happy", "--yolo"]
+
+
+def test_get_ai_tool_resume_command_default(temp_config_dir: Path) -> None:
+    """Test getting resume command with default AI tool."""
+    cmd = get_ai_tool_resume_command()
+    assert cmd == ["claude", "--dangerously-skip-permissions", "--resume"]
+
+
+def test_get_ai_tool_resume_command_preset(temp_config_dir: Path) -> None:
+    """Test getting resume command from preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "happy-codex"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    cmd = get_ai_tool_resume_command()
+    assert cmd == ["happy", "codex", "--permission-mode", "bypassPermissions", "--resume"]
+
+
+def test_get_ai_tool_resume_command_no_tool(temp_config_dir: Path) -> None:
+    """Test getting resume command when no AI tool configured."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "no-op"
+    save_config(config)
+
+    cmd = get_ai_tool_resume_command()
+    assert cmd == []
+
+
+def test_get_ai_tool_resume_command_env_override(temp_config_dir: Path, monkeypatch) -> None:
+    """Test resume command respects environment variable override."""
+    # Set config to use claude
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude"
+    save_config(config)
+
+    # Override with environment variable
+    monkeypatch.setenv("CW_AI_TOOL", "happy --backend codex")
+
+    cmd = get_ai_tool_resume_command()
+    assert cmd == ["happy", "--backend", "codex", "--resume"]
+
+
+def test_get_ai_tool_resume_command_codex(temp_config_dir: Path) -> None:
+    """Test getting resume command for codex preset (uses subcommand syntax)."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "codex"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    cmd = get_ai_tool_resume_command()
+    # Codex uses "codex resume --last" instead of "codex --resume"
+    assert cmd == ["codex", "resume", "--last"]
+
+
+def test_get_ai_tool_resume_command_codex_yolo(temp_config_dir: Path) -> None:
+    """Test getting resume command for codex-yolo preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "codex-yolo"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    cmd = get_ai_tool_resume_command()
+    assert cmd == ["codex", "resume", "--dangerously-bypass-approvals-and-sandbox", "--last"]
+
+
+def test_get_ai_tool_resume_command_codex_with_extra_args(temp_config_dir: Path) -> None:
+    """Test getting resume command for codex with additional args."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "codex"
+    config["ai_tool"]["args"] = ["--model", "o3"]
+    save_config(config)
+
+    cmd = get_ai_tool_resume_command()
+    # Extra args should be appended
+    assert cmd == ["codex", "resume", "--last", "--model", "o3"]
+
+
+def test_ai_tool_resume_presets_defined() -> None:
+    """Test that resume presets are defined for tools that need special syntax."""
+    # Codex uses subcommand syntax
+    assert "codex" in AI_TOOL_RESUME_PRESETS
+    assert "codex-yolo" in AI_TOOL_RESUME_PRESETS
+
+    # Claude and Happy use --resume flag, so they shouldn't be in resume presets
+    assert "claude" not in AI_TOOL_RESUME_PRESETS
+    assert "happy" not in AI_TOOL_RESUME_PRESETS
