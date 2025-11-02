@@ -448,9 +448,12 @@ uv publish
 - Lock file ensures all users get identical dependency versions
 - Missing lock file commits break reproducible builds
 
-### Release Workflow (with Branch Protection)
+### Release Workflow (Automated with GitHub Actions)
 
-**IMPORTANT**: Since this repository has branch protection enabled on `main`, releases must be done via pull requests.
+**IMPORTANT**: This repository uses an automated release workflow. When a PR from `release/*` branch is merged to `main`, it automatically:
+1. Creates a git tag (e.g., `v0.10.9`)
+2. Triggers CI/CD to build and publish to PyPI
+3. Creates a GitHub release
 
 **Step-by-step release process:**
 
@@ -474,7 +477,7 @@ uv publish
 
 2. **Create release branch and PR**:
    ```bash
-   # Create release branch
+   # Create release branch (MUST start with "release/")
    git checkout -b release/vX.Y.Z
 
    # Push to remote
@@ -484,29 +487,36 @@ uv publish
    gh pr create --title "chore: Release vX.Y.Z" --body "Version bump for [patch/minor/major] release"
    ```
 
-3. **Merge PR and create GitHub release**:
+3. **Merge PR** (automation handles the rest):
    - Review and merge PR via GitHub web interface
-   - After merge, pull latest main:
-     ```bash
-     git checkout main
-     git pull origin main
-     ```
-   - Create GitHub release:
-     ```bash
-     gh release create vX.Y.Z --title "vX.Y.Z" --notes "Release notes here..."
-     ```
+   - **🤖 Automation kicks in:**
+     - `auto-release.yml` reads version from `pyproject.toml`
+     - Creates and pushes tag `vX.Y.Z`
+     - `publish.yml` is triggered by the tag
+     - Runs tests, builds package, publishes to PyPI
+     - Creates GitHub release with artifacts
+   - Track progress at: https://github.com/DaveDev42/claude-worktree/actions
 
-4. **Publish to PyPI** (optional, requires explicit request):
-   ```bash
-   uv build
-   uv publish
-   ```
+**Workflow files:**
+- `.github/workflows/auto-release.yml`: Auto-tags when `release/*` PR is merged
+- `.github/workflows/publish.yml`: Builds and publishes to PyPI when tag is pushed
+- `.github/workflows/test.yml`: Runs tests on all PRs
 
-**Why use PR workflow for releases:**
-- Ensures CI/CD checks pass before release
-- Maintains audit trail for all version changes
-- Prevents accidental direct pushes to protected branch
-- Allows for final review before publishing
+**Manual release (if automation fails):**
+If you need to manually create a release:
+```bash
+git checkout main
+git pull origin main
+gh release create vX.Y.Z --title "vX.Y.Z" --notes "Release notes..."
+```
+
+**Why use automated workflow:**
+- ✅ Zero manual steps after PR merge
+- ✅ Consistent release process every time
+- ✅ Automatic PyPI publishing via trusted publishing
+- ✅ All CI/CD checks must pass before publishing
+- ✅ Audit trail maintained through PRs and workflow logs
+- ✅ No need for PyPI credentials on local machine
 
 ## Code Style Guidelines
 
