@@ -82,28 +82,48 @@ def test_sanitize_branch_name_complex() -> None:
     assert sanitize_branch_name("release/v2.0.1-beta") == "release-v2.0.1-beta"
 
 
-def test_default_worktree_path_simple() -> None:
+def test_default_worktree_path_simple(tmp_path: Path) -> None:
     """Test default worktree path generation with simple branch names."""
-    repo = Path("/Users/dave/myproject")
-    assert default_worktree_path(repo, "fix-auth") == Path("/Users/dave/myproject-fix-auth")
-    assert default_worktree_path(repo, "feature") == Path("/Users/dave/myproject-feature")
+    repo = tmp_path / "myproject"
+    repo.mkdir()
+
+    result = default_worktree_path(repo, "fix-auth")
+    assert result.name == "myproject-fix-auth"
+    assert result.parent == tmp_path
+
+    result = default_worktree_path(repo, "feature")
+    assert result.name == "myproject-feature"
+    assert result.parent == tmp_path
 
 
-def test_default_worktree_path_with_slashes() -> None:
+def test_default_worktree_path_with_slashes(tmp_path: Path) -> None:
     """Test default worktree path generation with branch names containing slashes."""
-    repo = Path("/Users/dave/myproject")
-    assert default_worktree_path(repo, "feat/auth") == Path("/Users/dave/myproject-feat-auth")
-    assert default_worktree_path(repo, "bugfix/issue-123") == Path(
-        "/Users/dave/myproject-bugfix-issue-123"
-    )
-    assert default_worktree_path(repo, "release/v2.0") == Path("/Users/dave/myproject-release-v2.0")
+    repo = tmp_path / "myproject"
+    repo.mkdir()
+
+    result = default_worktree_path(repo, "feat/auth")
+    assert result.name == "myproject-feat-auth"
+    assert result.parent == tmp_path
+
+    result = default_worktree_path(repo, "bugfix/issue-123")
+    assert result.name == "myproject-bugfix-issue-123"
+    assert result.parent == tmp_path
+
+    result = default_worktree_path(repo, "release/v2.0")
+    assert result.name == "myproject-release-v2.0"
+    assert result.parent == tmp_path
 
 
-def test_default_worktree_path_special_chars() -> None:
+def test_default_worktree_path_special_chars(tmp_path: Path) -> None:
     """Test default worktree path generation with special characters."""
-    repo = Path("/Users/dave/myproject")
+    repo = tmp_path / "myproject"
+    repo.mkdir()
+
     # Should sanitize unsafe characters
-    assert default_worktree_path(repo, "fix:auth") == Path("/Users/dave/myproject-fix-auth")
-    assert default_worktree_path(repo, "feature<test>") == Path(
-        "/Users/dave/myproject-feature-test"
-    )
+    result = default_worktree_path(repo, "fix:auth")
+    assert result.name == "myproject-fix-auth"
+    assert result.parent == tmp_path
+
+    result = default_worktree_path(repo, "feature<test>")
+    assert result.name == "myproject-feature-test"
+    assert result.parent == tmp_path

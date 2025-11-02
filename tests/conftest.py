@@ -7,6 +7,24 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolate_config_globally(tmp_path: Path, monkeypatch) -> None:
+    """Isolate config directory for all tests to prevent modifying user's config.
+
+    This prevents tests from modifying the user's actual config file at
+    ~/.config/claude-worktree/config.json by redirecting config operations
+    to a temporary directory.
+
+    Also disables AI tool launching by setting CW_AI_TOOL="".
+    """
+    # Isolate config directory to tmp_path
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Windows
+
+    # Disable AI tool launching
+    monkeypatch.setenv("CW_AI_TOOL", "")
+
+
 @pytest.fixture
 def temp_git_repo(tmp_path: Path, monkeypatch) -> Generator[Path, None, None]:
     """Create a temporary git repository for testing."""

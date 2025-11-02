@@ -29,8 +29,9 @@ def temp_config_dir(tmp_path: Path, monkeypatch) -> Path:
     config_dir = tmp_path / ".config" / "claude-worktree"
     config_dir.mkdir(parents=True)
 
-    # Mock HOME environment to use temp directory
+    # Mock HOME (Unix) and USERPROFILE (Windows) to use temp directory
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
     # Also ensure no CW_AI_TOOL is set
     monkeypatch.delenv("CW_AI_TOOL", raising=False)
@@ -40,7 +41,9 @@ def temp_config_dir(tmp_path: Path, monkeypatch) -> Path:
 
 def test_get_config_path(tmp_path: Path, monkeypatch) -> None:
     """Test getting config file path."""
+    # Mock both HOME (Unix) and USERPROFILE (Windows)
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
     # Real implementation (without mocking)
     from claude_worktree.config import get_config_path as real_get_config_path

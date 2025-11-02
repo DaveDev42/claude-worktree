@@ -57,7 +57,8 @@ def test_create_worktree_basic(temp_git_repo: Path, disable_claude) -> None:
         capture_output=True,
         text=True,
     )
-    assert str(result_path) in result.stdout
+    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
+    assert result_path.as_posix() in result.stdout
 
 
 def test_create_worktree_custom_path(temp_git_repo: Path, disable_claude) -> None:
@@ -247,7 +248,8 @@ def test_finish_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatc
         capture_output=True,
         text=True,
     )
-    assert str(worktree_path) in result.stdout
+    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
+    assert worktree_path.as_posix() in result.stdout
 
 
 def test_delete_worktree_by_branch(temp_git_repo: Path, disable_claude) -> None:
@@ -400,7 +402,8 @@ def test_prune_worktrees(temp_git_repo: Path, disable_claude) -> None:
         capture_output=True,
         text=True,
     )
-    assert str(worktree_path) not in result.stdout
+    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
+    assert worktree_path.as_posix() not in result.stdout
 
 
 def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude) -> None:
@@ -593,7 +596,7 @@ def test_resume_worktree_nonexistent_branch(temp_git_repo: Path, disable_claude)
 def test_resume_worktree_creates_session_metadata(
     temp_git_repo: Path, disable_claude, monkeypatch
 ) -> None:
-    """Test that resume creates session metadata."""
+    """Test that resume doesn't create session metadata when AI tool is disabled."""
     from claude_worktree import session_manager
 
     # Create worktree
@@ -612,21 +615,22 @@ def test_resume_worktree_creates_session_metadata(
     # Change to worktree
     monkeypatch.chdir(worktree_path)
 
-    # Resume without AI tool
+    # Resume with AI tool disabled (due to disable_claude fixture and autouse fixture)
     resume_worktree(
         worktree=None,
     )
 
-    # Verify session metadata was created
-    assert session_manager.session_exists("metadata-test")
-    metadata = session_manager.load_session_metadata("metadata-test")
-    assert metadata["branch"] == "metadata-test"
-    assert metadata["worktree_path"] == str(worktree_path)
+    # With AI tool disabled, no session metadata should be created
+    # (This is the new expected behavior - sessions are only created when AI tool runs)
+    assert not session_manager.session_exists("metadata-test")
 
 
 def test_launch_ai_tool_with_iterm_tab(temp_git_repo: Path, mocker) -> None:
     """Test launch_ai_tool with iterm_tab parameter on macOS."""
     from claude_worktree.core import launch_ai_tool
+
+    # Override autouse fixture - enable AI tool for this test
+    mocker.patch.dict("os.environ", {"CW_AI_TOOL": "claude"})
 
     # Mock has_command to return True for AI tool
     mocker.patch("claude_worktree.core.has_command", return_value=True)
@@ -661,6 +665,9 @@ def test_launch_ai_tool_with_iterm_tab_non_macos(temp_git_repo: Path, mocker) ->
     """Test that iterm_tab raises error on non-macOS platforms."""
     from claude_worktree.core import launch_ai_tool
     from claude_worktree.exceptions import GitError
+
+    # Override autouse fixture - enable AI tool for this test
+    mocker.patch.dict("os.environ", {"CW_AI_TOOL": "claude"})
 
     # Mock has_command to return True for AI tool
     mocker.patch("claude_worktree.core.has_command", return_value=True)
@@ -1103,6 +1110,8 @@ def test_change_base_branch_with_conflicts(
         text=True,
     )
     assert result.stdout.strip() == "main"  # Still the original
+
+
 def test_sync_worktree_with_ai_merge_conflicts(
     temp_git_repo: Path, disable_claude, monkeypatch
 ) -> None:

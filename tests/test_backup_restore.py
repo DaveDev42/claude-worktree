@@ -288,7 +288,8 @@ def test_restore_worktree_with_uncommitted_changes(
     # Verify committed file was restored
     assert (restored_path / "committed.txt").exists()
     # File should have modified content after patch is applied
-    content = (restored_path / "committed.txt").read_text()
+    # Strip whitespace to handle trailing newline differences (Windows git apply --whitespace=fix)
+    content = (restored_path / "committed.txt").read_text().strip()
     assert content == "modified committed content"
 
 

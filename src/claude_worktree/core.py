@@ -1452,6 +1452,43 @@ def prune_worktrees() -> None:
     console.print("[bold green]✓[/bold green] Prune complete\n")
 
 
+def _run_command_in_shell(
+    cmd: str,
+    cwd: str | Path,
+    background: bool = False,
+    check: bool = False,
+) -> subprocess.CompletedProcess | subprocess.Popen:
+    """
+    Run a command in the appropriate shell for the current platform.
+
+    On Windows: Uses shell=True to avoid WSL bash issues
+    On Unix/macOS: Uses bash -lc for login shell behavior
+
+    Args:
+        cmd: Command string to execute
+        cwd: Working directory
+        background: If True, run in background (Popen), else run synchronously (run)
+        check: If True, raise exception on non-zero exit (only for run)
+
+    Returns:
+        CompletedProcess if background=False, Popen if background=True
+    """
+    if sys.platform == "win32":
+        # On Windows, use shell=True to let Windows handle shell selection
+        # This avoids the WSL bash issue where subprocess resolves to WSL's bash
+        # instead of MSYS2/Git Bash, causing node.exe to not be found
+        if background:
+            return subprocess.Popen(cmd, cwd=str(cwd), shell=True)
+        else:
+            return subprocess.run(cmd, cwd=str(cwd), shell=True, check=check)
+    else:
+        # On Unix/macOS, use bash -lc for login shell behavior
+        if background:
+            return subprocess.Popen(["bash", "-lc", cmd], cwd=str(cwd))
+        else:
+            return subprocess.run(["bash", "-lc", cmd], cwd=str(cwd), check=check)
+
+
 def launch_ai_tool(
     path: Path,
     bg: bool = False,
@@ -1544,11 +1581,11 @@ APPLESCRIPT
         return
 
     if bg:
-        subprocess.Popen(["bash", "-lc", cmd], cwd=str(path))
+        _run_command_in_shell(cmd, path, background=True)
         console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in background\n")
     else:
         console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
-        subprocess.run(["bash", "-lc", cmd], cwd=str(path), check=False)
+        _run_command_in_shell(cmd, path, background=False, check=False)
 
 
 def resume_worktree(
@@ -2616,26 +2653,26 @@ def restore_worktree(
             set_config(CONFIG_KEY_BASE_PATH.format(branch), str(repo), repo=repo)
 
         # Restore uncommitted changes if they exist
-        stash_file_path = metadata.get("stash_file")
-        if stash_file_path:
-            stash_file = Path(stash_file_path)
-            if stash_file.exists():
-                console.print("  [dim]Restoring uncommitted changes...[/dim]")
-                patch_content = stash_file.read_text()
-                # Apply patch
-                import subprocess
+        # Use backup_dir/stash.patch instead of relying on absolute path from metadata
+        # This ensures cross-platform compatibility (Windows temp paths may not persist)
+        stash_file = backup_dir / "stash.patch"
+        if stash_file.exists():
+            console.print("  [dim]Restoring uncommitted changes...[/dim]")
+            patch_content = stash_file.read_text()
+            # Apply patch
+            import subprocess
 
-                result = subprocess.run(
-                    ["git", "apply"],
-                    input=patch_content,
-                    text=True,
-                    cwd=worktree_path,
-                    capture_output=True,
+            result = subprocess.run(
+                ["git", "apply", "--whitespace=fix"],
+                input=patch_content,
+                text=True,
+                cwd=worktree_path,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                console.print(
+                    f"  [yellow]⚠[/yellow] Failed to restore uncommitted changes: {result.stderr}"
                 )
-                if result.returncode != 0:
-                    console.print(
-                        f"  [yellow]⚠[/yellow] Failed to restore uncommitted changes: {result.stderr}"
-                    )
 
         console.print("[bold green]✓[/bold green] Restore complete!")
         console.print(f"  Worktree path: {worktree_path}\n")
