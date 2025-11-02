@@ -171,7 +171,8 @@ def detect_installer() -> str | None:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # Check if uv is available (for uv pip)
+    # Check if uv is available and verify package was installed via uv
+    # Don't assume uv-pip just because uv exists - verify the package location
     try:
         result = subprocess.run(
             ["uv", "--version"],
@@ -181,7 +182,22 @@ def detect_installer() -> str | None:
             timeout=5,
         )
         if result.returncode == 0:
-            return "uv-pip"
+            # Check if package was actually installed via uv by looking at pip list
+            try:
+                pip_result = subprocess.run(
+                    [sys.executable, "-m", "pip", "show", "claude-worktree"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=5,
+                )
+                # If pip show works, the package was installed via pip, not uv
+                if pip_result.returncode == 0:
+                    return "pip"
+                # If pip show fails, try uv-pip (package might be in uv's env)
+                return "uv-pip"
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                return "uv-pip"
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
@@ -287,8 +303,8 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
             # uv tool upgrade automatically checks for latest version
             cmd = ["uv", "tool", "upgrade", "claude-worktree"]
         elif installer == "uv-pip":
-            # Use --refresh to bypass cache
-            cmd = ["uv", "pip", "install", "--upgrade", "--refresh", "claude-worktree"]
+            # Use --refresh to bypass cache and --system for non-venv installs
+            cmd = ["uv", "pip", "install", "--upgrade", "--refresh", "--system", "claude-worktree"]
         else:  # pip
             # Use --no-cache-dir to bypass cache
             cmd = [
