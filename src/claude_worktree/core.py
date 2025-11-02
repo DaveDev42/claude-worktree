@@ -843,6 +843,60 @@ def sync_worktree(
     console.print("\n[bold green]✓ Sync complete![/bold green]\n")
 
 
+def _is_branch_merged_via_gh(branch_name: str, base_branch: str, repo: Path) -> bool | None:
+    """
+    Check if a branch is merged via GitHub CLI (detects squash/rebase merges).
+
+    Args:
+        branch_name: Feature branch name
+        base_branch: Base branch name
+        repo: Repository root path
+
+    Returns:
+        True if merged via GitHub PR, False if not merged, None if gh CLI unavailable
+    """
+    import subprocess
+
+    # Check if gh CLI is available
+    if not has_command("gh"):
+        return None
+
+    try:
+        # Check if there's a PR for this branch and if it's merged
+        result = subprocess.run(
+            [
+                "gh",
+                "pr",
+                "list",
+                "--head",
+                branch_name,
+                "--base",
+                base_branch,
+                "--state",
+                "merged",
+                "--json",
+                "number",
+                "--jq",
+                "length",
+            ],
+            cwd=repo,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        # If there are merged PRs for this branch, it's merged
+        if result.returncode == 0 and result.stdout.strip():
+            count = int(result.stdout.strip())
+            return count > 0
+
+        return False
+
+    except (ValueError, subprocess.SubprocessError):
+        # If gh command fails, return None (unavailable)
+        return None
+
+
 def clean_worktrees(
     merged: bool = False,
     older_than: int | None = None,
@@ -868,6 +922,8 @@ def clean_worktrees(
 
     repo = get_repo_root()
     worktrees_to_delete: list[tuple[str, str, str]] = []
+    gh_unavailable_branches: list[str] = []  # Track branches that need gh CLI
+    has_gh = has_command("gh")
 
     # Collect worktrees matching criteria
     for branch, path in parse_worktrees(repo):
@@ -889,9 +945,9 @@ def clean_worktrees(
         if merged:
             base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo)
             if base_branch:
-                # Check if branch is merged into base
+                # Strategy 1: Check if branch is merged via git (works for merge commits)
+                is_merged_git = False
                 try:
-                    # Use git branch --merged to check
                     result = git_command(
                         "branch",
                         "--merged",
@@ -902,10 +958,35 @@ def clean_worktrees(
                     )
                     merged_branches = result.stdout.strip().splitlines()
                     if branch_name in merged_branches:
+                        is_merged_git = True
                         should_delete = True
                         reasons.append(f"merged into {base_branch}")
                 except GitError:
                     pass
+
+                # Strategy 2: If not detected by git, try GitHub CLI (works for squash/rebase)
+                if not is_merged_git:
+                    gh_result = _is_branch_merged_via_gh(branch_name, base_branch, repo)
+                    if gh_result is True:
+                        should_delete = True
+                        reasons.append(f"merged into {base_branch} (detected via GitHub PR)")
+                    elif gh_result is None:
+                        # gh CLI not available - check if remote branch exists
+                        try:
+                            remote_check = git_command(
+                                "ls-remote",
+                                "--heads",
+                                "origin",
+                                branch_name,
+                                repo=repo,
+                                capture=True,
+                                check=False,
+                            )
+                            # If remote branch doesn't exist, it might be merged and deleted
+                            if remote_check.returncode == 0 and not remote_check.stdout.strip():
+                                gh_unavailable_branches.append(branch_name)
+                        except GitError:
+                            pass
 
         # Check age
         if older_than is not None and path.exists():
@@ -934,6 +1015,22 @@ def clean_worktrees(
     # If nothing to delete
     if not worktrees_to_delete and not interactive:
         console.print("[bold green]✓[/bold green] No worktrees match the cleanup criteria\n")
+
+        # Show warning if there are branches with deleted remotes but no gh CLI
+        if gh_unavailable_branches and not has_gh:
+            console.print(
+                "\n[yellow]⚠ Warning:[/yellow] Found worktrees with deleted remote branches:\n"
+            )
+            for branch in gh_unavailable_branches:
+                console.print(f"  • {branch}")
+            console.print(
+                "\n[dim]These branches may have been merged via squash/rebase merge.[/dim]"
+            )
+            console.print(
+                "[dim]Install GitHub CLI (gh) to automatically detect squash/rebase merges:[/dim]"
+            )
+            console.print("[dim]  https://cli.github.com/[/dim]\n")
+
         return
 
     # Interactive mode: let user select which ones to delete
