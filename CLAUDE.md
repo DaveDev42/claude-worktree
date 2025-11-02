@@ -514,7 +514,7 @@ uv publish
 
 **Workflow files:**
 - `.github/workflows/publish.yml`: Complete release automation (tag → test → build → publish)
-- `.github/workflows/publish.yml`: Legacy workflow (kept for manual releases via tag push)
+- `.github/workflows/publish-legacy.yml`: Legacy workflow (kept for manual releases via tag push)
 - `.github/workflows/test.yml`: Runs tests on all PRs
 
 **Manual release (if needed):**
