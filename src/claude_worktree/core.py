@@ -1444,14 +1444,6 @@ def show_status() -> None:
     list_worktrees()
 
 
-def prune_worktrees() -> None:
-    """Prune stale worktree administrative data."""
-    repo = get_repo_root()
-    console.print("[yellow]Pruning stale worktrees...[/yellow]")
-    git_command("worktree", "prune", repo=repo)
-    console.print("[bold green]✓[/bold green] Prune complete\n")
-
-
 def _run_command_in_shell(
     cmd: str,
     cwd: str | Path,

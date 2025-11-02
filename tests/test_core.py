@@ -14,7 +14,6 @@ from claude_worktree.core import (
     get_worktree_status,
     list_worktrees,
     merge_worktree,
-    prune_worktrees,
     resume_worktree,
     show_status,
 )
@@ -377,33 +376,6 @@ def test_show_status_in_main_repo(temp_git_repo: Path, capsys) -> None:
     # Should not error, just show worktree list
     captured = capsys.readouterr()
     assert "Worktrees" in captured.out
-
-
-def test_prune_worktrees(temp_git_repo: Path, disable_claude) -> None:
-    """Test pruning stale worktrees."""
-    # Create a worktree
-    worktree_path = create_worktree(
-        branch_name="prune-test",
-        no_cd=True,
-    )
-
-    # Manually remove the worktree directory (making it stale)
-    import shutil
-
-    shutil.rmtree(worktree_path)
-
-    # Prune should clean it up
-    prune_worktrees()
-
-    # Verify it's no longer listed
-    result = subprocess.run(
-        ["git", "worktree", "list"],
-        cwd=temp_git_repo,
-        capture_output=True,
-        text=True,
-    )
-    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
-    assert worktree_path.as_posix() not in result.stdout
 
 
 def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude) -> None:
