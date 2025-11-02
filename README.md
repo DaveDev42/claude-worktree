@@ -127,7 +127,7 @@ refs/heads/feature-api              modified   ../myproject-feature-api
 - `active` (bold green) - Currently in this worktree directory
 - `clean` (green) - No uncommitted changes
 - `modified` (yellow) - Has uncommitted changes
-- `stale` (red) - Directory deleted, needs `cw prune`
+- `stale` (red) - Directory deleted, needs cleanup
 
 ### Show status
 
@@ -160,14 +160,6 @@ cw delete feature --keep-branch
 # Also delete remote branch
 cw delete feature --delete-remote
 ```
-
-### Prune stale worktrees
-
-```bash
-cw prune
-```
-
-Removes administrative data for worktrees with "stale" status (directories that have been manually deleted).
 
 ### Batch cleanup worktrees
 
@@ -391,10 +383,6 @@ The `cw merge` command:
 4. Deletes the feature branch
 5. Optionally pushes to remote with `--push`
 
-#### Deprecated: `cw finish`
-
-The old `cw finish` command still works but is deprecated. Use `cw pr` or `cw merge` instead for clearer intent.
-
 ## Command Reference
 
 ### Core Commands
@@ -408,8 +396,6 @@ The old `cw finish` command still works but is deprecated. Use `cw pr` or `cw me
 | `cw list` | List all worktrees with status |
 | `cw status` | Show current worktree metadata |
 | `cw delete <target>` | Delete worktree by branch name or path |
-| `cw prune` | Prune stale worktree administrative data |
-| ~~`cw finish [branch]`~~ | ~~Deprecated - use `cw pr` or `cw merge` instead~~ |
 
 ### Maintenance & Cleanup
 
@@ -836,7 +822,7 @@ cw backup restore my-feature
 ```bash
 # Backup before cleanup
 cw backup create old-feature
-cw finish old-feature --push
+cw merge old-feature --push
 # Can restore later if needed
 ```
 

@@ -66,16 +66,11 @@ claude-worktree/
   - Optional `--push` to push to remote
   - Options: `--interactive`, `--dry-run`
 
-- **`cw finish`**: ⚠️ DEPRECATED - Use `cw pr` or `cw merge` instead
-  - Still functional for backward compatibility
-  - Shows deprecation warning
-
 - **`cw delete <target>`**: Remove worktree by branch name or path
   - Options: `--keep-branch`, `--delete-remote`
 
 - **`cw list`**: Show all worktrees
 - **`cw status`**: Show current worktree metadata
-- **`cw prune`**: Clean up orphaned worktrees
 
 ### 2. AI Tool Integration & Session Management
 - **`cw resume [branch]`**: Resume AI work in a worktree with context restoration

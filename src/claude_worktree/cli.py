@@ -24,12 +24,10 @@ from .core import (
     create_worktree,
     delete_worktree,
     export_config,
-    finish_worktree,
     import_config,
     list_backups,
     list_worktrees,
     merge_worktree,
-    prune_worktrees,
     restore_worktree,
     resume_worktree,
     shell_worktree,
@@ -300,68 +298,6 @@ def merge(
         raise typer.Exit(code=1)
 
 
-@app.command(rich_help_panel="Deprecated")
-def finish(
-    target: str | None = typer.Argument(
-        None,
-        help="Worktree branch to finish (optional, defaults to current directory)",
-        autocompletion=complete_worktree_branches,
-    ),
-    push: bool = typer.Option(
-        False,
-        "--push",
-        help="Push base branch to origin after merge",
-    ),
-    interactive: bool = typer.Option(
-        False,
-        "--interactive",
-        "-i",
-        help="Pause for confirmation before each step",
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help="Preview merge without executing",
-    ),
-    ai_merge: bool = typer.Option(
-        False,
-        "--ai-merge",
-        help="Launch AI tool to help resolve conflicts if rebase fails",
-    ),
-) -> None:
-    """
-    [DEPRECATED] Finish work on a worktree.
-
-    ⚠️  This command is deprecated. Use 'cw merge' or 'cw pr' instead:
-    - 'cw pr' - Create a pull request (recommended for team workflows)
-    - 'cw merge' - Direct merge to base branch (for solo workflows)
-
-    This command still works but may be removed in a future version.
-
-    Example:
-        cw merge                     # New way (direct merge)
-        cw pr                        # New way (create PR)
-        cw finish                    # Old way (deprecated)
-    """
-    try:
-        # Show deprecation warning
-        console.print(
-            "\n[bold yellow]⚠️  Deprecation Warning:[/bold yellow] "
-            "The 'finish' command is deprecated.\n"
-        )
-        console.print("Please use one of these instead:")
-        console.print("  • [cyan]cw pr[/cyan]    - Create a pull request (recommended)")
-        console.print("  • [cyan]cw merge[/cyan] - Direct merge to base branch\n")
-
-        # Still execute the command for backward compatibility
-        finish_worktree(
-            target=target, push=push, interactive=interactive, dry_run=dry_run, ai_merge=ai_merge
-        )
-    except ClaudeWorktreeError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
 @app.command(rich_help_panel="Core Workflow")
 def resume(
     worktree: str | None = typer.Argument(
@@ -497,36 +433,6 @@ def status() -> None:
     """
     try:
         show_status()
-    except ClaudeWorktreeError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
-@app.command(rich_help_panel="Deprecated")
-def prune() -> None:
-    """
-    [DEPRECATED] Prune stale worktree administrative data.
-
-    ⚠️  This command is deprecated. The 'cw clean' command now automatically
-    prunes stale worktree metadata after cleanup, so this standalone command
-    is no longer necessary.
-
-    If you need to manually prune without cleanup, use:
-        git worktree prune
-
-    This command still works but may be removed in a future version.
-    """
-    try:
-        # Show deprecation warning
-        console.print(
-            "\n[bold yellow]⚠️  Deprecation Warning:[/bold yellow] "
-            "The 'prune' command is deprecated.\n"
-        )
-        console.print("The [cyan]cw clean[/cyan] command now automatically prunes after cleanup.")
-        console.print("For manual pruning, use: [cyan]git worktree prune[/cyan]\n")
-
-        # Still execute the command for backward compatibility
-        prune_worktrees()
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
