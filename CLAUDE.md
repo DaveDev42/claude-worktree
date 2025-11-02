@@ -314,6 +314,29 @@ git commit --amend --no-edit
 git push origin main
 ```
 
+### Protected Branch Policy (This Repository)
+
+**IMPORTANT**: This repository has branch protection rules enabled for the `main` branch.
+
+**Workflow constraints:**
+- ✅ **Use `cw pr`**: Create pull requests for all changes (recommended workflow)
+- ❌ **Direct push blocked**: Cannot push directly to `main` branch
+- ❌ **`cw merge --push` will fail**: Local merge works, but push to protected branch is blocked
+
+**Correct workflow for this repository:**
+1. Create feature branch with `cw new <feature-name>`
+2. Make changes and commit in the worktree
+3. Create PR with `cw pr` (rebases, pushes to remote, creates PR)
+4. Merge PR remotely via GitHub web interface
+5. Pull latest changes in main repository
+
+**Why this matters:**
+- Branch protection ensures all changes go through code review
+- CI/CD checks must pass before merging
+- Maintains code quality and prevents accidental direct commits to main
+
+**Note**: The `cw merge` command (without `--push`) still works for local testing, but changes cannot be pushed to the protected `main` branch. Always use `cw pr` for this repository.
+
 ### Running the CLI during development
 
 **Option 1: Run with uv (recommended)**
