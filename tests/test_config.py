@@ -11,7 +11,6 @@ from claude_worktree.config import (
     ConfigError,
     get_ai_tool_command,
     get_config_path,
-    get_config_value,
     list_presets,
     load_config,
     reset_config,
@@ -219,30 +218,6 @@ def test_reset_config(temp_config_dir: Path) -> None:
     # Verify reset to defaults
     config = load_config()
     assert config == DEFAULT_CONFIG
-
-
-def test_get_config_value(temp_config_dir: Path) -> None:
-    """Test getting config value by key path."""
-    import copy as copy_module
-
-    config = copy_module.deepcopy(DEFAULT_CONFIG)
-    config["ai_tool"]["command"] = "happy"
-    save_config(config)
-
-    value = get_config_value("ai_tool.command")
-    assert value == "happy"
-
-
-def test_get_config_value_nested(temp_config_dir: Path) -> None:
-    """Test getting nested config value."""
-    value = get_config_value("git.default_base_branch")
-    assert value == "main"
-
-
-def test_get_config_value_invalid_key(temp_config_dir: Path) -> None:
-    """Test error when getting invalid config key."""
-    with pytest.raises(ConfigError, match="Configuration key not found"):
-        get_config_value("invalid.key.path")
 
 
 def test_set_config_value(temp_config_dir: Path) -> None:

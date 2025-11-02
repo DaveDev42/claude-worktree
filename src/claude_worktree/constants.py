@@ -7,12 +7,6 @@ from pathlib import Path
 CONFIG_KEY_BASE_BRANCH = "branch.{}.worktreeBase"
 CONFIG_KEY_BASE_PATH = "worktree.{}.basePath"
 
-# Default Claude CLI command
-DEFAULT_CLAUDE_COMMAND = "claude --dangerously-skip-permissions"
-
-# Minimum required Git version
-MIN_GIT_VERSION = "2.31"
-
 
 def sanitize_branch_name(branch_name: str) -> str:
     """

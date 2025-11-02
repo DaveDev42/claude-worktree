@@ -193,30 +193,6 @@ def reset_config() -> None:
     save_config(copy.deepcopy(DEFAULT_CONFIG))
 
 
-def get_config_value(key_path: str) -> Any:
-    """Get a configuration value by dot-separated key path.
-
-    Args:
-        key_path: Dot-separated path (e.g., "ai_tool.command")
-
-    Returns:
-        Configuration value
-
-    Raises:
-        ConfigError: If key path doesn't exist
-    """
-    config = load_config()
-    keys = key_path.split(".")
-
-    value = config
-    for key in keys:
-        if not isinstance(value, dict) or key not in value:
-            raise ConfigError(f"Configuration key not found: {key_path}")
-        value = value[key]
-
-    return value
-
-
 def set_config_value(key_path: str, value: Any) -> None:
     """Set a configuration value by dot-separated key path.
 

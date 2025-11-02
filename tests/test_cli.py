@@ -88,45 +88,6 @@ def test_new_command_invalid_base(temp_git_repo: Path) -> None:
     assert "Error" in result.stdout
 
 
-def test_finish_command_help() -> None:
-    """Test finish command help."""
-    result = runner.invoke(app, ["finish", "--help"])
-    assert result.exit_code == 0
-    assert "Finish work on a worktree" in result.stdout
-
-
-def test_finish_command_execution(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
-    """Test finish command with real execution."""
-    # Create worktree
-    result = runner.invoke(app, ["new", "finish-me", "--no-cd"])
-    assert result.exit_code == 0
-
-    worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-finish-me"
-
-    # Make a commit in the worktree
-    (worktree_path / "new_file.txt").write_text("content")
-    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Add file"],
-        cwd=worktree_path,
-        check=True,
-        capture_output=True,
-    )
-
-    # Change to worktree directory
-    monkeypatch.chdir(worktree_path)
-
-    # Finish the worktree
-    result = runner.invoke(app, ["finish"])
-    assert result.exit_code == 0
-
-    # Verify worktree was removed
-    assert not worktree_path.exists()
-
-    # Verify file was merged
-    assert (temp_git_repo / "new_file.txt").exists()
-
-
 def test_list_command_help() -> None:
     """Test list command help."""
     result = runner.invoke(app, ["list", "--help"])
@@ -224,29 +185,6 @@ def test_delete_command_keep_branch(temp_git_repo: Path, disable_claude) -> None
         text=True,
     )
     assert "keep-br" in git_result.stdout
-
-
-def test_prune_command_help() -> None:
-    """Test prune command help."""
-    result = runner.invoke(app, ["prune", "--help"])
-    assert result.exit_code == 0
-    assert "DEPRECATED" in result.stdout or "deprecated" in result.stdout
-
-
-def test_prune_command_execution(temp_git_repo: Path, disable_claude) -> None:
-    """Test prune command with real stale worktree."""
-    # Create worktree
-    runner.invoke(app, ["new", "prune-me", "--no-cd"])
-    worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-prune-me"
-
-    # Manually remove directory to make it stale
-    import shutil
-
-    shutil.rmtree(worktree_path)
-
-    # Prune
-    result = runner.invoke(app, ["prune"])
-    assert result.exit_code == 0
 
 
 def test_new_command_with_iterm_tab_flag(temp_git_repo: Path, disable_claude) -> None:
@@ -359,28 +297,6 @@ def test_cd_command_nonexistent_branch(temp_git_repo: Path) -> None:
     assert "Error" in result.stdout
 
 
-def test_finish_command_interactive_flag(temp_git_repo: Path, disable_claude) -> None:
-    """Test finish command accepts --interactive flag."""
-    # Create worktree
-    runner.invoke(app, ["new", "interactive-test", "--no-cd"])
-
-    # Test that --interactive flag is accepted (we can't test interactive input in unit tests)
-    result = runner.invoke(app, ["finish", "--help"])
-    assert result.exit_code == 0
-    assert "--interactive" in result.stdout or "-i" in result.stdout
-
-    # Clean up
-    runner.invoke(app, ["delete", "interactive-test"])
-
-
-def test_finish_command_short_interactive_flag(temp_git_repo: Path, disable_claude) -> None:
-    """Test finish command accepts -i short flag."""
-    result = runner.invoke(app, ["finish", "--help"])
-    assert result.exit_code == 0
-    assert "-i" in result.stdout
-    assert "Pause for confirmation" in result.stdout
-
-
 def test_sync_command_help(temp_git_repo: Path) -> None:
     """Test sync command help."""
     result = runner.invoke(app, ["sync", "--help"])
@@ -454,35 +370,3 @@ def test_merge_command_flags(temp_git_repo: Path) -> None:
     assert "push" in result.stdout
     assert "interactive" in result.stdout and "-i" in result.stdout
     assert "dry" in result.stdout and "run" in result.stdout
-
-
-def test_finish_command_shows_deprecation_warning(
-    temp_git_repo: Path, disable_claude, monkeypatch, mocker
-) -> None:
-    """Test finish command shows deprecation warning."""
-    from claude_worktree.core import create_worktree
-
-    # Create a worktree
-    worktree_path = create_worktree(branch_name="deprecation-test", no_cd=True)
-
-    # Make a commit
-    import subprocess
-
-    (worktree_path / "test.txt").write_text("test")
-    subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "Test"],
-        cwd=worktree_path,
-        check=True,
-        capture_output=True,
-    )
-
-    # Change to worktree
-    monkeypatch.chdir(worktree_path)
-
-    # Run finish command
-    result = runner.invoke(app, ["finish", "--dry-run"])
-
-    # Check for deprecation warning
-    assert "deprecated" in result.stdout.lower() or "Deprecation" in result.stdout
-    assert "cw pr" in result.stdout or "cw merge" in result.stdout
