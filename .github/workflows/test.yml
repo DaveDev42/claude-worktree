@@ -13,8 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.11", "3.12"]
+
+    env:
+      CW_AI_TOOL: ""  # Disable AI tool launching during tests
 
     steps:
     - uses: actions/checkout@v4
@@ -24,10 +27,17 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install uv
+    - name: Install uv (Unix)
+      if: runner.os != 'Windows'
       run: |
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install uv (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        irm https://astral.sh/uv/install.ps1 | iex
+        echo "$env:USERPROFILE\.cargo\bin" >> $env:GITHUB_PATH
 
     - name: Install dependencies
       run: |
@@ -45,8 +55,8 @@ jobs:
       run: |
         pytest -v --cov=claude_worktree --cov-report=xml --cov-report=term --junit-xml=pytest-results.xml
 
-    - name: Generate test summary
-      if: always()
+    - name: Generate test summary (Unix)
+      if: always() && runner.os != 'Windows'
       run: |
         echo "## Test Results - ${{ matrix.os }} / Python ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -127,6 +137,90 @@ jobs:
             pass
         EOF
         fi >> $GITHUB_STEP_SUMMARY
+
+    - name: Generate test summary (Windows)
+      if: always() && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Test Results - ${{ matrix.os }} / Python ${{ matrix.python-version }}"
+        Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ""
+
+        # Parse pytest XML results
+        if (Test-Path pytest-results.xml) {
+          python << 'EOF'
+        import xml.etree.ElementTree as ET
+        import sys
+
+        try:
+            tree = ET.parse('pytest-results.xml')
+            root = tree.getroot()
+            testsuite = root.find('.//testsuite')
+
+            if testsuite is not None:
+                tests = int(testsuite.get('tests', 0))
+                failures = int(testsuite.get('failures', 0))
+                errors = int(testsuite.get('errors', 0))
+                skipped = int(testsuite.get('skipped', 0))
+                time = float(testsuite.get('time', 0))
+                passed = tests - failures - errors - skipped
+
+                # Write summary table
+                print(f"| Metric | Value |")
+                print(f"|--------|-------|")
+                print(f"| ✅ Passed | {passed} |")
+                print(f"| ❌ Failed | {failures} |")
+                print(f"| ⚠️ Errors | {errors} |")
+                print(f"| ⏭️ Skipped | {skipped} |")
+                print(f"| 📊 Total | {tests} |")
+                print(f"| ⏱️ Duration | {time:.2f}s |")
+                print()
+
+                # Overall status
+                if failures == 0 and errors == 0:
+                    print("### ✅ All tests passed!")
+                else:
+                    print(f"### ❌ {failures + errors} test(s) failed")
+                    print()
+                    # List failed tests
+                    print("#### Failed Tests:")
+                    for testcase in root.findall('.//testcase'):
+                        failure = testcase.find('failure')
+                        error = testcase.find('error')
+                        if failure is not None or error is not None:
+                            classname = testcase.get('classname', '')
+                            name = testcase.get('name', '')
+                            print(f"- `{classname}.{name}`")
+        except Exception as e:
+            print(f"Error parsing test results: {e}")
+        EOF
+        } | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+        # Add coverage info if available
+        if (Test-Path coverage.xml) {
+          "" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          "### 📈 Coverage" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+          python << 'EOF'
+        import xml.etree.ElementTree as ET
+        try:
+            tree = ET.parse('coverage.xml')
+            root = tree.getroot()
+            coverage = root.find('.')
+            if coverage is not None:
+                line_rate = float(coverage.get('line-rate', 0))
+                coverage_pct = line_rate * 100
+
+                if coverage_pct >= 80:
+                    emoji = "🟢"
+                elif coverage_pct >= 60:
+                    emoji = "🟡"
+                else:
+                    emoji = "🔴"
+
+                print(f"{emoji} **{coverage_pct:.1f}%** line coverage")
+        except:
+            pass
+        EOF
+        } | Add-Content -Path $env:GITHUB_STEP_SUMMARY
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4

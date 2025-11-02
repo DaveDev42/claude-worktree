@@ -135,7 +135,7 @@ def get_ai_tool_command() -> list[str]:
     """
     # Check environment variable first
     env_tool = os.environ.get("CW_AI_TOOL")
-    if env_tool:
+    if env_tool is not None:
         # Empty string means no AI tool
         if not env_tool.strip():
             return []
