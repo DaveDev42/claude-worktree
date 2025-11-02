@@ -23,7 +23,7 @@ claude-worktree/
 │   ├── core.py                   # Core business logic (commands implementation)
 │   ├── config.py                 # Configuration management
 │   ├── git_utils.py              # Git operations wrapper
-│   ├── session_manager.py        # AI session backup/restore (planned)
+│   ├── session_manager.py        # AI session backup/restore
 │   ├── exceptions.py             # Custom exception classes
 │   └── constants.py              # Constants and default values
 ├── tests/                        # Test suite
@@ -31,18 +31,49 @@ claude-worktree/
 │   ├── test_config.py
 │   ├── test_git_utils.py
 │   ├── test_cli.py
-│   ├── test_session_manager.py   # Session management tests (planned)
+│   ├── test_session_manager.py
 │   └── conftest.py               # pytest fixtures
+├── docs/                         # User documentation
+│   ├── commands.md               # Complete command reference
+│   ├── configuration.md          # Configuration guide
+│   └── advanced-features.md      # Advanced features and workflows
 ├── .github/workflows/
 │   ├── test.yml                  # CI: Run tests on push/PR
 │   └── publish.yml               # CD: Publish to PyPI on release
 ├── pyproject.toml                # Project metadata, dependencies (uv format)
-├── README.md                     # User-facing documentation
-├── CLAUDE.md                     # This file (for Claude Code)
+├── README.md                     # User quick-start guide (concise)
+├── TROUBLESHOOTING.md            # Common issues and solutions
+├── TODO.md                       # Planned features and improvements
+├── CHANGELOG.md                  # Release history
+├── CLAUDE.md                     # This file (for AI assistants)
 ├── LICENSE                       # MIT License
-├── .gitignore
-└── cw.py                         # Legacy single-file version (to be migrated)
+└── .gitignore
 ```
+
+### Documentation Structure
+
+**README.md** - Quick-start guide for new users (~285 lines)
+- What is claude-worktree?
+- Quick installation and basic usage
+- Key features overview
+- Links to detailed documentation
+
+**docs/** - Detailed user documentation
+- **commands.md** - Complete command reference with all options and examples
+- **configuration.md** - Configuration guide (AI tools, presets, shell setup)
+- **advanced-features.md** - Advanced workflows (backup, templates, CI/CD)
+
+**TROUBLESHOOTING.md** - Comprehensive troubleshooting guide
+- Installation issues
+- Git-related problems
+- AI tool launch issues
+- Platform-specific solutions
+
+**CLAUDE.md** (this file) - Project guide for AI assistants
+- Architecture and design decisions
+- Development workflow and conventions
+- Testing and release procedures
+- Code quality guidelines
 
 ## Key Features
 

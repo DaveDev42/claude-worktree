@@ -667,7 +667,9 @@ If you're still experiencing issues:
 
 4. **Check documentation**:
    - README: https://github.com/DaveDev42/claude-worktree/blob/main/README.md
-   - Project Guide: https://github.com/DaveDev42/claude-worktree/blob/main/CLAUDE.md
+   - Commands Reference: https://github.com/DaveDev42/claude-worktree/blob/main/docs/commands.md
+   - Configuration Guide: https://github.com/DaveDev42/claude-worktree/blob/main/docs/configuration.md
+   - Advanced Features: https://github.com/DaveDev42/claude-worktree/blob/main/docs/advanced-features.md
 
 ---
 

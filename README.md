@@ -285,14 +285,14 @@ For more troubleshooting help, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 - **[Advanced Features](docs/advanced-features.md)** - Backup/restore, templates, sync, cleanup, CI/CD
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 
-### Developer Resources
-- **[CLAUDE.md](CLAUDE.md)** - Project guide for contributors (architecture, development workflow)
+### Links
 - **[GitHub Issues](https://github.com/DaveDev42/claude-worktree/issues)** - Report bugs or request features
 - **[PyPI](https://pypi.org/project/claude-worktree/)** - Package page
+- **[Changelog](https://github.com/DaveDev42/claude-worktree/releases)** - Release history
 
 ## Contributing
 
-Contributions welcome! See [CLAUDE.md](CLAUDE.md) for development setup.
+Contributions welcome! For development setup:
 
 ```bash
 git clone https://github.com/DaveDev42/claude-worktree.git
