@@ -22,6 +22,46 @@ Perfect for developers who want to:
 - Never lose work when switching tasks
 - Cleanly merge features without conflicts
 
+## Why Use This?
+
+### No More Branch Switching Chaos
+
+**Before claude-worktree:**
+```bash
+# Working on feature-api
+git add .
+git stash  # Save current work
+git checkout main
+git checkout -b fix-urgent-bug
+# Fix bug, commit
+git checkout feature-api
+git stash pop  # Hope nothing conflicts
+# Where was I?
+```
+
+**With claude-worktree:**
+```bash
+cw new fix-urgent-bug
+# Fix bug in separate directory
+cw merge fix-urgent-bug --push
+# Return to feature-api - it's untouched
+```
+
+Each feature stays isolated, AI context is preserved, and switching is instant.
+
+### Lightning-Fast Workflow with Shell Completion
+
+Tab completion makes everything faster:
+
+```bash
+cw <TAB>              # All commands appear
+cw new --<TAB>        # All options for 'new' command
+cw resume <TAB>       # Your branch names
+cw-cd <TAB>           # Jump to any worktree instantly
+```
+
+No more typing long commands or remembering branch names - just type and press Tab.
+
 ## Quick Start
 
 ### Install
@@ -137,31 +177,6 @@ cw diff main team-feature --summary
 # Create PR for review
 cw pr --title "Add awesome feature"
 ```
-
-## Why Use This?
-
-**Before claude-worktree:**
-```bash
-# Working on feature-api
-git add .
-git stash  # Save current work
-git checkout main
-git checkout -b fix-urgent-bug
-# Fix bug, commit
-git checkout feature-api
-git stash pop  # Hope nothing conflicts
-# Where was I?
-```
-
-**With claude-worktree:**
-```bash
-cw new fix-urgent-bug
-# Fix bug in separate directory
-cw merge fix-urgent-bug --push
-# Return to feature-api - it's untouched
-```
-
-Each feature stays isolated, AI context is preserved, and switching is instant.
 
 ## Configuration
 
