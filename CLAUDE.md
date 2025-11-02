@@ -448,6 +448,66 @@ uv publish
 - Lock file ensures all users get identical dependency versions
 - Missing lock file commits break reproducible builds
 
+### Release Workflow (with Branch Protection)
+
+**IMPORTANT**: Since this repository has branch protection enabled on `main`, releases must be done via pull requests.
+
+**Step-by-step release process:**
+
+1. **Run tests and update version** (in main repository):
+   ```bash
+   # Ensure all tests pass
+   uv run pytest
+
+   # Check git status
+   git status
+
+   # Update version in pyproject.toml
+   # For patch: 0.10.8 → 0.10.9
+   # For minor: 0.10.9 → 0.11.0 (requires user approval)
+   # For major: 0.11.0 → 1.0.0 (requires user approval)
+
+   # Commit version bump
+   git add pyproject.toml uv.lock  # Include uv.lock if modified
+   git commit -m "chore: Bump version to X.Y.Z"
+   ```
+
+2. **Create release branch and PR**:
+   ```bash
+   # Create release branch
+   git checkout -b release/vX.Y.Z
+
+   # Push to remote
+   git push origin release/vX.Y.Z
+
+   # Create PR
+   gh pr create --title "chore: Release vX.Y.Z" --body "Version bump for [patch/minor/major] release"
+   ```
+
+3. **Merge PR and create GitHub release**:
+   - Review and merge PR via GitHub web interface
+   - After merge, pull latest main:
+     ```bash
+     git checkout main
+     git pull origin main
+     ```
+   - Create GitHub release:
+     ```bash
+     gh release create vX.Y.Z --title "vX.Y.Z" --notes "Release notes here..."
+     ```
+
+4. **Publish to PyPI** (optional, requires explicit request):
+   ```bash
+   uv build
+   uv publish
+   ```
+
+**Why use PR workflow for releases:**
+- Ensures CI/CD checks pass before release
+- Maintains audit trail for all version changes
+- Prevents accidental direct pushes to protected branch
+- Allows for final review before publishing
+
 ## Code Style Guidelines
 
 - Type hints for all function signatures
