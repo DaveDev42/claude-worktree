@@ -1,20 +1,110 @@
 name: Publish
 
+# Trigger when a PR from release/* branch is merged to main
+# Also supports manual trigger via tag push (for compatibility)
 on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
   push:
     tags:
-      - 'v*'  # Trigger on version tags (e.g., v0.8.1)
+      - 'v*'  # Also trigger on version tags for compatibility
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
-  contents: read
+  contents: write  # Required to create tags and releases
+  pull-requests: write  # Required to comment on PRs
+  id-token: write  # Required for PyPI trusted publishing
 
 jobs:
+  auto-tag-and-release:
+    # Only run if PR was merged (not just closed) and came from a release/* branch
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper tagging
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install toml parser
+        run: pip install toml
+
+      - name: Extract version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag v${{ steps.get_version.outputs.version }} already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag v${{ steps.get_version.outputs.version }} does not exist"
+          fi
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create annotated tag
+          git tag -a "v${{ steps.get_version.outputs.version }}" \
+            -m "Release v${{ steps.get_version.outputs.version }}" \
+            -m "Auto-tagged from merged PR #${{ github.event.pull_request.number }}"
+
+          # Push tag
+          git push origin "v${{ steps.get_version.outputs.version }}"
+
+          echo "✅ Created and pushed tag v${{ steps.get_version.outputs.version }}"
+
+      - name: Comment on PR
+        if: steps.check_tag.outputs.exists == 'false'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🎉 **Auto-release in progress!**\n\n` +
+                    `✅ Created tag: \`v${{ steps.get_version.outputs.version }}\`\n` +
+                    `🚀 Running: Tests → Build → PyPI Publish → GitHub Release\n\n` +
+                    `Track progress: ${context.payload.repository.html_url}/actions/runs/${context.runId}`
+            })
+
+      - name: Skip - tag already exists
+        if: steps.check_tag.outputs.exists == 'true'
+        run: |
+          echo "⚠️  Tag v${{ steps.get_version.outputs.version }} already exists. Skipping release."
+          exit 1
+
   test:
     name: Run tests before publishing
+    needs: [auto-tag-and-release]
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true  # Stop if any test fails
+      fail-fast: true
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.11", "3.12"]
@@ -50,7 +140,7 @@ jobs:
 
   build:
     name: Build distribution
-    needs: [test]  # Only build if tests pass
+    needs: [test]
     runs-on: ubuntu-latest
 
     steps:
@@ -92,7 +182,7 @@ jobs:
       name: pypi
       url: https://pypi.org/p/claude-worktree
     permissions:
-      id-token: write  # Required for trusted publishing
+      id-token: write
 
     steps:
     - name: Download distributions
@@ -108,10 +198,10 @@ jobs:
 
   publish-to-github:
     name: Publish to GitHub Releases
-    needs: [build]
+    needs: [build, auto-tag-and-release]
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Required to create release and upload assets
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
@@ -122,32 +212,31 @@ jobs:
         name: python-package-distributions
         path: dist/
 
-    - name: Extract version from tag
+    - name: Extract version from pyproject.toml
       id: version
-      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-    - name: Extract changelog for this version
-      id: changelog
       run: |
-        # Extract the changelog section for this version
-        awk '/^## \[${{ steps.version.outputs.version }}\]/, /^## \[/' CHANGELOG.md | sed '$d' > release_notes.md
+        pip install toml
+        VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
-        # Check if release already exists
-        if gh release view '${{ github.ref_name }}' --repo '${{ github.repository }}' > /dev/null 2>&1; then
-          echo "Release ${{ github.ref_name }} already exists. Uploading assets..."
-          gh release upload '${{ github.ref_name }}' \
-            --repo '${{ github.repository }}' \
-            --clobber \
-            dist/**
-        else
-          echo "Creating new release ${{ github.ref_name }}..."
-          gh release create '${{ github.ref_name }}' \
-            --repo '${{ github.repository }}' \
-            --title 'Release ${{ github.ref_name }}' \
-            --notes-file release_notes.md \
-            dist/**
-        fi
+        TAG="v${{ steps.version.outputs.version }}"
+
+        # Simple release notes
+        cat > release_notes.md <<EOF
+        ## Release v${{ steps.version.outputs.version }}
+
+        Auto-released from merged PR #${{ github.event.pull_request.number }}
+
+        **Full Changelog**: https://github.com/${{ github.repository }}/commits/v${{ steps.version.outputs.version }}
+        EOF
+
+        # Create release
+        gh release create "$TAG" \
+          --repo '${{ github.repository }}' \
+          --title "v${{ steps.version.outputs.version }}" \
+          --notes-file release_notes.md \
+          dist/*
