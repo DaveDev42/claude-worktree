@@ -1,5 +1,18 @@
 # Claude Worktree - Project Guide for Claude Code
 
+**IMPORTANT - Internal Document Policy:**
+This file (CLAUDE.md) is strictly for AI assistant guidance and internal development purposes. **NEVER reference or mention this file in:**
+- GitHub issues, pull requests, or comments
+- External documentation or user-facing content
+- Communication with external contributors or users
+
+When communicating externally, always reference user-facing documentation:
+- **README.md** - Quick-start guide and overview
+- **docs/commands.md** - Command reference
+- **docs/configuration.md** - Configuration guide
+- **docs/advanced-features.md** - Advanced workflows
+- **TROUBLESHOOTING.md** - Common issues and solutions
+
 ## Project Overview
 
 **claude-worktree** is a CLI tool that seamlessly integrates git worktree with AI coding assistants to streamline feature development workflows. It allows developers to quickly create isolated worktrees for feature branches, work with their preferred AI tool (Claude Code, Codex, Happy, or custom) in those environments, and cleanly merge changes back to the base branch.
@@ -487,12 +500,16 @@ uv publish
    gh pr create --title "chore: Release vX.Y.Z" --body "Version bump for [patch/minor/major] release"
    ```
 
-3. **Merge PR** (automation handles the rest):
+3. **Merge PR** (semi-automated):
    - Review and merge PR via GitHub web interface
-   - **🤖 Automation kicks in:**
+   - **🤖 Auto-release creates tag:**
      - `auto-release.yml` reads version from `pyproject.toml`
      - Creates and pushes tag `vX.Y.Z`
-     - `publish.yml` is triggered by the tag
+   - **👤 Manual trigger required** (GitHub Actions limitation):
+     ```bash
+     gh workflow run publish.yml --ref vX.Y.Z
+     ```
+   - **🚀 Publish workflow runs:**
      - Runs tests, builds package, publishes to PyPI
      - Creates GitHub release with artifacts
    - Track progress at: https://github.com/DaveDev42/claude-worktree/actions
