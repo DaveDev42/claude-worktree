@@ -96,6 +96,66 @@ def test_detect_installer() -> None:
     assert installer in ("pipx", "uv-tool", "uv-pip", "pip", "source", None)
 
 
+@patch("claude_worktree.update.subprocess.run")
+def test_detect_installer_pip_with_uv_available(mock_run) -> None:
+    """Test that pip is detected even when uv is available."""
+    from claude_worktree.update import detect_installer
+
+    # Mock: uv is available, but package is installed via pip
+    def side_effect(cmd, *args, **kwargs):
+        if cmd == ["uv", "--version"]:
+            # uv is available
+            mock_result = Mock()
+            mock_result.returncode = 0
+            return mock_result
+        elif cmd[0:2] == [Mock, "-m"] or "pip" in cmd:
+            # pip show succeeds (package installed via pip)
+            mock_result = Mock()
+            mock_result.returncode = 0
+            return mock_result
+        else:
+            # pipx/uv tool list returns empty
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            return mock_result
+
+    mock_run.side_effect = side_effect
+
+    installer = detect_installer()
+    assert installer == "pip"
+
+
+@patch("claude_worktree.update.subprocess.run")
+def test_detect_installer_uv_pip(mock_run) -> None:
+    """Test that uv-pip is detected when uv is available and pip show fails."""
+    from claude_worktree.update import detect_installer
+
+    # Mock: uv is available, pip show fails (package not installed via pip)
+    def side_effect(cmd, *args, **kwargs):
+        if cmd == ["uv", "--version"]:
+            # uv is available
+            mock_result = Mock()
+            mock_result.returncode = 0
+            return mock_result
+        elif cmd[0:2] == [Mock, "-m"] or "pip" in cmd:
+            # pip show fails (package not installed via pip)
+            mock_result = Mock()
+            mock_result.returncode = 1
+            return mock_result
+        else:
+            # pipx/uv tool list returns empty
+            mock_result = Mock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            return mock_result
+
+    mock_run.side_effect = side_effect
+
+    installer = detect_installer()
+    assert installer == "uv-pip"
+
+
 @patch("claude_worktree.update.httpx.get")
 def test_get_latest_version_success(mock_get) -> None:
     """Test fetching latest version from PyPI."""
