@@ -2653,26 +2653,26 @@ def restore_worktree(
             set_config(CONFIG_KEY_BASE_PATH.format(branch), str(repo), repo=repo)
 
         # Restore uncommitted changes if they exist
-        stash_file_path = metadata.get("stash_file")
-        if stash_file_path:
-            stash_file = Path(stash_file_path)
-            if stash_file.exists():
-                console.print("  [dim]Restoring uncommitted changes...[/dim]")
-                patch_content = stash_file.read_text()
-                # Apply patch
-                import subprocess
+        # Use backup_dir/stash.patch instead of relying on absolute path from metadata
+        # This ensures cross-platform compatibility (Windows temp paths may not persist)
+        stash_file = backup_dir / "stash.patch"
+        if stash_file.exists():
+            console.print("  [dim]Restoring uncommitted changes...[/dim]")
+            patch_content = stash_file.read_text()
+            # Apply patch
+            import subprocess
 
-                result = subprocess.run(
-                    ["git", "apply"],
-                    input=patch_content,
-                    text=True,
-                    cwd=worktree_path,
-                    capture_output=True,
+            result = subprocess.run(
+                ["git", "apply", "--whitespace=fix"],
+                input=patch_content,
+                text=True,
+                cwd=worktree_path,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                console.print(
+                    f"  [yellow]⚠[/yellow] Failed to restore uncommitted changes: {result.stderr}"
                 )
-                if result.returncode != 0:
-                    console.print(
-                        f"  [yellow]⚠[/yellow] Failed to restore uncommitted changes: {result.stderr}"
-                    )
 
         console.print("[bold green]✓[/bold green] Restore complete!")
         console.print(f"  Worktree path: {worktree_path}\n")

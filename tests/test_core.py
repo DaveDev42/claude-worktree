@@ -57,7 +57,8 @@ def test_create_worktree_basic(temp_git_repo: Path, disable_claude) -> None:
         capture_output=True,
         text=True,
     )
-    assert str(result_path) in result.stdout
+    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
+    assert result_path.as_posix() in result.stdout
 
 
 def test_create_worktree_custom_path(temp_git_repo: Path, disable_claude) -> None:
@@ -247,7 +248,8 @@ def test_finish_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatc
         capture_output=True,
         text=True,
     )
-    assert str(worktree_path) in result.stdout
+    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
+    assert worktree_path.as_posix() in result.stdout
 
 
 def test_delete_worktree_by_branch(temp_git_repo: Path, disable_claude) -> None:
@@ -400,7 +402,8 @@ def test_prune_worktrees(temp_git_repo: Path, disable_claude) -> None:
         capture_output=True,
         text=True,
     )
-    assert str(worktree_path) not in result.stdout
+    # Use as_posix() for cross-platform path comparison (git uses forward slashes)
+    assert worktree_path.as_posix() not in result.stdout
 
 
 def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude) -> None:
