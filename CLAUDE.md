@@ -365,14 +365,28 @@ git push origin main
 **Correct workflow for this repository:**
 1. Create feature branch with `cw new <feature-name>`
 2. Make changes and commit in the worktree
-3. Create PR with `cw pr` (rebases, pushes to remote, creates PR)
-4. Merge PR remotely via GitHub web interface
-5. Pull latest changes in main repository
+3. **IMPORTANT: Rebase onto latest main before creating PR**
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   git push --force-with-lease origin <feature-branch>
+   ```
+4. Create PR with `cw pr` (rebases, pushes to remote, creates PR)
+5. **Keep PR up-to-date**: If main changes after PR creation, rebase again (don't merge!)
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   git push --force-with-lease origin <feature-branch>
+   ```
+6. Merge PR remotely via GitHub web interface
+7. Pull latest changes in main repository
 
 **Why this matters:**
 - Branch protection ensures all changes go through code review
 - CI/CD checks must pass before merging
 - Maintains code quality and prevents accidental direct commits to main
+- **Clean git history**: Rebase (not merge commits) keeps history linear and readable
+- **"PR must be up-to-date" = rebase required**: Don't create merge commits to update PR!
 
 **Note**: The `cw merge` command (without `--push`) still works for local testing, but changes cannot be pushed to the protected `main` branch. Always use `cw pr` for this repository.
 
