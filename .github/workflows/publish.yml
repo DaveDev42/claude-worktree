@@ -19,11 +19,53 @@ permissions:
   id-token: write  # Required for PyPI trusted publishing
 
 jobs:
-  auto-tag-and-release:
+  # Step 1: Run tests FIRST - if this fails, no tag is created
+  test:
+    name: Run tests before release
     # Only run if PR was merged (not just closed) and came from a release/* branch
     if: |
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true  # Stop immediately if any test fails
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+
+    - name: Run linting with ruff
+      run: |
+        ruff check src/ tests/
+
+    - name: Run type checking with mypy
+      run: |
+        mypy src/claude_worktree
+
+    - name: Run tests with pytest
+      run: |
+        pytest -v --cov=claude_worktree --cov-report=xml --cov-report=term
+
+  # Step 2: Create tag ONLY after tests pass
+  auto-tag-and-release:
+    name: Create release tag
+    needs: [test]  # Only run if tests pass
     runs-on: ubuntu-latest
 
     steps:
@@ -88,8 +130,9 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `🎉 **Auto-release in progress!**\n\n` +
+                    `✅ Tests passed\n` +
                     `✅ Created tag: \`v${{ steps.get_version.outputs.version }}\`\n` +
-                    `🚀 Running: Tests → Build → PyPI Publish → GitHub Release\n\n` +
+                    `🚀 Running: Build → PyPI Publish → GitHub Release\n\n` +
                     `Track progress: ${context.payload.repository.html_url}/actions/runs/${context.runId}`
             })
 
@@ -99,48 +142,10 @@ jobs:
           echo "⚠️  Tag v${{ steps.get_version.outputs.version }} already exists. Skipping release."
           exit 1
 
-  test:
-    name: Run tests before publishing
-    needs: [auto-tag-and-release]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    - name: Install dependencies
-      run: |
-        uv pip install --system -e ".[dev]"
-
-    - name: Run linting with ruff
-      run: |
-        ruff check src/ tests/
-
-    - name: Run type checking with mypy
-      run: |
-        mypy src/claude_worktree
-
-    - name: Run tests with pytest
-      run: |
-        pytest -v --cov=claude_worktree --cov-report=xml --cov-report=term
-
+  # Step 3: Build package after tag is created
   build:
     name: Build distribution
-    needs: [test]
+    needs: [auto-tag-and-release]
     runs-on: ubuntu-latest
 
     steps:
@@ -174,6 +179,7 @@ jobs:
         name: python-package-distributions
         path: dist/
 
+  # Step 4: Publish to PyPI after build
   publish-to-pypi:
     name: Publish to PyPI
     needs: [build]
@@ -196,6 +202,7 @@ jobs:
       with:
         skip-existing: true
 
+  # Step 5: Create GitHub release after build
   publish-to-github:
     name: Publish to GitHub Releases
     needs: [build, auto-tag-and-release]
