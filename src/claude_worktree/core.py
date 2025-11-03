@@ -25,6 +25,7 @@ from .git_utils import (
     get_repo_root,
     git_command,
     has_command,
+    normalize_branch_name,
     parse_worktrees,
     set_config,
     unset_config,
@@ -67,7 +68,7 @@ def resolve_worktree_target(target: str | None) -> tuple[Path, str, Path]:
             )
         worktree_path = worktree_path_result
         # Normalize branch name: remove refs/heads/ prefix if present
-        branch_name = target[11:] if target.startswith("refs/heads/") else target
+        branch_name = normalize_branch_name(target)
         # Get repo root from the worktree we found
         worktree_repo = get_repo_root(worktree_path)
     else:

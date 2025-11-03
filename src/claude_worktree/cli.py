@@ -34,7 +34,7 @@ from .core import (
     show_status,
 )
 from .exceptions import ClaudeWorktreeError
-from .git_utils import get_repo_root, parse_worktrees
+from .git_utils import get_repo_root, normalize_branch_name, parse_worktrees
 from .update import check_for_updates
 
 app = typer.Typer(
@@ -61,10 +61,9 @@ def complete_worktree_branches() -> list[str]:
         # Return branch names without refs/heads/ prefix
         branches = []
         for branch, _ in worktrees:
-            if branch.startswith("refs/heads/"):
-                branches.append(branch[11:])  # Remove refs/heads/
-            elif branch != "(detached)":
-                branches.append(branch)
+            normalized = normalize_branch_name(branch)
+            if normalized and normalized != "(detached)":
+                branches.append(normalized)
         return branches
     except Exception:
         return []
@@ -388,9 +387,10 @@ def shell(
 
             try:
                 repo = get_repo_root()
+                normalized = normalize_branch_name(worktree)
                 wt_path = find_worktree_by_branch(repo, worktree)
                 if not wt_path:
-                    wt_path = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
+                    wt_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
 
                 if not wt_path:
                     # Not a valid worktree - treat as command
@@ -949,9 +949,10 @@ def cd(
     try:
         repo = get_repo_root()
         # Try to find worktree by branch name
+        normalized = normalize_branch_name(branch)
         worktree_path = find_worktree_by_branch(repo, branch)
         if not worktree_path:
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{branch}")
+            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
 
         if not worktree_path:
             console.print(f"[bold red]Error:[/bold red] No worktree found for branch '{branch}'")
@@ -1000,9 +1001,10 @@ def worktree_path(
     try:
         repo = get_repo_root()
         # Try to find worktree by branch name
+        normalized = normalize_branch_name(branch)
         worktree_path = find_worktree_by_branch(repo, branch)
         if not worktree_path:
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{branch}")
+            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
 
         if not worktree_path:
             print(f"Error: No worktree found for branch '{branch}'", file=sys.stderr)

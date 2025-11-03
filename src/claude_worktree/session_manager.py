@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .exceptions import ClaudeWorktreeError
+from .git_utils import normalize_branch_name
 
 
 class SessionError(ClaudeWorktreeError):
@@ -40,9 +41,8 @@ def get_session_dir(branch_name: str) -> Path:
         Path to session directory for the branch
     """
     sessions_dir = get_sessions_dir()
-    # Sanitize branch name for directory (remove refs/heads/ prefix if present)
-    if branch_name.startswith("refs/heads/"):
-        branch_name = branch_name[11:]
+    # Normalize branch name (remove refs/heads/ prefix if present)
+    branch_name = normalize_branch_name(branch_name)
 
     # Replace slashes and special chars with hyphens for directory safety
     from .constants import sanitize_branch_name

@@ -164,6 +164,27 @@ def unset_config(key: str, repo: Path | None = None) -> None:
     git_command("config", "--local", "--unset-all", key, repo=repo, check=False)
 
 
+def normalize_branch_name(branch: str) -> str:
+    """
+    Normalize branch name by removing refs/heads/ prefix if present.
+
+    Args:
+        branch: Branch name (may include refs/heads/ prefix)
+
+    Returns:
+        str: Normalized branch name without refs/heads/ prefix
+
+    Examples:
+        >>> normalize_branch_name("refs/heads/main")
+        "main"
+        >>> normalize_branch_name("feature-branch")
+        "feature-branch"
+    """
+    if branch.startswith("refs/heads/"):
+        return branch[11:]
+    return branch
+
+
 def parse_worktrees(repo: Path) -> list[tuple[str, Path]]:
     """
     Parse git worktree list output.

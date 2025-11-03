@@ -13,10 +13,34 @@ from claude_worktree.git_utils import (
     get_current_branch,
     get_repo_root,
     has_command,
+    normalize_branch_name,
     parse_worktrees,
     set_config,
     unset_config,
 )
+
+
+def test_normalize_branch_name() -> None:
+    """Test branch name normalization."""
+    # Test with refs/heads/ prefix
+    assert normalize_branch_name("refs/heads/main") == "main"
+    assert normalize_branch_name("refs/heads/feature-branch") == "feature-branch"
+    assert normalize_branch_name("refs/heads/fix/auth") == "fix/auth"
+    assert normalize_branch_name("refs/heads/release/v1.0.0") == "release/v1.0.0"
+
+    # Test without refs/heads/ prefix (should return as-is)
+    assert normalize_branch_name("main") == "main"
+    assert normalize_branch_name("feature-branch") == "feature-branch"
+    assert normalize_branch_name("fix/auth") == "fix/auth"
+
+    # Edge cases
+    assert normalize_branch_name("refs/heads/") == ""  # Empty branch name after prefix
+    assert normalize_branch_name("") == ""  # Empty string
+    assert normalize_branch_name("refs/heads") == "refs/heads"  # No trailing slash
+
+    # Branch names that start with similar patterns but aren't refs/heads/
+    assert normalize_branch_name("refs/heads-like") == "refs/heads-like"
+    assert normalize_branch_name("refs/tags/v1.0.0") == "refs/tags/v1.0.0"
 
 
 def test_get_repo_root(temp_git_repo: Path) -> None:
