@@ -84,6 +84,41 @@ def resolve_worktree_target(target: str | None) -> tuple[Path, str, Path]:
     return worktree_path, branch_name, worktree_repo
 
 
+def get_worktree_metadata(branch: str, repo: Path) -> tuple[str, Path]:
+    """
+    Get worktree metadata (base branch and base repository path).
+
+    This helper function retrieves the stored metadata for a worktree,
+    including the base branch it was created from and the path to the
+    base repository.
+
+    Args:
+        branch: Feature branch name
+        repo: Worktree repository path
+
+    Returns:
+        tuple[str, Path]: (base_branch_name, base_repo_path)
+
+    Raises:
+        GitError: If metadata is missing or invalid
+
+    Example:
+        >>> base_branch, base_path = get_worktree_metadata("fix-auth", Path("/path/to/worktree"))
+        >>> print(f"Created from: {base_branch}")
+        Created from: main
+    """
+    base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
+    base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(branch), repo)
+
+    if not base_branch or not base_path_str:
+        raise GitError(
+            f"Missing metadata for branch '{branch}'. Was this worktree created with 'cw new'?"
+        )
+
+    base_path = Path(base_path_str)
+    return base_branch, base_path
+
+
 def create_worktree(
     branch_name: str,
     base_branch: str | None = None,
@@ -203,17 +238,7 @@ def finish_worktree(
     cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
 
     # Get metadata - base_path is the actual main repository
-    base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), worktree_repo)
-    base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(feature_branch), worktree_repo)
-
-    if not base_branch or not base_path_str:
-        raise GitError(
-            f"Missing metadata for branch '{feature_branch}'. "
-            "Was this worktree created with 'cw new'?"
-        )
-
-    # base_path is the actual main repository root
-    base_path = Path(base_path_str)
+    base_branch, base_path = get_worktree_metadata(feature_branch, worktree_repo)
     repo = base_path
 
     console.print("\n[bold cyan]Finishing worktree:[/bold cyan]")
@@ -440,17 +465,7 @@ def create_pr_worktree(
     cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
 
     # Get metadata - base_path is the actual main repository
-    base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), worktree_repo)
-    base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(feature_branch), worktree_repo)
-
-    if not base_branch or not base_path_str:
-        raise GitError(
-            f"Missing metadata for branch '{feature_branch}'. "
-            "Was this worktree created with 'cw new'?"
-        )
-
-    # base_path is the actual main repository root
-    base_path = Path(base_path_str)
+    base_branch, base_path = get_worktree_metadata(feature_branch, worktree_repo)
     repo = base_path
 
     console.print("\n[bold cyan]Creating Pull Request:[/bold cyan]")
