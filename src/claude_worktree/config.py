@@ -59,6 +59,10 @@ DEFAULT_CONFIG = {
     "update": {
         "auto_check": True,  # Automatically check for updates daily
     },
+    "shell_completion": {
+        "prompted": False,  # Whether user has been prompted to install completion
+        "installed": False,  # Whether completion is installed (user's response)
+    },
 }
 
 

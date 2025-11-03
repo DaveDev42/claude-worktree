@@ -67,14 +67,21 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### User Experience Improvements
 
-- [ ] **First-run shell completion prompt**
-  - On first run (or when completion not detected), prompt user to install shell completion
-  - Detection: Check if completion is already installed for current shell
-  - Prompt: "Would you like to install shell completion for better productivity? (y/n)"
-  - If yes: Run `cw --install-completion` automatically
-  - Store preference in config to avoid re-prompting
-  - Impact: Helps users discover and enable this productivity feature
-  - File: `src/claude_worktree/cli.py` or `src/claude_worktree/core.py`
+- [x] **First-run shell completion prompt** ✅ (Pending PR)
+  - ~~Problem: Users may not discover shell completion feature~~
+  - Solution: Automatically prompt users on first run to enable shell completion
+  - Implementation:
+    - Detects if completion is already installed for current shell (bash/zsh/fish)
+    - Prompts: "Would you like to enable tab completion for cw commands?"
+    - If yes: Runs `cw shell-setup` automatically
+    - Stores preference in config (`shell_completion.prompted`, `shell_completion.installed`)
+    - Smart skipping: No prompt if stdin is not a TTY or in CI/test environments
+  - Files modified:
+    - `src/claude_worktree/config.py`: Added `shell_completion` config section
+    - `src/claude_worktree/cli.py`: Added detection logic and prompt_completion_setup()
+    - `tests/test_config.py`: Added tests for config tracking
+  - Testing: All 245 tests pass
+  - Impact: Better onboarding experience, increased feature discovery
 
 - [ ] **Smart `cw new` with worktree detection**
   - Problem: Running `cw new branch-name` when worktree already exists doesn't provide helpful guidance
