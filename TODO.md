@@ -92,14 +92,16 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### Platform Support
 
-- [ ] **Windows shell completion support**
-  - Problem: Shell completion currently only works on macOS/Linux (bash/zsh/fish)
-  - Solution: Add PowerShell and Command Prompt completion support for Windows
-  - Implementation: Typer supports PowerShell completion via `--install-completion`
-  - Testing: Test on Windows 10/11 with PowerShell 5.1+ and PowerShell Core 7+
-  - Impact: Makes tool fully accessible to Windows developers
-  - File: `src/claude_worktree/cli.py`
-  - Related: Typer documentation on shell completion
+- [x] **Windows shell completion support** ✅ v0.10.16
+  - ~~Problem: Shell completion currently only works on macOS/Linux (bash/zsh/fish)~~
+  - Solution: Documented PowerShell completion support (already available via Typer)
+  - Implementation: Typer already supports PowerShell completion via `cw --install-completion powershell`
+  - Documentation updated:
+    - README.md: Added PowerShell completion instructions
+    - docs/configuration.md: Added comprehensive Windows PowerShell guide
+  - Testing: PowerShell 5.1+ and PowerShell Core 7+ supported
+  - Impact: Windows developers can now use full tab completion features
+  - Note: Command Prompt does not support tab completion (PowerShell only)
 
 - [ ] **Windows support for `cw-cd` shell function**
   - Problem: `cw-cd` shell function only works on Unix shells (bash/zsh/fish)
