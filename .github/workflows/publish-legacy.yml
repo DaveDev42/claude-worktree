@@ -1,0 +1,153 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags (e.g., v0.8.1)
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run tests before publishing
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true  # Stop if any test fails
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+
+    - name: Run linting with ruff
+      run: |
+        ruff check src/ tests/
+
+    - name: Run type checking with mypy
+      run: |
+        mypy src/claude_worktree
+
+    - name: Run tests with pytest
+      run: |
+        pytest -v --cov=claude_worktree --cov-report=xml --cov-report=term
+
+  build:
+    name: Build distribution
+    needs: [test]  # Only build if tests pass
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install build dependencies
+      run: |
+        uv pip install --system twine
+
+    - name: Build package
+      run: |
+        uv build
+
+    - name: Verify package
+      run: |
+        twine check dist/*
+
+    - name: Store distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/claude-worktree
+    permissions:
+      id-token: write  # Required for trusted publishing
+
+    steps:
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        skip-existing: true
+
+  publish-to-github:
+    name: Publish to GitHub Releases
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to create release and upload assets
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download distributions
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+    - name: Extract version from tag
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Extract changelog for this version
+      id: changelog
+      run: |
+        # Extract the changelog section for this version
+        awk '/^## \[${{ steps.version.outputs.version }}\]/, /^## \[/' CHANGELOG.md | sed '$d' > release_notes.md
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        # Check if release already exists
+        if gh release view '${{ github.ref_name }}' --repo '${{ github.repository }}' > /dev/null 2>&1; then
+          echo "Release ${{ github.ref_name }} already exists. Uploading assets..."
+          gh release upload '${{ github.ref_name }}' \
+            --repo '${{ github.repository }}' \
+            --clobber \
+            dist/**
+        else
+          echo "Creating new release ${{ github.ref_name }}..."
+          gh release create '${{ github.ref_name }}' \
+            --repo '${{ github.repository }}' \
+            --title 'Release ${{ github.ref_name }}' \
+            --notes-file release_notes.md \
+            dist/**
+        fi
