@@ -34,3 +34,13 @@ repos:
       - id: trailing-whitespace
       - id: check-added-large-files
         args: [--maxkb=1000]
+
+  # Custom hooks for this project
+  - repo: local
+    hooks:
+      - id: check-uv-lock
+        name: Check uv.lock is staged with pyproject.toml
+        entry: .pre-commit-hooks/check-uv-lock.sh
+        language: script
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
