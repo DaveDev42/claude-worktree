@@ -46,7 +46,7 @@ AI_TOOL_RESUME_PRESETS = {
 
 DEFAULT_CONFIG = {
     "ai_tool": {
-        "command": "claude-yolo",  # Command name or preset name
+        "command": "claude",  # Command name or preset name (safe default without dangerous permissions)
         "args": [],  # Additional arguments
     },
     "launch": {
