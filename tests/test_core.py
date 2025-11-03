@@ -1188,3 +1188,64 @@ def test_sync_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch)
     # Verify both files exist in worktree after rebase
     assert (worktree_path / "sync-feature.txt").exists()
     assert (worktree_path / "main-work.txt").exists()
+
+
+def test_create_worktree_existing_worktree_non_interactive(
+    temp_git_repo: Path, disable_claude
+) -> None:
+    """Test creating worktree when one already exists (non-interactive mode)."""
+    # Create initial worktree
+    worktree_path = create_worktree(
+        branch_name="duplicate-test",
+        no_cd=True,
+    )
+    assert worktree_path.exists()
+
+    # Try to create again with same branch name (non-interactive = no stdin.isatty())
+    # Should raise InvalidBranchError with helpful message
+    with pytest.raises(InvalidBranchError, match="already exists"):
+        create_worktree(
+            branch_name="duplicate-test",
+            no_cd=True,
+        )
+
+
+def test_create_worktree_existing_branch_non_interactive(
+    temp_git_repo: Path, disable_claude
+) -> None:
+    """Test creating worktree from existing branch (non-interactive mode)."""
+    # Create a branch manually (no worktree)
+    subprocess.run(
+        ["git", "branch", "existing-branch"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Verify branch exists
+    result = subprocess.run(
+        ["git", "branch", "--list", "existing-branch"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "existing-branch" in result.stdout
+
+    # Create worktree from existing branch (non-interactive mode should proceed)
+    worktree_path = create_worktree(
+        branch_name="existing-branch",
+        no_cd=True,
+    )
+
+    # Verify worktree was created
+    assert worktree_path.exists()
+    assert (worktree_path / "README.md").exists()
+
+    # Verify worktree is registered
+    result = subprocess.run(
+        ["git", "worktree", "list"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert worktree_path.as_posix() in result.stdout

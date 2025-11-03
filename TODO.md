@@ -6,64 +6,55 @@ This document tracks planned features, enhancements, and known issues for the cl
 
 ### Code Quality & Refactoring
 
-- [ ] **Fix default AI tool configuration** (config.py:40)
-  - Current: `"command": "claude-yolo"` (uses dangerous permissions by default)
-  - Change to: `"command": "claude"` (safer default) or `"command": "no-op"` (let user choose)
+- [x] **Fix default AI tool configuration** ✅ v0.10.15 (PR #66)
+  - ~~Current: `"command": "claude-yolo"` (uses dangerous permissions by default)~~
+  - Solution: Changed default from `claude-yolo` to `claude` (safer default)
   - File: `src/claude_worktree/config.py`
-  - Impact: New users will have safer defaults
-  - Related: Issue discovered during code review (2025-10-31)
+  - Impact: New users now have safer defaults
+  - Merged: 2025-11-03
 
 ## Medium Priority
 
 ### Code Quality & Refactoring (Critical Improvements)
 
-- [ ] **Extract duplicated worktree resolution logic** (core.py - multiple functions)
-  - Problem: Same 30-40 line pattern repeated in 7+ functions (finish_worktree, create_pr_worktree, delete_worktree, sync_worktree, change_base_branch, backup_worktree, resume_worktree)
-  - Solution: Create `resolve_worktree_target(target: str | None) -> tuple[Path, str]` helper
-  - Impact: Reduce ~150-200 lines of duplicated code, improve maintainability
-  - Priority: High impact on code quality
+- [x] **Extract duplicated worktree resolution logic** ✅ v0.10.15 (PR #68)
+  - ~~Problem: Same 30-40 line pattern repeated in 7+ functions~~
+  - Solution: Created `resolve_worktree_target(target: str | None) -> tuple[Path, str, Path]` helper
+  - Impact: Reduced 82 lines of duplicated code, improved maintainability
   - File: `src/claude_worktree/core.py`
-  - Lines affected: ~152-165, ~418-431, ~619-632, ~701-711, ~1578-1591, ~1822-1831, ~2130-2143
-  - Testing: Ensure all affected commands still work correctly
+  - Testing: All affected commands tested and working
+  - Merged: 2025-11-03
 
-- [ ] **Add branch name normalization utility** (git_utils.py)
-  - Problem: `refs/heads/` prefix removal logic duplicated throughout codebase
-  - Solution: Add `normalize_branch_name(branch: str) -> str` to git_utils.py
-  - Current patterns:
-    - `branch_name = target[11:] if target.startswith("refs/heads/") else target`
-    - `if branch.startswith("refs/heads/"): branch_name = branch[11:]`
-  - Impact: DRY principle, single source of truth for branch name handling
+- [x] **Add branch name normalization utility** ✅ v0.10.15 (PR #69)
+  - ~~Problem: `refs/heads/` prefix removal logic duplicated throughout codebase~~
+  - Solution: Added `normalize_branch_name(branch: str) -> str` to git_utils.py
+  - Impact: Removed 18 instances of duplicate code, DRY principle applied
   - File: `src/claude_worktree/git_utils.py`
-  - Refactor locations: core.py (10+ occurrences), cli.py (2 occurrences)
+  - Testing: 10 test cases added for edge cases
+  - Merged: 2025-11-03
 
-- [ ] **Extract worktree metadata retrieval helper** (core.py)
-  - Problem: Metadata fetching logic repeated in finish_worktree, create_pr_worktree, merge_worktree
-  - Solution: Create `get_worktree_metadata(branch: str, repo: Path) -> tuple[str, Path]` helper
-  - Current pattern:
-    ```python
-    base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), worktree_repo)
-    base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(feature_branch), worktree_repo)
-    if not base_branch or not base_path_str:
-        raise GitError(f"Missing metadata for branch '{feature_branch}'...")
-    ```
-  - Impact: Consistent error handling, reduced duplication
+- [x] **Extract worktree metadata retrieval helper** ✅ v0.10.15 (PR #70)
+  - ~~Problem: Metadata fetching logic repeated in finish_worktree, create_pr_worktree, merge_worktree~~
+  - Solution: Created `get_worktree_metadata(branch: str, repo: Path) -> tuple[str, Path]` helper
+  - Impact: Reduced 22 lines of duplicated code, consistent error handling
   - File: `src/claude_worktree/core.py`
-  - Testing: Verify error messages remain consistent
+  - Testing: All 232 tests passing
+  - Merged: 2025-11-03
 
-- [ ] **Consolidate duplicate imports** (cli.py:9-19)
-  - Problem: Two separate import statements from same module `.config`
-  - Solution: Merge into single import block
+- [x] **Consolidate duplicate imports** ✅ v0.10.15 (PR #71)
+  - ~~Problem: Two separate import statements from same module `.config`~~
+  - Solution: Merged duplicate imports into single block
   - File: `src/claude_worktree/cli.py`
-  - Impact: Code cleanliness, minor
+  - Impact: Improved code cleanliness
+  - Merged: 2025-11-03
 
-- [ ] **Standardize error messages** (core.py)
-  - Problem: Inconsistent error message formats for similar situations
-  - Current variations:
-    - `"No worktree found for branch '{target}'. Use 'cw list' to see available worktrees."`
-    - `"No worktree found for branch '{branch}'. Try specifying the path directly."`
-  - Solution: Define error message templates/constants
-  - Impact: Better user experience, consistency
-  - File: `src/claude_worktree/core.py` or new `src/claude_worktree/messages.py`
+- [x] **Standardize error messages** ✅ v0.10.15 (PR #72)
+  - ~~Problem: Inconsistent error message formats for similar situations~~
+  - Solution: Created `src/claude_worktree/messages.py` with `ErrorMessages` class
+  - Impact: Consistent error messages across codebase, better UX
+  - File: `src/claude_worktree/messages.py` (new)
+  - Testing: All tests passing with standardized messages
+  - Merged: 2025-11-03
 
 ### User Experience Improvements
 
@@ -76,19 +67,28 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Impact: Helps users discover and enable this productivity feature
   - File: `src/claude_worktree/cli.py` or `src/claude_worktree/core.py`
 
-- [ ] **Smart `cw new` with worktree detection**
-  - Problem: Running `cw new branch-name` when worktree already exists doesn't provide helpful guidance
-  - Solution 1: Detect existing worktree for same branch name
-    - Prompt: "Worktree for branch 'feature-x' already exists at '../repo-feature-x'. Resume work instead? (y/n)"
-    - If yes: Automatically switch to `cw resume feature-x`
-    - If no: Suggest alternative branch name or path
-  - Solution 2: Detect existing branch without worktree
-    - Prompt: "Branch 'feature-x' already exists. Create worktree from existing branch? (y/n)"
-    - If yes: Create worktree from existing branch
-    - If no: Suggest different branch name or abort
-  - Impact: Better user experience, prevents confusion and mistakes
-  - File: `src/claude_worktree/core.py` (create_worktree function)
-  - Testing: Add tests for existing worktree/branch detection
+- [x] **Smart `cw new` with worktree detection** ✅ (Pending PR)
+  - ~~Problem: Running `cw new branch-name` when worktree already exists doesn't provide helpful guidance~~
+  - Solution: Intelligent detection and user prompting for better workflow
+  - Implementation:
+    - **Detect existing worktree**: Checks both normalized and `refs/heads/` prefixed branch names
+    - **Interactive mode** (when stdin is TTY):
+      - Existing worktree detected: Prompt "Resume work in this worktree instead?"
+        - If yes: Automatically switches to `cw resume <branch>`
+        - If no: Suggests alternative branch names (`<branch>-v2`, `<branch>-alt`)
+      - Existing branch without worktree: Prompt "Create worktree from existing branch?"
+        - If yes: Creates worktree from existing branch (uses `git worktree add` without `-b`)
+        - If no: Suggests alternative actions (rename branch, delete existing branch)
+    - **Non-interactive mode** (scripts/tests):
+      - Existing worktree: Fails with helpful error message suggesting `cw resume`
+      - Existing branch: Automatically creates worktree from existing branch
+  - Files modified:
+    - `src/claude_worktree/core.py`: Enhanced `create_worktree()` function
+    - `tests/test_core.py`: Added 2 new tests
+      - `test_create_worktree_existing_worktree_non_interactive`
+      - `test_create_worktree_existing_branch_non_interactive`
+  - Testing: All 244 tests pass
+  - Impact: Prevents user confusion, provides helpful guidance, improves workflow efficiency
 
 ### Platform Support
 

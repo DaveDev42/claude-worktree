@@ -149,10 +149,14 @@ def create_worktree(
         GitError: If git operations fail
         InvalidBranchError: If base branch is invalid
     """
+    import sys
+
+    import typer
+
     repo = get_repo_root()
 
     # Validate branch name
-    from .git_utils import get_branch_name_error, is_valid_branch_name
+    from .git_utils import find_worktree_by_branch, get_branch_name_error, is_valid_branch_name
 
     if not is_valid_branch_name(branch_name, repo):
         error_msg = get_branch_name_error(branch_name)
@@ -161,6 +165,93 @@ def create_worktree(
             f"Hint: Use alphanumeric characters, hyphens, and slashes. "
             f"Avoid special characters like emojis, backslashes, or control characters."
         )
+
+    # Check if worktree already exists for this branch
+    # Try both normalized name and refs/heads/ prefixed version
+    existing_worktree = find_worktree_by_branch(repo, branch_name)
+    if not existing_worktree:
+        existing_worktree = find_worktree_by_branch(repo, f"refs/heads/{branch_name}")
+
+    if existing_worktree:
+        console.print(
+            f"\n[bold yellow]⚠ Worktree already exists[/bold yellow]\n"
+            f"Branch '[cyan]{branch_name}[/cyan]' already has a worktree at:\n"
+            f"  [blue]{existing_worktree}[/blue]\n"
+        )
+
+        # Only prompt if stdin is a TTY (not in scripts/tests)
+        if sys.stdin.isatty():
+            try:
+                response = typer.confirm("Resume work in this worktree instead?", default=True)
+                if response:
+                    # User wants to resume - call resume_worktree
+                    console.print(
+                        f"\n[dim]Switching to resume mode for '[cyan]{branch_name}[/cyan]'...[/dim]\n"
+                    )
+                    resume_worktree(
+                        worktree=branch_name,
+                        bg=bg,
+                        iterm=iterm,
+                        iterm_tab=iterm_tab,
+                        tmux_session=tmux_session,
+                    )
+                    return existing_worktree
+                else:
+                    # User declined - suggest alternatives
+                    console.print(
+                        f"\n[yellow]Tip:[/yellow] Try a different branch name or use:\n"
+                        f"  [cyan]cw new {branch_name}-v2[/cyan]\n"
+                        f"  [cyan]cw new {branch_name}-alt[/cyan]\n"
+                    )
+                    raise typer.Abort()
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n[yellow]Operation cancelled[/yellow]")
+                raise typer.Abort()
+        else:
+            # Non-interactive mode - fail with helpful message
+            raise InvalidBranchError(
+                f"Worktree for branch '{branch_name}' already exists at {existing_worktree}.\n"
+                f"Use 'cw resume {branch_name}' to continue work, or choose a different branch name."
+            )
+
+    # Check if branch exists without worktree
+    # (But skip this check if we already found an existing worktree above)
+    branch_already_exists = False
+    if branch_exists(branch_name, repo) and not existing_worktree:
+        console.print(
+            f"\n[bold yellow]⚠ Branch already exists[/bold yellow]\n"
+            f"Branch '[cyan]{branch_name}[/cyan]' already exists but has no worktree.\n"
+        )
+
+        # Only prompt if stdin is a TTY
+        if sys.stdin.isatty():
+            try:
+                response = typer.confirm("Create worktree from this existing branch?", default=True)
+                if response:
+                    # Create from existing branch
+                    console.print(
+                        f"\n[dim]Creating worktree from existing branch '[cyan]{branch_name}[/cyan]'...[/dim]\n"
+                    )
+                    branch_already_exists = True
+                else:
+                    # User declined - suggest alternatives
+                    console.print(
+                        f"\n[yellow]Tip:[/yellow] To use a different branch name:\n"
+                        f"  [cyan]cw new {branch_name}-v2[/cyan]\n"
+                        f"\nOr delete the existing branch first:\n"
+                        f"  [cyan]git branch -d {branch_name}[/cyan]  (if fully merged)\n"
+                        f"  [cyan]git branch -D {branch_name}[/cyan]  (force delete)\n"
+                    )
+                    raise typer.Abort()
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n[yellow]Operation cancelled[/yellow]")
+                raise typer.Abort()
+        else:
+            # Non-interactive mode - proceed to create worktree from existing branch
+            console.print(
+                f"[dim]Creating worktree from existing branch '[cyan]{branch_name}[/cyan]'...[/dim]\n"
+            )
+            branch_already_exists = True
 
     # Determine base branch
     if base_branch is None:
@@ -189,7 +280,14 @@ def create_worktree(
     # Create worktree
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
     git_command("fetch", "--all", "--prune", repo=repo)
-    git_command("worktree", "add", "-b", branch_name, str(worktree_path), base_branch, repo=repo)
+
+    # If branch already exists, create worktree without -b flag
+    if branch_already_exists:
+        git_command("worktree", "add", str(worktree_path), branch_name, repo=repo)
+    else:
+        git_command(
+            "worktree", "add", "-b", branch_name, str(worktree_path), base_branch, repo=repo
+        )
 
     # Store metadata
     set_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), base_branch, repo=repo)
