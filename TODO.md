@@ -74,19 +74,28 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Testing: All 245 tests pass
   - Impact: Better onboarding experience, increased feature discovery
 
-- [ ] **Smart `cw new` with worktree detection**
-  - Problem: Running `cw new branch-name` when worktree already exists doesn't provide helpful guidance
-  - Solution 1: Detect existing worktree for same branch name
-    - Prompt: "Worktree for branch 'feature-x' already exists at '../repo-feature-x'. Resume work instead? (y/n)"
-    - If yes: Automatically switch to `cw resume feature-x`
-    - If no: Suggest alternative branch name or path
-  - Solution 2: Detect existing branch without worktree
-    - Prompt: "Branch 'feature-x' already exists. Create worktree from existing branch? (y/n)"
-    - If yes: Create worktree from existing branch
-    - If no: Suggest different branch name or abort
-  - Impact: Better user experience, prevents confusion and mistakes
-  - File: `src/claude_worktree/core.py` (create_worktree function)
-  - Testing: Add tests for existing worktree/branch detection
+- [x] **Smart `cw new` with worktree detection** ✅ (Pending PR)
+  - ~~Problem: Running `cw new branch-name` when worktree already exists doesn't provide helpful guidance~~
+  - Solution: Intelligent detection and user prompting for better workflow
+  - Implementation:
+    - **Detect existing worktree**: Checks both normalized and `refs/heads/` prefixed branch names
+    - **Interactive mode** (when stdin is TTY):
+      - Existing worktree detected: Prompt "Resume work in this worktree instead?"
+        - If yes: Automatically switches to `cw resume <branch>`
+        - If no: Suggests alternative branch names (`<branch>-v2`, `<branch>-alt`)
+      - Existing branch without worktree: Prompt "Create worktree from existing branch?"
+        - If yes: Creates worktree from existing branch (uses `git worktree add` without `-b`)
+        - If no: Suggests alternative actions (rename branch, delete existing branch)
+    - **Non-interactive mode** (scripts/tests):
+      - Existing worktree: Fails with helpful error message suggesting `cw resume`
+      - Existing branch: Automatically creates worktree from existing branch
+  - Files modified:
+    - `src/claude_worktree/core.py`: Enhanced `create_worktree()` function
+    - `tests/test_core.py`: Added 2 new tests
+      - `test_create_worktree_existing_worktree_non_interactive`
+      - `test_create_worktree_existing_branch_non_interactive`
+  - Testing: All 244 tests pass
+  - Impact: Prevents user confusion, provides helpful guidance, improves workflow efficiency
 
 ### Platform Support
 
