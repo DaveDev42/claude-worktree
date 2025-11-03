@@ -111,7 +111,7 @@ def test_save_config_creates_directory(tmp_path: Path, monkeypatch) -> None:
 def test_get_ai_tool_command_default(temp_config_dir: Path) -> None:
     """Test getting default AI tool command."""
     cmd = get_ai_tool_command()
-    assert cmd == ["claude", "--dangerously-skip-permissions"]
+    assert cmd == ["claude"]
 
 
 def test_get_ai_tool_command_custom(temp_config_dir: Path) -> None:
@@ -250,8 +250,8 @@ def test_show_config(temp_config_dir: Path) -> None:
     output = show_config()
 
     # Should contain key information
-    assert "AI Tool: claude-yolo" in output
-    assert "Effective command: claude --dangerously-skip-permissions" in output
+    assert "AI Tool: claude" in output
+    assert "Effective command: claude" in output
     assert "Default base branch: main" in output
     assert "Config file:" in output
 
@@ -396,7 +396,7 @@ def test_use_happy_presets(temp_config_dir: Path) -> None:
 def test_get_ai_tool_resume_command_default(temp_config_dir: Path) -> None:
     """Test getting resume command with default AI tool."""
     cmd = get_ai_tool_resume_command()
-    assert cmd == ["claude", "--dangerously-skip-permissions", "--resume"]
+    assert cmd == ["claude", "--resume"]
 
 
 def test_get_ai_tool_resume_command_preset(temp_config_dir: Path) -> None:
