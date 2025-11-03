@@ -33,6 +33,56 @@ from .git_utils import (
 console = Console()
 
 
+def resolve_worktree_target(target: str | None) -> tuple[Path, str, Path]:
+    """
+    Resolve worktree target (branch name or None) to (worktree_path, branch_name, worktree_repo).
+
+    This is a helper function that encapsulates the common pattern used across multiple
+    commands to locate and identify a worktree based on a branch name or current directory.
+
+    Args:
+        target: Branch name or None (uses current directory if None)
+
+    Returns:
+        tuple[Path, str, Path]: (worktree_path, branch_name, worktree_repo)
+            - worktree_path: Path to the worktree directory
+            - branch_name: Simple branch name (without refs/heads/ prefix)
+            - worktree_repo: Git repository root of the worktree
+
+    Raises:
+        WorktreeNotFoundError: If worktree not found for specified branch
+        InvalidBranchError: If current branch cannot be determined
+        GitError: If not in a git repository
+    """
+    if target:
+        # Target branch specified - find its worktree path
+        repo = get_repo_root()
+        worktree_path_result = find_worktree_by_branch(repo, target)
+        if not worktree_path_result:
+            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
+        if not worktree_path_result:
+            raise WorktreeNotFoundError(
+                f"No worktree found for branch '{target}'. "
+                f"Use 'cw list' to see available worktrees."
+            )
+        worktree_path = worktree_path_result
+        # Normalize branch name: remove refs/heads/ prefix if present
+        branch_name = target[11:] if target.startswith("refs/heads/") else target
+        # Get repo root from the worktree we found
+        worktree_repo = get_repo_root(worktree_path)
+    else:
+        # No target specified - use current directory
+        worktree_path = Path.cwd()
+        try:
+            branch_name = get_current_branch(worktree_path)
+        except InvalidBranchError:
+            raise InvalidBranchError("Cannot determine current branch")
+        # Get repo root from current directory
+        worktree_repo = get_repo_root()
+
+    return worktree_path, branch_name, worktree_repo
+
+
 def create_worktree(
     branch_name: str,
     base_branch: str | None = None,
@@ -148,37 +198,8 @@ def finish_worktree(
         WorktreeNotFoundError: If worktree not found
         InvalidBranchError: If branch is invalid
     """
-    # Determine the worktree to work on
-    if target:
-        # Target branch specified - find its worktree path
-        repo = get_repo_root()
-        worktree_path_result = find_worktree_by_branch(repo, target)
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for branch '{target}'. "
-                f"Use 'cw list' to see available worktrees."
-            )
-        cwd = worktree_path_result
-        # Normalize branch name
-        feature_branch = target[11:] if target.startswith("refs/heads/") else target
-    else:
-        # No target specified - use current directory
-        cwd = Path.cwd()
-        try:
-            feature_branch = get_current_branch(cwd)
-        except InvalidBranchError:
-            raise InvalidBranchError("Cannot determine current branch")
-
-    # Get repo root from the worktree we're working on
-    if target:
-        # When target is specified, cwd is the worktree path we found
-        # Need to get repo root from that worktree
-        worktree_repo = get_repo_root(cwd)
-    else:
-        # When no target, use current directory's repo root
-        worktree_repo = get_repo_root()
+    # Resolve worktree target to (path, branch, repo)
+    cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
 
     # Get metadata - base_path is the actual main repository
     base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), worktree_repo)
@@ -414,34 +435,8 @@ def create_pr_worktree(
             "Install it from: https://cli.github.com/"
         )
 
-    # Determine the worktree to work on
-    if target:
-        # Target branch specified - find its worktree path
-        repo = get_repo_root()
-        worktree_path_result = find_worktree_by_branch(repo, target)
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for branch '{target}'. "
-                f"Use 'cw list' to see available worktrees."
-            )
-        cwd = worktree_path_result
-        # Normalize branch name
-        feature_branch = target[11:] if target.startswith("refs/heads/") else target
-    else:
-        # No target specified - use current directory
-        cwd = Path.cwd()
-        try:
-            feature_branch = get_current_branch(cwd)
-        except InvalidBranchError:
-            raise InvalidBranchError("Cannot determine current branch")
-
-    # Get repo root from the worktree we're working on
-    if target:
-        worktree_repo = get_repo_root(cwd)
-    else:
-        worktree_repo = get_repo_root()
+    # Resolve worktree target to (path, branch, repo)
+    cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
 
     # Get metadata - base_path is the actual main repository
     base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), worktree_repo)
@@ -697,26 +692,10 @@ def sync_worktree(
             # Normalize branch name
             branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
             worktrees_to_sync.append((branch_name, path))
-    elif target:
-        # Sync specific worktree by branch name
-        worktree_path_result = find_worktree_by_branch(repo, target)
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for branch '{target}'. "
-                f"Use 'cw list' to see available worktrees."
-            )
-        branch_name = target[11:] if target.startswith("refs/heads/") else target
-        worktrees_to_sync = [(branch_name, worktree_path_result)]
-    else:
-        # Sync current worktree
-        cwd = Path.cwd()
-        try:
-            branch_name = get_current_branch(cwd)
-        except InvalidBranchError:
-            raise InvalidBranchError("Cannot determine current branch")
-        worktrees_to_sync = [(branch_name, cwd)]
+    elif target or not all_worktrees:
+        # Sync specific worktree by branch name or current worktree
+        worktree_path, branch_name, _ = resolve_worktree_target(target)
+        worktrees_to_sync = [(branch_name, worktree_path)]
 
     # Fetch from all remotes first
     console.print("[yellow]Fetching updates from remote...[/yellow]")
@@ -1702,36 +1681,13 @@ def resume_worktree(
     """
     from . import session_manager
 
-    # Determine target directory
+    # Resolve worktree target to (path, branch, repo)
+    worktree_path, branch_name, _ = resolve_worktree_target(worktree)
+
+    # Change directory if worktree was specified
     if worktree:
-        # Branch name specified - find its worktree path and change to it
-        repo = get_repo_root()
-        worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{worktree}")
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, worktree)
-
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for branch '{worktree}'. "
-                f"Use 'cw list' to see available worktrees."
-            )
-
-        worktree_path = worktree_path_result
         os.chdir(worktree_path)
         console.print(f"[dim]Switched to worktree: {worktree_path}[/dim]\n")
-
-        # Get branch name for session lookup
-        try:
-            branch_name = get_current_branch(worktree_path)
-        except InvalidBranchError:
-            raise InvalidBranchError(f"Cannot determine branch for worktree: {worktree_path}")
-    else:
-        # No branch specified - use current directory
-        worktree_path = Path.cwd()
-        try:
-            branch_name = get_current_branch(worktree_path)
-        except InvalidBranchError:
-            raise InvalidBranchError("Cannot determine current branch")
 
     # Check for existing session
     if session_manager.session_exists(branch_name):
@@ -2259,31 +2215,8 @@ def change_base_branch(
         RebaseError: If rebase fails
         GitError: If git operations fail
     """
-    # Determine the worktree to work on
-    if target:
-        # Target branch specified - find its worktree path
-        repo = get_repo_root()
-        worktree_path_result = find_worktree_by_branch(repo, target)
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{target}")
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for branch '{target}'. "
-                f"Use 'cw list' to see available worktrees."
-            )
-        worktree_path = worktree_path_result
-        # Normalize branch name
-        feature_branch = target[11:] if target.startswith("refs/heads/") else target
-    else:
-        # No target specified - use current directory
-        worktree_path = Path.cwd()
-        try:
-            feature_branch = get_current_branch(worktree_path)
-        except InvalidBranchError:
-            raise InvalidBranchError("Cannot determine current branch")
-
-    # Get repo root
-    repo = get_repo_root(worktree_path)
+    # Resolve worktree target to (path, branch, repo)
+    worktree_path, feature_branch, repo = resolve_worktree_target(target)
 
     # Get current base branch metadata
     current_base = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), repo)
@@ -2494,25 +2427,10 @@ def backup_worktree(
                 continue
             branch_name = br[11:] if br.startswith("refs/heads/") else br
             branches_to_backup.append((branch_name, path))
-    elif branch:
-        # Backup specific branch
-        worktree_path_result = find_worktree_by_branch(repo, branch)
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{branch}")
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for branch '{branch}'. "
-                f"Use 'cw list' to see available worktrees."
-            )
-        branches_to_backup.append((branch, worktree_path_result))
-    else:
-        # Backup current worktree
-        cwd = Path.cwd()
-        try:
-            branch_name = get_current_branch(cwd)
-        except InvalidBranchError:
-            raise InvalidBranchError("Cannot determine current branch")
-        branches_to_backup.append((branch_name, cwd))
+    elif branch or not all_worktrees:
+        # Backup specific branch or current worktree
+        worktree_path, branch_name, _ = resolve_worktree_target(branch)
+        branches_to_backup.append((branch_name, worktree_path))
 
     # Determine output directory
     if output:
