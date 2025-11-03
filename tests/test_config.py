@@ -490,3 +490,50 @@ def test_ai_tool_resume_presets_defined() -> None:
     # Claude and Happy use --resume flag, so they shouldn't be in resume presets
     assert "claude" not in AI_TOOL_RESUME_PRESETS
     assert "happy" not in AI_TOOL_RESUME_PRESETS
+
+
+def test_default_config_has_shell_completion() -> None:
+    """Test that DEFAULT_CONFIG includes shell_completion fields."""
+    assert "shell_completion" in DEFAULT_CONFIG
+    assert "prompted" in DEFAULT_CONFIG["shell_completion"]
+    assert "installed" in DEFAULT_CONFIG["shell_completion"]
+    assert DEFAULT_CONFIG["shell_completion"]["prompted"] is False
+    assert DEFAULT_CONFIG["shell_completion"]["installed"] is False
+
+
+def test_shell_completion_tracking(temp_config_dir: Path) -> None:
+    """Test tracking shell completion setup status."""
+    import copy as copy_module
+
+    # Initial state: not prompted
+    config = load_config()
+    assert config["shell_completion"]["prompted"] is False
+    assert config["shell_completion"]["installed"] is False
+
+    # Mark as prompted and installed
+    config = copy_module.deepcopy(config)
+    config["shell_completion"]["prompted"] = True
+    config["shell_completion"]["installed"] = True
+    save_config(config)
+
+    # Verify persistence
+    loaded = load_config()
+    assert loaded["shell_completion"]["prompted"] is True
+    assert loaded["shell_completion"]["installed"] is True
+
+
+def test_shell_completion_tracking_declined(temp_config_dir: Path) -> None:
+    """Test tracking when user declines shell completion setup."""
+    import copy as copy_module
+
+    # User was prompted but declined
+    config = load_config()
+    config = copy_module.deepcopy(config)
+    config["shell_completion"]["prompted"] = True
+    config["shell_completion"]["installed"] = False
+    save_config(config)
+
+    # Verify persistence
+    loaded = load_config()
+    assert loaded["shell_completion"]["prompted"] is True
+    assert loaded["shell_completion"]["installed"] is False

@@ -8,7 +8,9 @@ from rich.console import Console
 from . import __version__
 from .config import (
     ConfigError,
+    load_config,
     reset_config,
+    save_config,
     set_ai_tool,
     set_config_value,
     show_config,
@@ -89,6 +91,94 @@ def complete_preset_names() -> list[str]:
     return sorted(AI_TOOL_PRESETS.keys())
 
 
+def is_completion_installed() -> bool:
+    """Check if shell completion appears to be installed."""
+    import os
+    import sys
+
+    # Detect current shell
+    shell_env = os.environ.get("SHELL", "")
+
+    # Check for common shell completion indicators
+    if "bash" in shell_env:
+        bashrc = Path.home() / ".bashrc"
+        if bashrc.exists() and "cw" in bashrc.read_text():
+            return True
+    elif "zsh" in shell_env:
+        zshrc = Path.home() / ".zshrc"
+        if zshrc.exists() and "cw" in zshrc.read_text():
+            return True
+    elif "fish" in shell_env:
+        config_fish = Path.home() / ".config" / "fish" / "config.fish"
+        if config_fish.exists() and "cw" in config_fish.read_text():
+            return True
+    elif sys.platform == "win32" or os.environ.get("PSModulePath"):
+        # PowerShell - harder to detect, assume not installed
+        return False
+
+    # If we can't determine, assume not installed
+    return False
+
+
+def prompt_completion_setup() -> None:
+    """Prompt user to install shell completion on first run."""
+    import sys
+
+    # Don't prompt if stdin is not a TTY (prevents blocking in scripts/tests)
+    if not sys.stdin.isatty():
+        return
+
+    # Don't prompt if running in CI/test environment
+    import os
+
+    if os.environ.get("CI") or os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+
+    config = load_config()
+
+    # Check if we've already prompted
+    if config["shell_completion"]["prompted"]:
+        return
+
+    # Check if completion is already installed
+    if is_completion_installed():
+        # Mark as prompted and installed
+        config["shell_completion"]["prompted"] = True
+        config["shell_completion"]["installed"] = True
+        save_config(config)
+        return
+
+    # Prompt user
+    console.print("\n[bold cyan]💡 Shell Completion Setup[/bold cyan]")
+    console.print("\nWould you like to enable tab completion for cw commands?")
+    console.print("This makes it easier to autocomplete branch names and options.\n")
+
+    try:
+        response = typer.confirm("Enable shell completion?", default=True)
+    except (KeyboardInterrupt, EOFError):
+        # User cancelled (Ctrl+C or EOF)
+        config["shell_completion"]["prompted"] = True
+        config["shell_completion"]["installed"] = False
+        save_config(config)
+        console.print("\n[dim]You can always set this up later with: cw shell-setup[/dim]\n")
+        return
+
+    # Mark as prompted
+    config["shell_completion"]["prompted"] = True
+
+    if response:
+        # User wants to install - run shell-setup
+        config["shell_completion"]["installed"] = True
+        save_config(config)
+        console.print("")
+        shell_setup()
+    else:
+        # User declined
+        config["shell_completion"]["installed"] = False
+        save_config(config)
+        console.print("\n[dim]You can always set this up later with: cw shell-setup[/dim]\n")
+
+
 @app.callback()
 def main(
     version: bool | None = typer.Option(
@@ -103,6 +193,9 @@ def main(
     """Claude Code × git worktree helper CLI."""
     # Check for updates on first run of the day
     check_for_updates(auto=True)
+
+    # Prompt for shell completion setup on first run
+    prompt_completion_setup()
 
 
 @app.command(rich_help_panel="Core Workflow")
