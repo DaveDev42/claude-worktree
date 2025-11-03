@@ -378,25 +378,48 @@ cw import migration.json --apply
 
 ### Installation
 
+**Unix shells (bash/zsh/fish):**
 ```bash
 cw --install-completion
+```
+
+**Windows PowerShell:**
+```powershell
+cw --install-completion powershell
 ```
 
 After installation, restart your shell or source your config file.
 
 ### Supported Shells
 
-- bash
-- zsh
-- fish
+- **bash** (Linux/macOS/WSL)
+- **zsh** (Linux/macOS)
+- **fish** (Linux/macOS)
+- **PowerShell** (Windows 10+, PowerShell 5.1+ and PowerShell Core 7+)
 
 ### Usage
 
+**Unix shells:**
 ```bash
 cw <TAB>          # Shows available commands
 cw new --<TAB>    # Shows available options
-cw resume <TAB>   # Shows available branches (if completion is configured)
+cw resume <TAB>   # Shows available branches
 ```
+
+**Windows PowerShell:**
+```powershell
+cw <TAB>          # Shows available commands
+cw new --<TAB>    # Shows available options
+cw resume <TAB>   # Shows available branches
+```
+
+### Platform-Specific Notes
+
+**Windows:**
+- PowerShell 5.1 or later required for completion support
+- PowerShell Core 7+ recommended for best experience
+- Tab completion works in both PowerShell and PowerShell Core
+- Command Prompt does not support tab completion
 
 ## Shell Navigation Helper
 

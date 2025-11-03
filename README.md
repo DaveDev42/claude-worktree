@@ -115,7 +115,7 @@ That's it! You've just created an isolated workspace with AI assistance, worked 
 **Enable tab completion for faster workflow:**
 
 ```bash
-# Install completion
+# Install completion (bash/zsh/fish/PowerShell)
 cw --install-completion
 
 # Restart your shell, then enjoy:
@@ -124,11 +124,24 @@ cw new --<TAB>    # Shows available options
 cw resume <TAB>   # Shows branch names
 ```
 
+**Windows PowerShell users:**
+```powershell
+# Install completion for PowerShell
+cw --install-completion powershell
+
+# Restart PowerShell, then use tab completion:
+cw <TAB>          # Shows available commands
+cw resume <TAB>   # Shows branch names
+```
+
 **Quick navigation between worktrees:**
 
 ```bash
-# Add to ~/.bashrc or ~/.zshrc
+# bash/zsh: Add to ~/.bashrc or ~/.zshrc
 source <(cw _shell-function bash)
+
+# fish: Add to ~/.config/fish/config.fish
+cw _shell-function fish | source
 
 # Then use:
 cw-cd feature-api    # Jump to any worktree instantly
