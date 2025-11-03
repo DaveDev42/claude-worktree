@@ -137,6 +137,10 @@ cw resume <TAB>   # Shows branch names
 **Quick navigation between worktrees:**
 
 ```bash
+# Interactive setup (recommended):
+cw shell-setup
+
+# Or install manually:
 # bash/zsh: Add to ~/.bashrc or ~/.zshrc
 source <(cw _shell-function bash)
 

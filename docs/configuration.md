@@ -425,7 +425,19 @@ cw resume <TAB>   # Shows available branches
 
 Install the `cw-cd` shell function to quickly navigate between worktrees.
 
-### Installation
+### Quick Setup (Recommended)
+
+```bash
+cw shell-setup
+```
+
+This interactive command will:
+1. Detect your current shell (bash/zsh/fish/PowerShell)
+2. Check if `cw-cd` is already installed
+3. Offer to automatically add it to your shell profile
+4. Provide next steps
+
+### Manual Installation
 
 **For bash/zsh:**
 ```bash
