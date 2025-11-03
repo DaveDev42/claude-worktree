@@ -1,6 +1,6 @@
 [project]
 name = "claude-worktree"
-version = "0.10.15"
+version = "0.10.16"
 description = "CLI tool integrating git worktree with Claude Code for seamless feature development workflows"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -56,6 +56,7 @@ packages = ["src/claude_worktree"]
 include = [
     "src/claude_worktree/shell_functions/*.bash",
     "src/claude_worktree/shell_functions/*.fish",
+    "src/claude_worktree/shell_functions/*.ps1",
 ]
 
 [tool.pytest.ini_options]
