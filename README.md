@@ -143,6 +143,9 @@ source <(cw _shell-function bash)
 # fish: Add to ~/.config/fish/config.fish
 cw _shell-function fish | source
 
+# PowerShell: Add to $PROFILE
+cw _shell-function powershell | Invoke-Expression
+
 # Then use:
 cw-cd feature-api    # Jump to any worktree instantly
 cw-cd <TAB>          # Tab completion works!

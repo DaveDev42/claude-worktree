@@ -934,8 +934,9 @@ def cd(
     actual directory navigation.
 
     To install the shell function:
-        bash/zsh: source <(cw _shell-function bash)
-        fish:     cw _shell-function fish | source
+        bash/zsh:   source <(cw _shell-function bash)
+        fish:       cw _shell-function fish | source
+        PowerShell: cw _shell-function powershell | Invoke-Expression
 
     Then use: cw-cd <branch>
 
@@ -968,8 +969,11 @@ def cd(
             console.print(
                 "[dim]To navigate directly to worktrees, install the cw-cd shell function:[/dim]"
             )
-            console.print("[dim]  bash/zsh:[/dim] source <(cw _shell-function bash)")
-            console.print("[dim]  fish:    [/dim] cw _shell-function fish | source")
+            console.print("[dim]  bash/zsh:  [/dim] source <(cw _shell-function bash)")
+            console.print("[dim]  fish:      [/dim] cw _shell-function fish | source")
+            console.print(
+                "[dim]  PowerShell:[/dim] cw _shell-function powershell | Invoke-Expression"
+            )
             console.print()
             console.print(f"[dim]Then use:[/dim] cw-cd {branch}")
     except ClaudeWorktreeError as e:
@@ -1021,7 +1025,7 @@ def worktree_path(
 def shell_function(
     shell: str = typer.Argument(
         ...,
-        help="Shell type (bash, zsh, or fish)",
+        help="Shell type (bash, zsh, fish, or powershell)",
     ),
 ) -> None:
     """
@@ -1031,13 +1035,14 @@ def shell_function(
     for the specified shell. Users can source it to enable cw-cd function.
 
     Example:
-        source <(cw _shell-function bash)
-        cw _shell-function fish | source
+        bash/zsh:   source <(cw _shell-function bash)
+        fish:       cw _shell-function fish | source
+        PowerShell: cw _shell-function powershell | Invoke-Expression
     """
     import sys
 
     shell = shell.lower()
-    valid_shells = ["bash", "zsh", "fish"]
+    valid_shells = ["bash", "zsh", "fish", "powershell", "pwsh"]
 
     if shell not in valid_shells:
         print(
@@ -1050,8 +1055,10 @@ def shell_function(
         # Read the shell function file
         if shell in ["bash", "zsh"]:
             shell_file = "cw.bash"
-        else:
+        elif shell == "fish":
             shell_file = "cw.fish"
+        else:  # powershell or pwsh
+            shell_file = "cw.ps1"
 
         # Use importlib.resources to read the file from the package
         try:

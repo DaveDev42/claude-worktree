@@ -103,18 +103,28 @@ This document tracks planned features, enhancements, and known issues for the cl
   - Impact: Windows developers can now use full tab completion features
   - Note: Command Prompt does not support tab completion (PowerShell only)
 
-- [ ] **Windows support for `cw-cd` shell function**
-  - Problem: `cw-cd` shell function only works on Unix shells (bash/zsh/fish)
-  - Solution: Add PowerShell function equivalent for Windows
-  - Current implementation: `cw _shell-function bash|zsh|fish` generates shell-specific code
-  - Windows implementation: `cw _shell-function powershell` for PowerShell users
-  - Features needed:
-    - `cw-cd <branch>` - Change directory to worktree by branch name
-    - Tab completion for branch names
-    - Error handling for non-existent worktrees
+- [x] **Windows support for `cw-cd` shell function** ✅ v0.10.16
+  - ~~Problem: `cw-cd` shell function only works on Unix shells (bash/zsh/fish)~~
+  - Solution: Added PowerShell function equivalent for Windows
+  - Implementation:
+    - Added `cw.ps1` PowerShell script in `shell_functions/`
+    - Updated `cli.py` to support `cw _shell-function powershell|pwsh`
+    - Implemented `cw-cd` function with tab completion for PowerShell
+  - Features implemented:
+    - ✅ `cw-cd <branch>` - Change directory to worktree by branch name
+    - ✅ Tab completion for branch names using `Register-ArgumentCompleter`
+    - ✅ Error handling for non-existent worktrees
+  - Documentation updated:
+    - README.md: Added PowerShell installation instructions
+    - docs/configuration.md: Added comprehensive PowerShell guide
+    - cli.py: Updated help text and examples
   - Impact: Full feature parity for Windows users
-  - File: `src/claude_worktree/cli.py` (add PowerShell template)
-  - Testing: Test on Windows PowerShell 5.1+ and PowerShell Core 7+
+  - Files modified:
+    - `src/claude_worktree/shell_functions/cw.ps1` (new)
+    - `src/claude_worktree/cli.py` (updated)
+    - `README.md` (updated)
+    - `docs/configuration.md` (updated)
+  - Testing: PowerShell 5.1+ and PowerShell Core 7+ supported
 
 ### AI Enhancements
 

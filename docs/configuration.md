@@ -439,8 +439,17 @@ source <(cw _shell-function bash)
 cw _shell-function fish | source
 ```
 
+**For PowerShell:**
+```powershell
+# Add to your PowerShell profile ($PROFILE)
+cw _shell-function powershell | Invoke-Expression
+```
+
+To find your PowerShell profile location, run `$PROFILE` in PowerShell.
+
 ### Usage
 
+**Unix shells (bash/zsh/fish):**
 ```bash
 # Navigate to any worktree by branch name
 cw-cd fix-auth
@@ -450,7 +459,24 @@ cw-cd feature-api
 cw-cd <TAB>
 ```
 
+**PowerShell:**
+```powershell
+# Navigate to any worktree by branch name
+cw-cd fix-auth
+cw-cd feature-api
+
+# Tab completion works too!
+cw-cd <TAB>
+```
+
 This changes the current directory to the worktree path.
+
+### Platform Support
+
+- ✅ **bash** (Linux/macOS/WSL)
+- ✅ **zsh** (Linux/macOS)
+- ✅ **fish** (Linux/macOS)
+- ✅ **PowerShell** (Windows 10+, PowerShell 5.1+ and PowerShell Core 7+)
 
 ## Environment Variables
 
