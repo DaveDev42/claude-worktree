@@ -934,8 +934,9 @@ def cd(
     actual directory navigation.
 
     To install the shell function:
-        bash/zsh: source <(cw _shell-function bash)
-        fish:     cw _shell-function fish | source
+        bash/zsh:   source <(cw _shell-function bash)
+        fish:       cw _shell-function fish | source
+        PowerShell: cw _shell-function powershell | Invoke-Expression
 
     Then use: cw-cd <branch>
 
@@ -968,8 +969,15 @@ def cd(
             console.print(
                 "[dim]To navigate directly to worktrees, install the cw-cd shell function:[/dim]"
             )
-            console.print("[dim]  bash/zsh:[/dim] source <(cw _shell-function bash)")
-            console.print("[dim]  fish:    [/dim] cw _shell-function fish | source")
+            console.print()
+            console.print("[bold]Quick setup:[/bold] [cyan]cw shell-setup[/cyan]")
+            console.print()
+            console.print("[dim]Or install manually:[/dim]")
+            console.print("[dim]  bash/zsh:  [/dim] source <(cw _shell-function bash)")
+            console.print("[dim]  fish:      [/dim] cw _shell-function fish | source")
+            console.print(
+                "[dim]  PowerShell:[/dim] cw _shell-function powershell | Invoke-Expression"
+            )
             console.print()
             console.print(f"[dim]Then use:[/dim] cw-cd {branch}")
     except ClaudeWorktreeError as e:
@@ -1017,11 +1025,126 @@ def worktree_path(
         raise typer.Exit(code=1)
 
 
+@app.command(name="shell-setup", rich_help_panel="Configuration")
+def shell_setup() -> None:
+    """
+    Interactive shell function setup assistant.
+
+    Automatically detects your shell and offers to add the cw-cd function
+    to your shell configuration file (.bashrc, .zshrc, config.fish, or $PROFILE).
+
+    Example:
+        cw shell-setup
+    """
+    import os
+    import sys
+
+    # Detect current shell
+    shell_name = None
+    profile_path = None
+
+    # Check SHELL environment variable (Unix)
+    shell_env = os.environ.get("SHELL", "")
+    if "bash" in shell_env:
+        shell_name = "bash"
+        profile_path = Path.home() / ".bashrc"
+    elif "zsh" in shell_env:
+        shell_name = "zsh"
+        profile_path = Path.home() / ".zshrc"
+    elif "fish" in shell_env:
+        shell_name = "fish"
+        profile_path = Path.home() / ".config" / "fish" / "config.fish"
+    # Check for PowerShell (Windows or cross-platform)
+    elif sys.platform == "win32" or os.environ.get("PSModulePath"):
+        shell_name = "powershell"
+        # PowerShell profile path varies, we'll provide instructions instead
+        profile_path = None
+
+    if not shell_name:
+        console.print("[yellow]Could not detect your shell automatically.[/yellow]")
+        console.print("\nPlease manually add the cw-cd function to your shell:")
+        console.print("\n[bold]bash/zsh:[/bold]")
+        console.print("  source <(cw _shell-function bash)")
+        console.print("\n[bold]fish:[/bold]")
+        console.print("  cw _shell-function fish | source")
+        console.print("\n[bold]PowerShell:[/bold]")
+        console.print("  cw _shell-function powershell | Invoke-Expression")
+        raise typer.Exit(code=0)
+
+    console.print(f"[bold cyan]Detected shell:[/bold cyan] {shell_name}\n")
+
+    if shell_name == "powershell":
+        # PowerShell: provide instructions instead of auto-install
+        console.print(
+            "[bold]To enable cw-cd in PowerShell, add the following to your $PROFILE:[/bold]\n"
+        )
+        console.print("[cyan]cw _shell-function powershell | Invoke-Expression[/cyan]\n")
+        console.print("To find your PowerShell profile location, run: [cyan]$PROFILE[/cyan]")
+        console.print(
+            "\nIf the profile file doesn't exist, create it with: [cyan]New-Item -Path $PROFILE -ItemType File -Force[/cyan]"
+        )
+        raise typer.Exit(code=0)
+
+    # Unix shells: offer to add to profile
+    if shell_name in ["bash", "zsh"]:
+        setup_line = "source <(cw _shell-function bash)"
+    else:  # fish
+        setup_line = "cw _shell-function fish | source"
+
+    # Check if already installed
+    if profile_path and profile_path.exists():
+        content = profile_path.read_text()
+        if "cw _shell-function" in content or "cw-cd" in content:
+            console.print("[green]✓[/green] cw-cd function is already installed!\n")
+            console.print(f"Found in: [dim]{profile_path}[/dim]")
+            raise typer.Exit(code=0)
+
+    # Offer to install
+    console.print("[bold]Setup cw-cd function?[/bold]")
+    console.print(f"\nThis will add the following line to [cyan]{profile_path}[/cyan]:")
+    console.print(f"\n  [dim]{setup_line}[/dim]\n")
+
+    response = typer.confirm("Add to your shell profile?", default=True)
+
+    if not response:
+        console.print("\n[yellow]Setup cancelled.[/yellow]")
+        console.print(f"\nTo install manually, add this to {profile_path}:")
+        console.print(f"  {setup_line}")
+        raise typer.Exit(code=0)
+
+    if not profile_path:
+        console.print("\n[yellow]Could not determine profile path.[/yellow]")
+        console.print("\nTo install manually, add this to your shell profile:")
+        console.print(f"  {setup_line}")
+        raise typer.Exit(code=1)
+
+    try:
+        # Create parent directories if needed
+        profile_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Append to profile file
+        with profile_path.open("a") as f:
+            f.write("\n# claude-worktree shell function\n")
+            f.write(f"{setup_line}\n")
+
+        console.print(f"\n[bold green]✓[/bold green] Successfully added to {profile_path}")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print(f"  1. Restart your shell or run: [cyan]source {profile_path}[/cyan]")
+        console.print("  2. Try it out: [cyan]cw-cd <branch-name>[/cyan]")
+        console.print("  3. Tab completion works too: [cyan]cw-cd <TAB>[/cyan]")
+
+    except Exception as e:
+        console.print(f"\n[bold red]Error:[/bold red] Failed to update {profile_path}: {e}")
+        console.print(f"\nTo install manually, add this to {profile_path}:")
+        console.print(f"  {setup_line}")
+        raise typer.Exit(code=1)
+
+
 @app.command(name="_shell-function", hidden=True)
 def shell_function(
     shell: str = typer.Argument(
         ...,
-        help="Shell type (bash, zsh, or fish)",
+        help="Shell type (bash, zsh, fish, or powershell)",
     ),
 ) -> None:
     """
@@ -1031,13 +1154,14 @@ def shell_function(
     for the specified shell. Users can source it to enable cw-cd function.
 
     Example:
-        source <(cw _shell-function bash)
-        cw _shell-function fish | source
+        bash/zsh:   source <(cw _shell-function bash)
+        fish:       cw _shell-function fish | source
+        PowerShell: cw _shell-function powershell | Invoke-Expression
     """
     import sys
 
     shell = shell.lower()
-    valid_shells = ["bash", "zsh", "fish"]
+    valid_shells = ["bash", "zsh", "fish", "powershell", "pwsh"]
 
     if shell not in valid_shells:
         print(
@@ -1050,8 +1174,10 @@ def shell_function(
         # Read the shell function file
         if shell in ["bash", "zsh"]:
             shell_file = "cw.bash"
-        else:
+        elif shell == "fish":
             shell_file = "cw.fish"
+        else:  # powershell or pwsh
+            shell_file = "cw.ps1"
 
         # Use importlib.resources to read the file from the package
         try:

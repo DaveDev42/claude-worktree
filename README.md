@@ -137,11 +137,18 @@ cw resume <TAB>   # Shows branch names
 **Quick navigation between worktrees:**
 
 ```bash
+# Interactive setup (recommended):
+cw shell-setup
+
+# Or install manually:
 # bash/zsh: Add to ~/.bashrc or ~/.zshrc
 source <(cw _shell-function bash)
 
 # fish: Add to ~/.config/fish/config.fish
 cw _shell-function fish | source
+
+# PowerShell: Add to $PROFILE
+cw _shell-function powershell | Invoke-Expression
 
 # Then use:
 cw-cd feature-api    # Jump to any worktree instantly

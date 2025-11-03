@@ -372,3 +372,85 @@ def test_merge_command_flags(temp_git_repo: Path) -> None:
     assert "push" in result.stdout
     assert "interactive" in result.stdout and "-i" in result.stdout
     assert "dry" in result.stdout and "run" in result.stdout
+
+
+# Shell function tests
+
+
+def test_shell_function_help() -> None:
+    """Test _shell-function command help."""
+    result = runner.invoke(app, ["_shell-function", "--help"])
+    assert result.exit_code == 0
+    assert "shell function" in result.stdout.lower()
+
+
+def test_shell_function_bash() -> None:
+    """Test _shell-function outputs bash script."""
+    result = runner.invoke(app, ["_shell-function", "bash"])
+    assert result.exit_code == 0
+    assert "cw-cd()" in result.stdout
+    assert "bash" in result.stdout.lower() or "zsh" in result.stdout.lower()
+    assert "_cw_cd_completion" in result.stdout
+
+
+def test_shell_function_zsh() -> None:
+    """Test _shell-function outputs zsh script."""
+    result = runner.invoke(app, ["_shell-function", "zsh"])
+    assert result.exit_code == 0
+    assert "cw-cd()" in result.stdout
+    assert "_cw_cd_zsh" in result.stdout
+
+
+def test_shell_function_fish() -> None:
+    """Test _shell-function outputs fish script."""
+    result = runner.invoke(app, ["_shell-function", "fish"])
+    assert result.exit_code == 0
+    assert "function cw-cd" in result.stdout
+    assert "complete -c cw-cd" in result.stdout
+
+
+def test_shell_function_powershell() -> None:
+    """Test _shell-function outputs PowerShell script."""
+    result = runner.invoke(app, ["_shell-function", "powershell"])
+    assert result.exit_code == 0
+    assert "function cw-cd" in result.stdout
+    assert "Register-ArgumentCompleter" in result.stdout
+    assert "Set-Location" in result.stdout
+
+
+def test_shell_function_pwsh_alias() -> None:
+    """Test _shell-function accepts 'pwsh' as PowerShell alias."""
+    result = runner.invoke(app, ["_shell-function", "pwsh"])
+    assert result.exit_code == 0
+    assert "function cw-cd" in result.stdout
+    assert "Register-ArgumentCompleter" in result.stdout
+
+
+def test_shell_function_invalid_shell() -> None:
+    """Test _shell-function rejects invalid shell."""
+    result = runner.invoke(app, ["_shell-function", "invalid"])
+    assert result.exit_code != 0
+    assert "Error" in result.stderr or "Invalid" in result.stderr
+
+
+def test_shell_setup_help() -> None:
+    """Test shell-setup command help."""
+    result = runner.invoke(app, ["shell-setup", "--help"])
+    assert result.exit_code == 0
+    assert "shell" in result.stdout.lower()
+    assert "setup" in result.stdout.lower() or "install" in result.stdout.lower()
+
+
+def test_cd_command_suggests_shell_setup(temp_git_repo: Path, disable_claude) -> None:
+    """Test cd command suggests shell-setup."""
+    # Create worktree
+    runner.invoke(app, ["new", "setup-test", "--no-cd"])
+
+    # Get path via cd command (without --print)
+    result = runner.invoke(app, ["cd", "setup-test"])
+    assert result.exit_code == 0
+    # Should suggest shell-setup
+    assert "shell-setup" in result.stdout
+
+    # Clean up
+    runner.invoke(app, ["delete", "setup-test"])
