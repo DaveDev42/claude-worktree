@@ -1,6 +1,8 @@
 """Git operations wrapper utilities."""
 
+import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -247,6 +249,51 @@ def has_command(name: str) -> bool:
     from shutil import which
 
     return bool(which(name))
+
+
+def is_non_interactive() -> bool:
+    """
+    Check if running in non-interactive environment.
+
+    Detects non-interactive environments where user input prompts should be skipped:
+    - CI/CD environments (GitHub Actions, GitLab CI, Jenkins, etc.)
+    - Scripted/automated execution
+    - SSH without TTY
+    - Explicit non-interactive flag
+
+    Returns:
+        True if non-interactive environment detected, False otherwise
+
+    Environment Variables:
+        CW_NON_INTERACTIVE: Set to '1' or 'true' to force non-interactive mode
+        CI: Common CI environment indicator
+        GITHUB_ACTIONS, GITLAB_CI, JENKINS_HOME, etc.: CI-specific variables
+    """
+    # Check explicit non-interactive flag
+    non_interactive_env = os.environ.get("CW_NON_INTERACTIVE", "").lower()
+    if non_interactive_env in ("1", "true", "yes"):
+        return True
+
+    # Check if stdin is not a TTY (e.g., piped input, redirected stdin)
+    if not sys.stdin.isatty():
+        return True
+
+    # Check for common CI environment variables
+    ci_vars = [
+        "CI",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "JENKINS_HOME",
+        "CIRCLECI",
+        "TRAVIS",
+        "BUILDKITE",
+        "DRONE",
+        "BITBUCKET_PIPELINE",
+        "CODEBUILD_BUILD_ID",  # AWS CodeBuild
+        "PYTEST_CURRENT_TEST",  # Running in pytest
+    ]
+
+    return any(os.environ.get(var) for var in ci_vars)
 
 
 def is_valid_branch_name(branch_name: str, repo: Path | None = None) -> bool:

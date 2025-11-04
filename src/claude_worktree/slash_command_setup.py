@@ -1,8 +1,6 @@
 """Slash command setup for Happy, Claude Code, and Codex."""
 
-import os
 import shutil
-import sys
 from pathlib import Path
 
 import typer
@@ -178,18 +176,16 @@ def prompt_slash_command_setup() -> None:
     """Prompt user to install /cw slash command on first run.
 
     This function:
-    1. Checks if we're in a TTY (skip in scripts/tests)
+    1. Checks if we're in a non-interactive environment (skip in CI/scripts/tests)
     2. Checks if user was already prompted (skip if yes)
     3. Detects installed AI tools
     4. Asks user if they want to install slash command
     5. Updates config with user's choice
     """
-    # Don't prompt if stdin is not a TTY
-    if not sys.stdin.isatty():
-        return
+    # Don't prompt in non-interactive environments (CI, scripts, tests, SSH without TTY, etc.)
+    from .git_utils import is_non_interactive
 
-    # Don't prompt in CI/test environment
-    if os.environ.get("CI") or os.environ.get("PYTEST_CURRENT_TEST"):
+    if is_non_interactive():
         return
 
     config = load_config()

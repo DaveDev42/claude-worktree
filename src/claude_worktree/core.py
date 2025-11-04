@@ -369,6 +369,14 @@ def finish_worktree(
         """Prompt user to confirm a step in interactive mode."""
         if not interactive:
             return True
+
+        # Check if running in non-interactive environment
+        from .git_utils import is_non_interactive
+
+        if is_non_interactive():
+            # In non-interactive mode, auto-confirm all steps
+            return True
+
         console.print(f"\n[bold yellow]Next step: {step_name}[/bold yellow]")
         response = input("Continue? [Y/n/q]: ").strip().lower()
         if response in ["q", "quit"]:
@@ -415,38 +423,49 @@ def finish_worktree(
                 console.print(f"  • {file}")
             console.print()
 
-            from rich.prompt import Confirm
+            # Check if running in non-interactive environment
+            from .git_utils import is_non_interactive
 
-            if Confirm.ask("Would you like AI to help resolve these conflicts?", default=True):
-                console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
+            if is_non_interactive():
+                # In non-interactive mode, skip AI assistance prompt
+                console.print(
+                    "[dim]AI merge assistance is not available in non-interactive environments.[/dim]"
+                )
+                console.print("[dim]Resolve conflicts manually and continue.[/dim]\n")
+            else:
+                # Interactive mode: ask user
+                from rich.prompt import Confirm
 
-                # Create context message for AI
-                context = "# Merge Conflict Resolution\n\n"
-                context += f"Branch '{feature_branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
-                context += f"Conflicted files ({len(conflicted_files)}):\n"
-                for file in conflicted_files:
-                    context += f"  - {file}\n"
-                context += "\n"
-                context += "Please help resolve these conflicts. For each file:\n"
-                context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
-                context += "2. Choose or merge the appropriate changes\n"
-                context += "3. Remove the conflict markers\n"
-                context += "4. Stage the resolved files with: git add <file>\n"
-                context += "5. Continue the rebase with: git rebase --continue\n"
+                if Confirm.ask("Would you like AI to help resolve these conflicts?", default=True):
+                    console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
 
-                # Save context to temporary file
-                from .session_manager import save_context
+                    # Create context message for AI
+                    context = "# Merge Conflict Resolution\n\n"
+                    context += f"Branch '{feature_branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
+                    context += f"Conflicted files ({len(conflicted_files)}):\n"
+                    for file in conflicted_files:
+                        context += f"  - {file}\n"
+                    context += "\n"
+                    context += "Please help resolve these conflicts. For each file:\n"
+                    context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
+                    context += "2. Choose or merge the appropriate changes\n"
+                    context += "3. Remove the conflict markers\n"
+                    context += "4. Stage the resolved files with: git add <file>\n"
+                    context += "5. Continue the rebase with: git rebase --continue\n"
 
-                save_context(feature_branch, context)
+                    # Save context to temporary file
+                    from .session_manager import save_context
 
-                # Launch AI tool in the worktree
-                launch_ai_tool(cwd, bg=False)
+                    save_context(feature_branch, context)
 
-                console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
-                console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
-                console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
-                console.print("  3. Re-run: [cyan]cw finish[/cyan]\n")
-                sys.exit(0)
+                    # Launch AI tool in the worktree
+                    launch_ai_tool(cwd, bg=False)
+
+                    console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
+                    console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
+                    console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
+                    console.print("  3. Re-run: [cyan]cw finish[/cyan]\n")
+                    sys.exit(0)
 
         # Abort the rebase
         git_command("rebase", "--abort", repo=cwd, check=False)
@@ -881,40 +900,51 @@ def sync_worktree(
                     console.print(f"  • {file}")
                 console.print()
 
-                from rich.prompt import Confirm
+                # Check if running in non-interactive environment
+                from .git_utils import is_non_interactive
 
-                if Confirm.ask("Would you like AI to help resolve these conflicts?", default=True):
-                    console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
-
-                    # Create context message for AI
-                    context = "# Sync Rebase Conflict Resolution\n\n"
-                    context += (
-                        f"Branch '{branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
+                if is_non_interactive():
+                    # In non-interactive mode, skip AI assistance prompt
+                    console.print(
+                        "[dim]AI merge assistance is not available in non-interactive environments.[/dim]"
                     )
-                    context += f"Conflicted files ({len(conflicted_files)}):\n"
-                    for file in conflicted_files:
-                        context += f"  - {file}\n"
-                    context += "\n"
-                    context += "Please help resolve these conflicts. For each file:\n"
-                    context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
-                    context += "2. Choose or merge the appropriate changes\n"
-                    context += "3. Remove the conflict markers\n"
-                    context += "4. Stage the resolved files with: git add <file>\n"
-                    context += "5. Continue the rebase with: git rebase --continue\n"
+                    console.print("[dim]Resolve conflicts manually and continue.[/dim]\n")
+                else:
+                    # Interactive mode: ask user
+                    from rich.prompt import Confirm
 
-                    # Save context to temporary file
-                    from .session_manager import save_context
+                    if Confirm.ask(
+                        "Would you like AI to help resolve these conflicts?", default=True
+                    ):
+                        console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
 
-                    save_context(branch, context)
+                        # Create context message for AI
+                        context = "# Sync Rebase Conflict Resolution\n\n"
+                        context += f"Branch '{branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
+                        context += f"Conflicted files ({len(conflicted_files)}):\n"
+                        for file in conflicted_files:
+                            context += f"  - {file}\n"
+                        context += "\n"
+                        context += "Please help resolve these conflicts. For each file:\n"
+                        context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
+                        context += "2. Choose or merge the appropriate changes\n"
+                        context += "3. Remove the conflict markers\n"
+                        context += "4. Stage the resolved files with: git add <file>\n"
+                        context += "5. Continue the rebase with: git rebase --continue\n"
 
-                    # Launch AI tool in the worktree
-                    launch_ai_tool(worktree_path, bg=False)
+                        # Save context to temporary file
+                        from .session_manager import save_context
 
-                    console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
-                    console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
-                    console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
-                    console.print("  3. Re-run: [cyan]cw sync[/cyan]\n")
-                    sys.exit(0)
+                        save_context(branch, context)
+
+                        # Launch AI tool in the worktree
+                        launch_ai_tool(worktree_path, bg=False)
+
+                        console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
+                        console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
+                        console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
+                        console.print("  3. Re-run: [cyan]cw sync[/cyan]\n")
+                        sys.exit(0)
 
             # Abort the rebase
             git_command("rebase", "--abort", repo=worktree_path, check=False)
@@ -1128,6 +1158,16 @@ def clean_worktrees(
 
     # Interactive mode: let user select which ones to delete
     if interactive:
+        # Check if running in non-interactive environment
+        from .git_utils import is_non_interactive
+
+        if is_non_interactive():
+            console.print(
+                "[yellow]⚠[/yellow] Interactive mode (--interactive) not available in non-interactive environments."
+            )
+            console.print("[dim]Use specific criteria instead: --merged, --older-than[/dim]\n")
+            return
+
         console.print("[bold cyan]Available worktrees:[/bold cyan]\n")
         all_worktrees: list[tuple[str, str, str]] = []
         for branch, path in parse_worktrees(repo):
@@ -1171,11 +1211,21 @@ def clean_worktrees(
 
     # Confirm deletion (unless in non-interactive mode with specific criteria)
     if interactive or len(worktrees_to_delete) > 3:
-        console.print(f"[bold red]Delete {len(worktrees_to_delete)} worktree(s)?[/bold red]")
-        confirm = input("Type 'yes' to confirm: ").strip().lower()
-        if confirm != "yes":
-            console.print("[yellow]Deletion cancelled[/yellow]")
-            return
+        # Check if running in non-interactive environment
+        from .git_utils import is_non_interactive
+
+        if is_non_interactive():
+            # In non-interactive mode with specific criteria, auto-confirm
+            console.print(
+                f"[dim]Auto-confirming deletion of {len(worktrees_to_delete)} worktree(s) in non-interactive mode...[/dim]"
+            )
+        else:
+            # Interactive mode: ask for confirmation
+            console.print(f"[bold red]Delete {len(worktrees_to_delete)} worktree(s)?[/bold red]")
+            confirm = input("Type 'yes' to confirm: ").strip().lower()
+            if confirm != "yes":
+                console.print("[yellow]Deletion cancelled[/yellow]")
+                return
 
     # Delete worktrees
     console.print()
