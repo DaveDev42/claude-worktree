@@ -43,10 +43,13 @@ def is_slash_command_installed() -> bool:
     """Check if /cw slash command is installed.
 
     Returns:
-        True if ~/.claude/commands/cw.md exists
+        True if at least one of the slash command files exists:
+        - ~/.claude/commands/cw.md (Claude Code, Happy)
+        - ~/.codex/prompts/cw.md (Codex)
     """
-    target_file = Path.home() / ".claude" / "commands" / "cw.md"
-    return target_file.exists()
+    claude_file = Path.home() / ".claude" / "commands" / "cw.md"
+    codex_file = Path.home() / ".codex" / "prompts" / "cw.md"
+    return claude_file.exists() or codex_file.exists()
 
 
 def can_use_slash_commands() -> bool:
@@ -59,49 +62,76 @@ def can_use_slash_commands() -> bool:
 
 
 def install_slash_command() -> bool:
-    """Install /cw slash command to ~/.claude/commands/
+    """Install /cw slash command to appropriate directories.
+
+    Installs to:
+    - ~/.claude/commands/cw.md (for Claude Code and Happy)
+    - ~/.codex/prompts/cw.md (for Codex)
 
     Returns:
-        True if installation succeeded, False otherwise
+        True if at least one installation succeeded, False if all failed
     """
-    target_dir = Path.home() / ".claude" / "commands"
-    target_file = target_dir / "cw.md"
+    installed_tools = detect_ai_tools()
+    success_count = 0
+    total_attempts = 0
 
+    # Read bundled command file from package
     try:
-        # Create directory
-        target_dir.mkdir(parents=True, exist_ok=True)
+        # Python 3.9+
+        from importlib.resources import files
 
-        # Read bundled command file from package
+        slash_commands_dir = files("claude_worktree").joinpath("slash_commands")
+        command_content = (slash_commands_dir / "cw.md").read_text()
+    except (ImportError, AttributeError):
+        # Python 3.8 fallback
+        import importlib.resources as pkg_resources
+
+        command_content = pkg_resources.read_text("claude_worktree.slash_commands", "cw.md")
+
+    # Install for Claude Code / Happy (shared directory)
+    if installed_tools.get("claude") or installed_tools.get("happy"):
+        total_attempts += 1
+        claude_dir = Path.home() / ".claude" / "commands"
+        claude_file = claude_dir / "cw.md"
+
         try:
-            # Python 3.9+
-            from importlib.resources import files
+            claude_dir.mkdir(parents=True, exist_ok=True)
+            claude_file.write_text(command_content)
+            console.print(
+                f"[bold green]✓[/bold green] Installed for Claude Code/Happy: {claude_file}"
+            )
+            success_count += 1
+        except Exception as e:
+            console.print(f"[bold red]✗[/bold red] Failed to install for Claude Code/Happy: {e}")
 
-            slash_commands_dir = files("claude_worktree").joinpath("slash_commands")
-            command_content = (slash_commands_dir / "cw.md").read_text()
-        except (ImportError, AttributeError):
-            # Python 3.8 fallback
-            import importlib.resources as pkg_resources
+    # Install for Codex (separate directory)
+    if installed_tools.get("codex"):
+        total_attempts += 1
+        codex_dir = Path.home() / ".codex" / "prompts"
+        codex_file = codex_dir / "cw.md"
 
-            command_content = pkg_resources.read_text("claude_worktree.slash_commands", "cw.md")
+        try:
+            codex_dir.mkdir(parents=True, exist_ok=True)
+            codex_file.write_text(command_content)
+            console.print(f"[bold green]✓[/bold green] Installed for Codex: {codex_file}")
+            success_count += 1
+        except Exception as e:
+            console.print(f"[bold red]✗[/bold red] Failed to install for Codex: {e}")
 
-        # Write to user directory
-        target_file.write_text(command_content)
-
-        console.print(f"\n[bold green]✓[/bold green] Installed /cw command to {target_file}")
+    if success_count > 0:
         console.print("\n[bold]Usage in your AI session:[/bold]")
         console.print("  [cyan]/cw new feature-name[/cyan]")
         console.print("  [cyan]/cw list[/cyan]")
         console.print("  [cyan]/cw resume fix-auth[/cyan]")
         console.print("\n[dim]Restart your AI tool session to activate the command.[/dim]")
-
         return True
-
-    except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] Failed to install slash command: {e}")
+    else:
+        console.print("\n[bold red]Error:[/bold red] Failed to install slash command")
         console.print("\n[yellow]Manual installation:[/yellow]")
-        console.print("Create ~/.claude/commands/cw.md with the following content:")
+        console.print("  Claude Code/Happy: ~/.claude/commands/cw.md")
+        console.print("  Codex: ~/.codex/prompts/cw.md")
         console.print(
-            "  https://github.com/DaveDev42/claude-worktree/blob/main/slash-commands/cw.md"
+            "  Template: https://github.com/DaveDev42/claude-worktree/blob/main/src/claude_worktree/slash_commands/cw.md"
         )
         return False
 
@@ -158,9 +188,9 @@ def prompt_slash_command_setup() -> None:
     console.print(f"\nDetected AI tools: [bold]{tools_str}[/bold]")
     console.print("\nWould you like to enable [cyan]/cw[/cyan] commands in your AI sessions?")
     console.print("This lets you run worktree commands directly from Happy/Claude/Codex:\n")
-    console.print("  [dim]/cw new feature-name")
-    console.print("  /cw list")
-    console.print("  /cw resume fix-auth[/dim]\n")
+    console.print("  [dim]/cw new feature-name[/dim]")
+    console.print("  [dim]/cw list[/dim]")
+    console.print("  [dim]/cw resume fix-auth[/dim]\n")
 
     try:
         response = typer.confirm("Install /cw slash command?", default=True)
