@@ -4,7 +4,8 @@ import subprocess
 import time
 from pathlib import Path
 
-from claude_worktree.core import format_age, show_stats
+from claude_worktree.helpers import format_age
+from claude_worktree.operations import show_stats
 
 
 def test_show_stats_no_worktrees(temp_git_repo: Path, monkeypatch, capsys) -> None:

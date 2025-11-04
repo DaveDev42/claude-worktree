@@ -19,7 +19,9 @@ from .config import (
 from .config import (
     list_presets as list_ai_presets,
 )
-from .core import (
+from .exceptions import ClaudeWorktreeError
+from .git_utils import get_repo_root, normalize_branch_name, parse_worktrees
+from .operations import (
     backup_worktree,
     change_base_branch,
     create_pr_worktree,
@@ -35,8 +37,6 @@ from .core import (
     shell_worktree,
     show_status,
 )
-from .exceptions import ClaudeWorktreeError
-from .git_utils import get_repo_root, normalize_branch_name, parse_worktrees
 from .slash_command_setup import (
     get_installed_ai_tools,
     install_slash_command,
@@ -575,7 +575,7 @@ def clean(
         cw clean --merged --dry-run # Preview merged worktrees
     """
     try:
-        from .core import clean_worktrees
+        from .operations import clean_worktrees
 
         clean_worktrees(
             merged=merged,
@@ -677,7 +677,7 @@ def sync(
         cw sync --ai-merge         # Get AI help with conflicts
     """
     try:
-        from .core import sync_worktree
+        from .operations import sync_worktree
 
         sync_worktree(
             target=target, all_worktrees=all_worktrees, fetch_only=fetch_only, ai_merge=ai_merge
@@ -762,7 +762,7 @@ def doctor() -> None:
         cw doctor    # Run full health check
     """
     try:
-        from .core import doctor as run_doctor
+        from .operations import doctor as run_doctor
 
         run_doctor()
     except ClaudeWorktreeError as e:
@@ -813,7 +813,7 @@ def diff(
         cw diff fix-auth hotfix-bug -f      # Compare two feature branches
     """
     try:
-        from .core import diff_worktrees
+        from .operations import diff_worktrees
 
         diff_worktrees(branch1=branch1, branch2=branch2, summary=summary, files=files)
     except ClaudeWorktreeError as e:
@@ -836,7 +836,7 @@ def tree() -> None:
         cw tree
     """
     try:
-        from .core import show_tree
+        from .operations import show_tree
 
         show_tree()
     except ClaudeWorktreeError as e:
@@ -860,7 +860,7 @@ def stats() -> None:
         cw stats
     """
     try:
-        from .core import show_stats
+        from .operations import show_stats
 
         show_stats()
     except ClaudeWorktreeError as e:
@@ -1386,7 +1386,7 @@ def stash_save_cmd(
         cw stash save "work in progress"  # Stash with custom message
     """
     try:
-        from .core import stash_save
+        from .operations import stash_save
 
         stash_save(message=message)
     except ClaudeWorktreeError as e:
@@ -1406,7 +1406,7 @@ def stash_list_cmd() -> None:
         cw stash list
     """
     try:
-        from .core import stash_list
+        from .operations import stash_list
 
         stash_list()
     except ClaudeWorktreeError as e:
@@ -1439,7 +1439,7 @@ def stash_apply_cmd(
         cw stash apply feature-api --stash stash@{1}  # Apply specific stash
     """
     try:
-        from .core import stash_apply
+        from .operations import stash_apply
 
         stash_apply(target_branch=target_branch, stash_ref=stash_ref)
     except ClaudeWorktreeError as e:

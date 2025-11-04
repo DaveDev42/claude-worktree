@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from claude_worktree.core import stash_apply, stash_list, stash_save
 from claude_worktree.exceptions import GitError, WorktreeNotFoundError
+from claude_worktree.operations import stash_apply, stash_list, stash_save
 
 
 def test_stash_save_with_message(temp_git_repo: Path, monkeypatch) -> None:

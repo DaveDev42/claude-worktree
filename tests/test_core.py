@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from claude_worktree.core import (
+from claude_worktree.exceptions import (
+    GitError,
+    InvalidBranchError,
+    WorktreeNotFoundError,
+)
+from claude_worktree.operations import (
     change_base_branch,
     create_pr_worktree,
     create_worktree,
@@ -16,11 +21,6 @@ from claude_worktree.core import (
     merge_worktree,
     resume_worktree,
     show_status,
-)
-from claude_worktree.exceptions import (
-    GitError,
-    InvalidBranchError,
-    WorktreeNotFoundError,
 )
 
 
@@ -599,19 +599,19 @@ def test_resume_worktree_creates_session_metadata(
 
 def test_launch_ai_tool_with_iterm_tab(temp_git_repo: Path, mocker) -> None:
     """Test launch_ai_tool with iterm_tab parameter on macOS."""
-    from claude_worktree.core import launch_ai_tool
+    from claude_worktree.operations import launch_ai_tool
 
     # Override autouse fixture - enable AI tool for this test
     mocker.patch.dict("os.environ", {"CW_AI_TOOL": "claude"})
 
     # Mock has_command to return True for AI tool
-    mocker.patch("claude_worktree.core.has_command", return_value=True)
+    mocker.patch("claude_worktree.git_utils.has_command", return_value=True)
 
     # Mock sys.platform to be darwin (macOS)
-    mocker.patch("claude_worktree.core.sys.platform", "darwin")
+    mocker.patch("claude_worktree.operations.ai_tools.sys.platform", "darwin")
 
     # Mock subprocess.run to capture the AppleScript command
-    mock_run = mocker.patch("claude_worktree.core.subprocess.run")
+    mock_run = mocker.patch("claude_worktree.operations.ai_tools.subprocess.run")
 
     # Call launch_ai_tool with iterm_tab=True
     launch_ai_tool(temp_git_repo, iterm_tab=True)
@@ -635,17 +635,17 @@ def test_launch_ai_tool_with_iterm_tab(temp_git_repo: Path, mocker) -> None:
 
 def test_launch_ai_tool_with_iterm_tab_non_macos(temp_git_repo: Path, mocker) -> None:
     """Test that iterm_tab raises error on non-macOS platforms."""
-    from claude_worktree.core import launch_ai_tool
     from claude_worktree.exceptions import GitError
+    from claude_worktree.operations import launch_ai_tool
 
     # Override autouse fixture - enable AI tool for this test
     mocker.patch.dict("os.environ", {"CW_AI_TOOL": "claude"})
 
     # Mock has_command to return True for AI tool
-    mocker.patch("claude_worktree.core.has_command", return_value=True)
+    mocker.patch("claude_worktree.git_utils.has_command", return_value=True)
 
     # Mock sys.platform to be linux (non-macOS)
-    mocker.patch("claude_worktree.core.sys.platform", "linux")
+    mocker.patch("claude_worktree.operations.ai_tools.sys.platform", "linux")
 
     # Should raise GitError on non-macOS
     with pytest.raises(GitError, match="--iterm-tab option only works on macOS"):
@@ -671,7 +671,7 @@ def test_create_pr_worktree_missing_gh_cli(temp_git_repo: Path, disable_claude, 
     )
 
     # Mock has_command to return False for gh
-    mocker.patch("claude_worktree.core.has_command", return_value=False)
+    mocker.patch("claude_worktree.git_utils.has_command", return_value=False)
 
     # Should raise GitError about missing gh CLI
     with pytest.raises(GitError, match="GitHub CLI \\(gh\\) is required"):
@@ -702,7 +702,7 @@ def test_create_pr_worktree_no_push(
     monkeypatch.chdir(worktree_path)
 
     # Mock has_command to return True for gh
-    mocker.patch("claude_worktree.core.has_command", return_value=True)
+    mocker.patch("claude_worktree.git_utils.has_command", return_value=True)
 
     # Mock subprocess.run only for gh pr create
     original_run = subprocess.run
@@ -716,7 +716,9 @@ def test_create_pr_worktree_no_push(
         # Use original subprocess.run for git commands
         return original_run(cmd, *args, **kwargs)
 
-    mocker.patch("claude_worktree.core.subprocess.run", side_effect=mock_subprocess_run)
+    mocker.patch(
+        "claude_worktree.operations.git_ops.subprocess.run", side_effect=mock_subprocess_run
+    )
 
     # Create PR without pushing
     create_pr_worktree(push=False)
@@ -1088,8 +1090,8 @@ def test_sync_worktree_with_ai_merge_conflicts(
     temp_git_repo: Path, disable_claude, monkeypatch
 ) -> None:
     """Test sync with --ai-merge when conflicts occur."""
-    from claude_worktree.core import sync_worktree
     from claude_worktree.exceptions import RebaseError
+    from claude_worktree.operations import sync_worktree
 
     # Create develop branch with conflicting change
     subprocess.run(
@@ -1150,7 +1152,7 @@ def test_sync_worktree_with_ai_merge_conflicts(
 
 def test_sync_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
     """Test successful sync without conflicts."""
-    from claude_worktree.core import sync_worktree
+    from claude_worktree.operations import sync_worktree
 
     # Create worktree
     worktree_path = create_worktree(

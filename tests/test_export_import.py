@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 
 from claude_worktree.config import load_config, save_config
-from claude_worktree.core import create_worktree, export_config, import_config
 from claude_worktree.exceptions import GitError
 from claude_worktree.git_utils import get_config
+from claude_worktree.operations import create_worktree, export_config, import_config
 
 
 def test_export_config_basic(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
