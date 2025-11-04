@@ -38,6 +38,13 @@ AI_TOOL_PRESETS = {
 # Predefined resume commands for AI tools that use different resume syntax
 # If a preset is not listed here, the default behavior is to append "--resume" flag
 AI_TOOL_RESUME_PRESETS = {
+    # Claude uses --continue flag instead of --resume
+    "claude": ["claude", "--continue"],
+    "claude-yolo": ["claude", "--dangerously-skip-permissions", "--continue"],
+    # Happy uses --continue flag (inherits from Claude Code)
+    "happy": ["happy", "--continue"],
+    "happy-codex": ["happy", "codex", "--permission-mode", "bypassPermissions", "--continue"],
+    "happy-yolo": ["happy", "--yolo", "--continue"],
     # Codex uses subcommand syntax: "codex resume [OPTIONS]" instead of "codex [OPTIONS] --resume"
     "codex": ["codex", "resume", "--last"],
     "codex-yolo": ["codex", "resume", "--dangerously-bypass-approvals-and-sandbox", "--last"],
