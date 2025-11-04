@@ -127,73 +127,6 @@ cw delete experiment
 cw backup restore experiment
 ```
 
-## Template Management
-
-Save and reuse common worktree setups across projects.
-
-### Creating Templates
-
-```bash
-# Create template from current directory
-cw template create my-python-setup
-
-# Create from specific path
-cw template create my-setup /path/to/template
-
-# Add description
-cw template create my-setup . -d "My project template"
-```
-
-Templates capture the directory structure and files, useful for:
-- Project scaffolding
-- Common configuration files
-- Testing setups
-- CI/CD workflows
-
-### Listing Templates
-
-```bash
-# List all templates
-cw template list
-
-# Show template details
-cw template show my-setup
-```
-
-### Applying Templates
-
-```bash
-# Apply to current directory
-cw template apply my-setup
-
-# Apply to specific path
-cw template apply my-setup ../feature
-```
-
-Files from the template are copied to the target directory.
-
-### Deleting Templates
-
-```bash
-cw template delete my-setup
-```
-
-### Workflow Example
-
-```bash
-# Create a template from current worktree
-cd myproject-feature
-cw template create python-api -d "Python API with tests"
-
-# Apply template to new worktrees
-cw new another-feature
-cw template apply python-api
-
-# Share templates across projects
-cw template list
-cw template show python-api
-```
-
 ## Stash Management
 
 Worktree-aware stashing makes it easy to move work-in-progress between worktrees.
@@ -678,16 +611,7 @@ Backup before risky operations:
 cw backup create my-feature
 ```
 
-### 5. Use Templates
-
-Create templates for common setups:
-
-```bash
-# Save successful setups as templates
-cw template create my-workflow
-```
-
-### 6. Consistent Naming
+### 5. Consistent Naming
 
 Use descriptive branch names:
 
@@ -701,7 +625,7 @@ cw new temp
 cw new test123
 ```
 
-### 7. Choose the Right Workflow
+### 6. Choose the Right Workflow
 
 **For teams:** Use `cw pr`
 ```bash
@@ -754,19 +678,6 @@ cw backup list
 ```bash
 git bundle verify <bundle-file>
 ```
-
-### Template Issues
-
-**Problem:** "Template not found"
-
-**Solution:** List available templates:
-```bash
-cw template list
-```
-
-**Problem:** "Template apply failed"
-
-**Solution:** Check file permissions in template directory.
 
 ### Sync Issues
 
