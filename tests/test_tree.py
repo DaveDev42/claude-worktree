@@ -3,7 +3,7 @@
 import subprocess
 from pathlib import Path
 
-from claude_worktree.core import show_tree
+from claude_worktree.operations import show_tree
 
 
 def test_show_tree_no_worktrees(temp_git_repo: Path, monkeypatch, capsys) -> None:
