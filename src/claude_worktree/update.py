@@ -419,6 +419,24 @@ def check_for_updates(auto: bool = True) -> bool:
         # For manual upgrade, already showed both versions above
         console.print()
 
+    # Check if running in non-interactive environment
+    from .git_utils import is_non_interactive
+
+    if is_non_interactive():
+        # Non-interactive mode behavior
+        if auto:
+            # Auto-check in CI/scripts: show notification but don't upgrade
+            console.print("[dim]Auto-upgrade skipped in non-interactive environment.[/dim]")
+            console.print("[dim]Run 'cw upgrade' manually to update.[/dim]\n")
+            return True
+        else:
+            # Manual upgrade command in CI/scripts: proceed automatically
+            console.print(
+                "[dim]Running in non-interactive environment, upgrading automatically...[/dim]\n"
+            )
+            return upgrade_package(target_version=latest_version)
+
+    # Interactive mode: ask user for confirmation
     # For manual upgrade command, always ask
     # For auto-check, ask if user wants to upgrade
     if Confirm.ask("Would you like to upgrade now?"):

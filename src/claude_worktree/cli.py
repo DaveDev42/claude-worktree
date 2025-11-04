@@ -128,16 +128,10 @@ def is_completion_installed() -> bool:
 
 def prompt_completion_setup() -> None:
     """Prompt user to install shell completion on first run."""
-    import sys
+    # Don't prompt in non-interactive environments (CI, scripts, tests, SSH without TTY, etc.)
+    from .git_utils import is_non_interactive
 
-    # Don't prompt if stdin is not a TTY (prevents blocking in scripts/tests)
-    if not sys.stdin.isatty():
-        return
-
-    # Don't prompt if running in CI/test environment
-    import os
-
-    if os.environ.get("CI") or os.environ.get("PYTEST_CURRENT_TEST"):
+    if is_non_interactive():
         return
 
     config = load_config()
