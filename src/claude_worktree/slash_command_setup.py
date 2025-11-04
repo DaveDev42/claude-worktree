@@ -53,12 +53,15 @@ def is_slash_command_installed() -> bool:
 
 
 def can_use_slash_commands() -> bool:
-    """Check if any AI tool that supports slash commands is installed.
+    """Check if Claude Code is installed (supports slash commands).
+
+    Happy and Codex use the same slash command directories as Claude Code,
+    so we only need to check for Claude Code installation.
 
     Returns:
-        True if at least one of happy/claude/codex is installed
+        True if Claude Code is installed
     """
-    return any(detect_ai_tools().values())
+    return shutil.which("claude") is not None
 
 
 def install_slash_command() -> bool:
@@ -160,10 +163,9 @@ def prompt_slash_command_setup() -> None:
     if config.get("slash_commands", {}).get("prompted", False):
         return
 
-    # Check if any AI tool is installed
-    installed_tools = get_installed_ai_tools()
-    if not installed_tools:
-        # No AI tools installed, mark as prompted and skip
+    # Check if Claude Code is installed
+    if not can_use_slash_commands():
+        # Claude Code not installed, mark as prompted and skip
         if "slash_commands" not in config:
             config["slash_commands"] = {}
         config["slash_commands"]["prompted"] = True
@@ -180,14 +182,10 @@ def prompt_slash_command_setup() -> None:
         save_config(config)
         return
 
-    # Format tool names nicely
-    tools_str = ", ".join(installed_tools)
-
     # Prompt user
     console.print("\n[bold cyan]💡 Claude Code Slash Command Setup[/bold cyan]")
-    console.print(f"\nDetected AI tools: [bold]{tools_str}[/bold]")
     console.print("\nWould you like to enable [cyan]/cw[/cyan] commands in your AI sessions?")
-    console.print("This lets you run worktree commands directly from Happy/Claude/Codex:\n")
+    console.print("This lets you run worktree commands directly from Claude Code/Happy/Codex:\n")
     console.print("  [dim]/cw new feature-name[/dim]")
     console.print("  [dim]/cw list[/dim]")
     console.print("  [dim]/cw resume fix-auth[/dim]\n")
