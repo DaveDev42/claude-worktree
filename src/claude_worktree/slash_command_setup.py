@@ -65,11 +65,13 @@ def can_use_slash_commands() -> bool:
 
 
 def install_slash_command() -> bool:
-    """Install /cw slash command to appropriate directories.
+    """Install /cw slash commands to appropriate directories.
 
-    Installs to:
-    - ~/.claude/commands/cw.md (for Claude Code and Happy)
-    - ~/.codex/prompts/cw.md (for Codex)
+    Installs both the main command and subcommands:
+    - ~/.claude/commands/cw.md (main command)
+    - ~/.claude/commands/cw/*.md (subcommands: new, list, resume, etc.)
+    - ~/.codex/prompts/cw.md (main command for Codex)
+    - ~/.codex/prompts/cw/*.md (subcommands for Codex)
 
     Returns:
         True if at least one installation succeeded, False if all failed
@@ -78,30 +80,49 @@ def install_slash_command() -> bool:
     success_count = 0
     total_attempts = 0
 
-    # Read bundled command file from package
+    # Read bundled command files from package
     try:
         # Python 3.9+
         from importlib.resources import files
 
         slash_commands_dir = files("claude_worktree").joinpath("slash_commands")
-        command_content = (slash_commands_dir / "cw.md").read_text()
+
+        # Get main command file
+        main_command_content = (slash_commands_dir / "cw.md").read_text()
+
+        # Get all subcommand files from cw/ subdirectory
+        subcommands = {}
+        cw_subdir = slash_commands_dir / "cw"
+        for file_path in cw_subdir.iterdir():
+            if file_path.name.endswith(".md"):
+                subcommands[file_path.name] = file_path.read_text()
+
     except (ImportError, AttributeError):
         # Python 3.8 fallback
         import importlib.resources as pkg_resources
 
-        command_content = pkg_resources.read_text("claude_worktree.slash_commands", "cw.md")
+        main_command_content = pkg_resources.read_text("claude_worktree.slash_commands", "cw.md")
+        # Subcommands support requires Python 3.9+
+        subcommands = {}
 
     # Install for Claude Code / Happy (shared directory)
     if installed_tools.get("claude") or installed_tools.get("happy"):
         total_attempts += 1
         claude_dir = Path.home() / ".claude" / "commands"
-        claude_file = claude_dir / "cw.md"
+        claude_cw_dir = claude_dir / "cw"
 
         try:
+            # Install main command
             claude_dir.mkdir(parents=True, exist_ok=True)
-            claude_file.write_text(command_content)
+            (claude_dir / "cw.md").write_text(main_command_content)
+
+            # Install subcommands
+            claude_cw_dir.mkdir(parents=True, exist_ok=True)
+            for filename, content in subcommands.items():
+                (claude_cw_dir / filename).write_text(content)
+
             console.print(
-                f"[bold green]✓[/bold green] Installed for Claude Code/Happy: {claude_file}"
+                f"[bold green]✓[/bold green] Installed for Claude Code/Happy: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
             )
             success_count += 1
         except Exception as e:
@@ -111,22 +132,36 @@ def install_slash_command() -> bool:
     if installed_tools.get("codex"):
         total_attempts += 1
         codex_dir = Path.home() / ".codex" / "prompts"
-        codex_file = codex_dir / "cw.md"
+        codex_cw_dir = codex_dir / "cw"
 
         try:
+            # Install main command
             codex_dir.mkdir(parents=True, exist_ok=True)
-            codex_file.write_text(command_content)
-            console.print(f"[bold green]✓[/bold green] Installed for Codex: {codex_file}")
+            (codex_dir / "cw.md").write_text(main_command_content)
+
+            # Install subcommands
+            codex_cw_dir.mkdir(parents=True, exist_ok=True)
+            for filename, content in subcommands.items():
+                (codex_cw_dir / filename).write_text(content)
+
+            console.print(
+                f"[bold green]✓[/bold green] Installed for Codex: {codex_dir / 'cw.md'} + {len(subcommands)} subcommands"
+            )
             success_count += 1
         except Exception as e:
             console.print(f"[bold red]✗[/bold red] Failed to install for Codex: {e}")
 
     if success_count > 0:
-        console.print("\n[bold]Usage in your AI session:[/bold]")
-        console.print("  [cyan]/cw new feature-name[/cyan]")
-        console.print("  [cyan]/cw list[/cyan]")
-        console.print("  [cyan]/cw resume fix-auth[/cyan]")
-        console.print("\n[dim]Restart your AI tool session to activate the command.[/dim]")
+        console.print("\n[bold]Available commands in your AI session:[/bold]")
+        console.print("  Main: [cyan]/cw[/cyan] <subcommand> [args]")
+        console.print("  Or use specific commands:")
+        console.print("    [cyan]/cw:new[/cyan] feature-name")
+        console.print("    [cyan]/cw:list[/cyan]")
+        console.print("    [cyan]/cw:resume[/cyan] fix-auth")
+        console.print(
+            "    [cyan]/cw:pr[/cyan], [cyan]/cw:merge[/cyan], [cyan]/cw:status[/cyan], [cyan]/cw:delete[/cyan]"
+        )
+        console.print("\n[dim]Restart your AI tool session to activate the commands.[/dim]")
         return True
     else:
         console.print("\n[bold red]Error:[/bold red] Failed to install slash command")

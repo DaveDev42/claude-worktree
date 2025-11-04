@@ -58,6 +58,7 @@ include = [
     "src/claude_worktree/shell_functions/*.fish",
     "src/claude_worktree/shell_functions/*.ps1",
     "src/claude_worktree/slash_commands/*.md",
+    "src/claude_worktree/slash_commands/cw/*.md",
 ]
 
 [tool.pytest.ini_options]
