@@ -1251,3 +1251,39 @@ def test_create_worktree_existing_branch_non_interactive(
         text=True,
     )
     assert worktree_path.as_posix() in result.stdout
+
+
+def test_delete_worktree_current_directory(
+    temp_git_repo: Path, disable_claude, monkeypatch
+) -> None:
+    """Test deleting worktree from within that worktree (current directory)."""
+    worktree_path = create_worktree(branch_name="delete-current", no_cd=True)
+    assert worktree_path.exists()
+
+    # Change to the worktree directory
+    monkeypatch.chdir(worktree_path)
+
+    # Delete without specifying target (should use current directory)
+    delete_worktree(target=None, keep_branch=False)
+
+    # Verify worktree and branch were removed
+    assert not worktree_path.exists()
+    result = subprocess.run(
+        ["git", "branch", "--list", "delete-current"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "delete-current" not in result.stdout
+
+
+def test_delete_worktree_current_directory_main_repo_error(
+    temp_git_repo: Path, monkeypatch
+) -> None:
+    """Test that deleting main repo from within main repo raises error."""
+    # Change to main repo directory
+    monkeypatch.chdir(temp_git_repo)
+
+    # Try to delete without specifying target (current directory = main repo)
+    with pytest.raises(GitError, match="Cannot delete main repository"):
+        delete_worktree(target=None)
