@@ -74,7 +74,7 @@ claude-worktree/
 **docs/** - Detailed user documentation
 - **commands.md** - Complete command reference with all options and examples
 - **configuration.md** - Configuration guide (AI tools, presets, shell setup)
-- **advanced-features.md** - Advanced workflows (backup, templates, CI/CD)
+- **advanced-features.md** - Advanced workflows (backup, sync, cleanup, CI/CD)
 
 **TROUBLESHOOTING.md** - Comprehensive troubleshooting guide
 - Installation issues
@@ -573,7 +573,6 @@ gh workflow run publish.yml --ref vX.Y.Z
 ### Planned
 - Interactive mode for command selection
 - Git hook integration (auto-backup sessions on exit)
-- Worktree templates (`.cwrc`, `pyproject.toml` support)
 - Multi-session management (switch between different AI conversations)
 - Session export/import for team collaboration
 - Better conflict resolution guidance

@@ -223,7 +223,6 @@ For detailed configuration options (Happy setup, auto-updates, export/import, et
 **Maintenance & Cleanup:** `cw clean`, `cw sync`, `cw doctor`
 **Analysis:** `cw tree`, `cw stats`, `cw diff`
 **Backup & Restore:** `cw backup create/restore`
-**Templates:** `cw template create/apply`
 **Stash Management:** `cw stash save/apply`
 
 See **[Advanced Features Guide](docs/advanced-features.md)** for details.
@@ -317,7 +316,7 @@ For more troubleshooting help, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 ### User Guides
 - **[Commands Reference](docs/commands.md)** - Complete command reference with all options
 - **[Configuration Guide](docs/configuration.md)** - AI tools, presets, shell completion, export/import
-- **[Advanced Features](docs/advanced-features.md)** - Backup/restore, templates, sync, cleanup, CI/CD
+- **[Advanced Features](docs/advanced-features.md)** - Backup/restore, sync, cleanup, CI/CD
 - **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
 
 ### Links
