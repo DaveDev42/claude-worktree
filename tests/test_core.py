@@ -605,7 +605,7 @@ def test_launch_ai_tool_with_iterm_tab(temp_git_repo: Path, mocker) -> None:
     mocker.patch.dict("os.environ", {"CW_AI_TOOL": "claude"})
 
     # Mock has_command to return True for AI tool
-    mocker.patch("claude_worktree.git_utils.has_command", return_value=True)
+    mocker.patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
 
     # Mock sys.platform to be darwin (macOS)
     mocker.patch("claude_worktree.operations.ai_tools.sys.platform", "darwin")
@@ -642,7 +642,7 @@ def test_launch_ai_tool_with_iterm_tab_non_macos(temp_git_repo: Path, mocker) ->
     mocker.patch.dict("os.environ", {"CW_AI_TOOL": "claude"})
 
     # Mock has_command to return True for AI tool
-    mocker.patch("claude_worktree.git_utils.has_command", return_value=True)
+    mocker.patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
 
     # Mock sys.platform to be linux (non-macOS)
     mocker.patch("claude_worktree.operations.ai_tools.sys.platform", "linux")
@@ -671,7 +671,7 @@ def test_create_pr_worktree_missing_gh_cli(temp_git_repo: Path, disable_claude, 
     )
 
     # Mock has_command to return False for gh
-    mocker.patch("claude_worktree.git_utils.has_command", return_value=False)
+    mocker.patch("claude_worktree.operations.git_ops.has_command", return_value=False)
 
     # Should raise GitError about missing gh CLI
     with pytest.raises(GitError, match="GitHub CLI \\(gh\\) is required"):
@@ -702,7 +702,7 @@ def test_create_pr_worktree_no_push(
     monkeypatch.chdir(worktree_path)
 
     # Mock has_command to return True for gh
-    mocker.patch("claude_worktree.git_utils.has_command", return_value=True)
+    mocker.patch("claude_worktree.operations.git_ops.has_command", return_value=True)
 
     # Mock subprocess.run only for gh pr create
     original_run = subprocess.run
