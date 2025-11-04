@@ -590,9 +590,9 @@ def clean(
 
 @app.command(rich_help_panel="Worktree Management")
 def delete(
-    target: str = typer.Argument(
-        ...,
-        help="Branch name or worktree path to delete",
+    target: str | None = typer.Argument(
+        None,
+        help="Branch name or worktree path to delete (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     keep_branch: bool = typer.Option(
@@ -614,13 +614,15 @@ def delete(
     """
     Delete a worktree by branch name or path.
 
+    If no target is specified, deletes the current directory's worktree.
     By default, removes both the worktree and the local branch.
     Use --keep-branch to preserve the branch, or --delete-remote
     to also remove the branch from the remote repository.
 
     Example:
-        cw delete fix-auth
-        cw delete ../myproject-fix-auth
+        cw delete                        # Delete current worktree
+        cw delete fix-auth               # Delete by branch name
+        cw delete ../myproject-fix-auth  # Delete by path
         cw delete old-feature --delete-remote
     """
     try:

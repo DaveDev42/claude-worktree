@@ -446,7 +446,7 @@ def finish_worktree(
 
 
 def delete_worktree(
-    target: str,
+    target: str | None = None,
     keep_branch: bool = False,
     delete_remote: bool = False,
     no_force: bool = False,
@@ -455,7 +455,7 @@ def delete_worktree(
     Delete a worktree by branch name or path.
 
     Args:
-        target: Branch name or worktree path
+        target: Branch name or worktree path (optional, defaults to current directory)
         keep_branch: Keep the branch, only remove worktree
         delete_remote: Also delete remote branch
         no_force: Don't use --force flag
@@ -466,6 +466,10 @@ def delete_worktree(
     """
     repo = get_repo_root()
 
+    # If target is None, use current directory
+    if target is None:
+        target = str(Path.cwd())
+
     # Determine if target is path or branch
     target_path = Path(target)
     if target_path.exists():
@@ -474,11 +478,19 @@ def delete_worktree(
         # Find branch for this worktree
         branch_name: str | None = None
         for br, path in parse_worktrees(repo):
-            if path.resolve() == Path(worktree_path):
-                if br != "(detached)":
-                    # Normalize branch name: remove refs/heads/ prefix
-                    branch_name = br[11:] if br.startswith("refs/heads/") else br
-                break
+            # Use samefile() for cross-platform path comparison
+            try:
+                if Path(worktree_path).samefile(path):
+                    if br != "(detached)":
+                        # Normalize branch name: remove refs/heads/ prefix
+                        branch_name = br[11:] if br.startswith("refs/heads/") else br
+                    break
+            except (OSError, ValueError):
+                # Fallback to resolved path comparison if samefile() fails
+                if path.resolve() == Path(worktree_path):
+                    if br != "(detached)":
+                        branch_name = br[11:] if br.startswith("refs/heads/") else br
+                    break
         if branch_name is None and not keep_branch:
             console.print(
                 "[yellow]⚠[/yellow] Worktree is detached or branch not found. "
@@ -500,9 +512,31 @@ def delete_worktree(
         if branch_name.startswith("refs/heads/"):
             branch_name = branch_name[11:]
 
+    # Get main repo path from metadata if available (more reliable than get_repo_root when in worktree)
+    if branch_name:
+        base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo)
+        if base_path_str:
+            repo = Path(base_path_str)
+
     # Safety check: don't delete main repository
-    if Path(worktree_path).resolve() == repo.resolve():
-        raise GitError("Cannot delete main repository worktree")
+    try:
+        if Path(worktree_path).samefile(repo):
+            raise GitError("Cannot delete main repository worktree")
+    except (OSError, ValueError):
+        # Fallback if samefile() fails
+        if Path(worktree_path).resolve() == repo.resolve():
+            raise GitError("Cannot delete main repository worktree")
+
+    # Windows workaround: change to main repo directory before deleting if we're in the worktree
+    cwd = Path.cwd().resolve()
+    worktree_to_delete = Path(worktree_path).resolve()
+    try:
+        is_in_worktree = cwd.samefile(worktree_to_delete)
+    except (OSError, ValueError):
+        is_in_worktree = cwd == worktree_to_delete
+
+    if is_in_worktree:
+        os.chdir(repo)
 
     # Remove worktree
     console.print(f"[yellow]Removing worktree: {worktree_path}[/yellow]")
