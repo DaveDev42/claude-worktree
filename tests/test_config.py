@@ -396,7 +396,7 @@ def test_use_happy_presets(temp_config_dir: Path) -> None:
 def test_get_ai_tool_resume_command_default(temp_config_dir: Path) -> None:
     """Test getting resume command with default AI tool."""
     cmd = get_ai_tool_resume_command()
-    assert cmd == ["claude", "--resume"]
+    assert cmd == ["claude", "--continue"]
 
 
 def test_get_ai_tool_resume_command_preset(temp_config_dir: Path) -> None:
@@ -409,7 +409,7 @@ def test_get_ai_tool_resume_command_preset(temp_config_dir: Path) -> None:
     save_config(config)
 
     cmd = get_ai_tool_resume_command()
-    assert cmd == ["happy", "codex", "--permission-mode", "bypassPermissions", "--resume"]
+    assert cmd == ["happy", "codex", "--permission-mode", "bypassPermissions", "--continue"]
 
 
 def test_get_ai_tool_resume_command_no_tool(temp_config_dir: Path) -> None:
@@ -483,13 +483,18 @@ def test_get_ai_tool_resume_command_codex_with_extra_args(temp_config_dir: Path)
 
 def test_ai_tool_resume_presets_defined() -> None:
     """Test that resume presets are defined for tools that need special syntax."""
+    # Claude uses --continue flag instead of --resume
+    assert "claude" in AI_TOOL_RESUME_PRESETS
+    assert "claude-yolo" in AI_TOOL_RESUME_PRESETS
+
+    # Happy uses --continue flag (inherits from Claude Code)
+    assert "happy" in AI_TOOL_RESUME_PRESETS
+    assert "happy-codex" in AI_TOOL_RESUME_PRESETS
+    assert "happy-yolo" in AI_TOOL_RESUME_PRESETS
+
     # Codex uses subcommand syntax
     assert "codex" in AI_TOOL_RESUME_PRESETS
     assert "codex-yolo" in AI_TOOL_RESUME_PRESETS
-
-    # Claude and Happy use --resume flag, so they shouldn't be in resume presets
-    assert "claude" not in AI_TOOL_RESUME_PRESETS
-    assert "happy" not in AI_TOOL_RESUME_PRESETS
 
 
 def test_default_config_has_shell_completion() -> None:

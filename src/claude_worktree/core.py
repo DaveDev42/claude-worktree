@@ -1804,7 +1804,8 @@ def resume_worktree(
         console.print(f"[dim]Switched to worktree: {worktree_path}[/dim]\n")
 
     # Check for existing session
-    if session_manager.session_exists(branch_name):
+    has_session = session_manager.session_exists(branch_name)
+    if has_session:
         console.print(f"[green]✓[/green] Found session for branch: [bold]{branch_name}[/bold]")
 
         # Load session metadata
@@ -1824,21 +1825,29 @@ def resume_worktree(
         console.print(
             f"[yellow]ℹ[/yellow] No previous session found for branch: [bold]{branch_name}[/bold]"
         )
-        console.print()
+        console.print("[dim]Starting a new session...[/dim]\n")
 
-    # Save session metadata and launch AI tool (if configured)
-    ai_cmd = get_ai_tool_resume_command()
+    # Determine which command to use based on session existence
+    # If session exists, use resume command (e.g., "claude --continue")
+    # If no session, use regular command (e.g., "claude")
+    ai_cmd = get_ai_tool_resume_command() if has_session else get_ai_tool_command()
+
     if ai_cmd:
         ai_tool_name = ai_cmd[0]
         session_manager.save_session_metadata(branch_name, ai_tool_name, str(worktree_path))
-        console.print(f"[cyan]Resuming {ai_tool_name} in:[/cyan] {worktree_path}\n")
+
+        if has_session:
+            console.print(f"[cyan]Resuming {ai_tool_name} in:[/cyan] {worktree_path}\n")
+        else:
+            console.print(f"[cyan]Starting {ai_tool_name} in:[/cyan] {worktree_path}\n")
+
         launch_ai_tool(
             worktree_path,
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,
             tmux_session=tmux_session,
-            resume=True,
+            resume=has_session,
         )
 
 
