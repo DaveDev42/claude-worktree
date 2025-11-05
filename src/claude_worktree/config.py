@@ -323,6 +323,6 @@ def list_presets() -> str:
     lines = ["Available AI tool presets:", ""]
 
     for name, cmd in AI_TOOL_PRESETS.items():
-        lines.append(f"  {name:20} → {' '.join(cmd)}")
+        lines.append(f"  {name:20} -> {' '.join(cmd)}")
 
     return "\n".join(lines)

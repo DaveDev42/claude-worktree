@@ -5,8 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH
 from ..exceptions import GitError, InvalidBranchError, RebaseError
 from ..git_utils import (
@@ -18,7 +17,7 @@ from ..git_utils import (
     set_config,
 )
 
-console = Console()
+console = get_console()
 
 
 def change_base_branch(
@@ -71,7 +70,9 @@ def change_base_branch(
         console.print("[bold]The following operations would be performed:[/bold]\n")
         console.print("  1. [cyan]Fetch[/cyan] updates from remote")
         console.print(f"  2. [cyan]Rebase[/cyan] {feature_branch} onto {new_base}")
-        console.print(f"  3. [cyan]Update[/cyan] base branch metadata: {current_base} → {new_base}")
+        console.print(
+            f"  3. [cyan]Update[/cyan] base branch metadata: {current_base} -> {new_base}"
+        )
         console.print("\n[dim]Run without --dry-run to execute these operations.[/dim]\n")
         return
 
@@ -125,14 +126,14 @@ def change_base_branch(
             )
         raise RebaseError(error_msg)
 
-    console.print("[bold green]✓[/bold green] Rebase successful\n")
+    console.print("[bold green]*[/bold green] Rebase successful\n")
 
     # Update base branch metadata
     console.print("[yellow]Updating base branch metadata...[/yellow]")
     set_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), new_base, repo=repo)
-    console.print("[bold green]✓[/bold green] Base branch metadata updated\n")
+    console.print("[bold green]*[/bold green] Base branch metadata updated\n")
 
-    console.print(f"[bold green]✓ Base branch changed to '{new_base}'![/bold green]\n")
+    console.print(f"[bold green]* Base branch changed to '{new_base}'![/bold green]\n")
 
 
 def export_config(output_file: Path | None = None) -> None:
@@ -194,7 +195,7 @@ def export_config(output_file: Path | None = None) -> None:
     try:
         with open(output_file, "w") as f:
             json.dump(export_data, f, indent=2)
-        console.print("[bold green]✓[/bold green] Export complete!\n")
+        console.print("[bold green]*[/bold green] Export complete!\n")
         console.print("[bold]Exported:[/bold]")
         console.print(f"  • {len(export_data['worktrees'])} worktree(s)")
         console.print("  • Configuration settings")
@@ -265,9 +266,9 @@ def import_config(import_file: Path, apply: bool = False) -> None:
         console.print("[yellow]Importing global configuration...[/yellow]")
         try:
             save_config(import_data["config"])
-            console.print("[bold green]✓[/bold green] Configuration imported\n")
+            console.print("[bold green]*[/bold green] Configuration imported\n")
         except Exception as e:
-            console.print(f"[yellow]⚠[/yellow] Configuration import failed: {e}\n")
+            console.print(f"[yellow]![/yellow] Configuration import failed: {e}\n")
 
     # Import worktree metadata
     console.print("[yellow]Importing worktree metadata...[/yellow]\n")
@@ -276,13 +277,13 @@ def import_config(import_file: Path, apply: bool = False) -> None:
         base_branch = wt.get("base_branch")
 
         if not branch or not base_branch:
-            console.print("[yellow]⚠[/yellow] Skipping invalid worktree entry\n")
+            console.print("[yellow]![/yellow] Skipping invalid worktree entry\n")
             continue
 
         # Check if branch exists locally
         if not branch_exists(branch, repo):
             console.print(
-                f"[yellow]⚠[/yellow] Branch '{branch}' not found locally. "
+                f"[yellow]![/yellow] Branch '{branch}' not found locally. "
                 f"Create it with 'cw new {branch} --base {base_branch}'"
             )
             continue
@@ -291,13 +292,13 @@ def import_config(import_file: Path, apply: bool = False) -> None:
         try:
             set_config(CONFIG_KEY_BASE_BRANCH.format(branch), base_branch, repo=repo)
             set_config(CONFIG_KEY_BASE_PATH.format(branch), str(repo), repo=repo)
-            console.print(f"[bold green]✓[/bold green] Imported metadata for: {branch}")
+            console.print(f"[bold green]*[/bold green] Imported metadata for: {branch}")
             imported_count += 1
         except Exception as e:
-            console.print(f"[yellow]⚠[/yellow] Failed to import {branch}: {e}")
+            console.print(f"[yellow]![/yellow] Failed to import {branch}: {e}")
 
     console.print(
-        f"\n[bold green]✓ Import complete! Imported {imported_count} worktree(s)[/bold green]\n"
+        f"\n[bold green]* Import complete! Imported {imported_count} worktree(s)[/bold green]\n"
     )
     console.print(
         "[dim]Note: This only imports metadata. "

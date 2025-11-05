@@ -5,13 +5,12 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from ..exceptions import GitError
 from ..git_utils import get_config, get_repo_root, git_command, parse_worktrees, set_config
 
-console = Console()
+console = get_console()
 
 
 def get_backups_dir() -> Path:
@@ -127,15 +126,15 @@ def backup_worktree(
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
 
-            console.print(f"  [green]✓[/green] Backup saved to: {branch_backup_dir}")
+            console.print(f"  [green]*[/green] Backup saved to: {branch_backup_dir}")
             backup_count += 1
 
         except GitError as e:
-            console.print(f"  [red]✗[/red] Backup failed: {e}")
+            console.print(f"  [red]x[/red] Backup failed: {e}")
             continue
 
     console.print(
-        f"\n[bold green]✓ Backup complete! Created {backup_count} backup(s)[/bold green]\n"
+        f"\n[bold green]* Backup complete! Created {backup_count} backup(s)[/bold green]\n"
     )
     console.print(f"[dim]Backups saved in: {backups_root}[/dim]\n")
 
@@ -312,10 +311,10 @@ def restore_worktree(
             )
             if result.returncode != 0:
                 console.print(
-                    f"  [yellow]⚠[/yellow] Failed to restore uncommitted changes: {result.stderr}"
+                    f"  [yellow]![/yellow] Failed to restore uncommitted changes: {result.stderr}"
                 )
 
-        console.print("[bold green]✓[/bold green] Restore complete!")
+        console.print("[bold green]*[/bold green] Restore complete!")
         console.print(f"  Worktree path: {worktree_path}\n")
 
     except Exception as e:

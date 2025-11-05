@@ -12,11 +12,13 @@ cw-cd() {
     local branch="$1"
     local worktree_path
 
-    # Get worktree path from cw _path command
-    worktree_path=$(cw _path "$branch" 2>/dev/null)
-    local exit_code=$?
+    # Get worktree path directly from git worktree list
+    worktree_path=$(git worktree list --porcelain 2>/dev/null | awk -v branch="$branch" '
+        /^worktree / { path=$2 }
+        /^branch / && $2 == "refs/heads/"branch { print path; exit }
+    ')
 
-    if [ $exit_code -ne 0 ]; then
+    if [ -z "$worktree_path" ]; then
         echo "Error: No worktree found for branch '$branch'" >&2
         return 1
     fi

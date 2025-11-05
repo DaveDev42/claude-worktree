@@ -6,14 +6,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rich.console import Console
-
 from ..config import get_ai_tool_command, get_ai_tool_resume_command
+from ..console import get_console
 from ..exceptions import GitError, WorktreeNotFoundError
 from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, has_command
 from ..helpers import resolve_worktree_target
 
-console = Console()
+console = get_console()
 
 
 def _run_command_in_shell(
@@ -84,7 +83,7 @@ def launch_ai_tool(
     # Check if the command exists
     if not has_command(ai_tool_name):
         console.print(
-            f"[yellow]⚠[/yellow] {ai_tool_name} not detected. "
+            f"[yellow]![/yellow] {ai_tool_name} not detected. "
             f"Install it or update your config with 'cw config set ai-tool <tool>'.\n"
         )
         return
@@ -104,7 +103,7 @@ def launch_ai_tool(
             cwd=str(path),
         )
         console.print(
-            f"[bold green]✓[/bold green] {ai_tool_name} running in tmux session '{tmux_session}'\n"
+            f"[bold green]*[/bold green] {ai_tool_name} running in tmux session '{tmux_session}'\n"
         )
         return
 
@@ -125,7 +124,7 @@ def launch_ai_tool(
 APPLESCRIPT
         """
         subprocess.run(["bash", "-lc", script], check=True)
-        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in new iTerm tab\n")
+        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm tab\n")
         return
 
     if iterm:
@@ -143,12 +142,12 @@ APPLESCRIPT
 APPLESCRIPT
         """
         subprocess.run(["bash", "-lc", script], check=True)
-        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in new iTerm window\n")
+        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm window\n")
         return
 
     if bg:
         _run_command_in_shell(cmd, path, background=True)
-        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in background\n")
+        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in background\n")
     else:
         console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
         _run_command_in_shell(cmd, path, background=False, check=False)
@@ -187,7 +186,7 @@ def resume_worktree(
 
     # Check for existing session
     if session_manager.session_exists(branch_name):
-        console.print(f"[green]✓[/green] Found session for branch: [bold]{branch_name}[/bold]")
+        console.print(f"[green]*[/green] Found session for branch: [bold]{branch_name}[/bold]")
 
         # Load session metadata
         metadata = session_manager.load_session_metadata(branch_name)

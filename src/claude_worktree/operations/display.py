@@ -4,8 +4,7 @@ import os
 import time
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH
 from ..exceptions import GitError, InvalidBranchError
 from ..git_utils import (
@@ -17,7 +16,7 @@ from ..git_utils import (
     parse_worktrees,
 )
 
-console = Console()
+console = get_console()
 
 
 def get_worktree_status(path: str, repo: Path) -> str:
@@ -149,7 +148,7 @@ def show_tree() -> None:
         "active": "●",  # current worktree
         "clean": "○",  # clean
         "modified": "◉",  # has changes
-        "stale": "✗",  # directory missing
+        "stale": "x",  # directory missing
     }
 
     # Status colors
@@ -196,7 +195,7 @@ def show_tree() -> None:
     console.print(f"  [{status_colors['active']}]●[/{status_colors['active']}] active (current)")
     console.print(f"  [{status_colors['clean']}]○[/{status_colors['clean']}] clean")
     console.print(f"  [{status_colors['modified']}]◉[/{status_colors['modified']}] modified")
-    console.print(f"  [{status_colors['stale']}]✗[/{status_colors['stale']}] stale")
+    console.print(f"  [{status_colors['stale']}]x[/{status_colors['stale']}] stale")
     console.print("  [bold green]★[/bold green] currently active worktree\n")
 
 
@@ -306,7 +305,7 @@ def show_stats() -> None:
     sorted_by_age = sorted(worktree_data, key=lambda x: x[3], reverse=True)[:5]
     for branch_name, _path, status, age_days, _ in sorted_by_age:
         if age_days > 0:
-            status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "✗"}.get(
+            status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "x"}.get(
                 status, "○"
             )
             status_color = {
@@ -326,7 +325,7 @@ def show_stats() -> None:
     sorted_by_commits = sorted(worktree_data, key=lambda x: x[4], reverse=True)[:5]
     for branch_name, _path, status, _age_days, commit_count in sorted_by_commits:
         if commit_count > 0:
-            status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "✗"}.get(
+            status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "x"}.get(
                 status, "○"
             )
             status_color = {

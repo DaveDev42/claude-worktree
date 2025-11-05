@@ -14,11 +14,14 @@ function cw-cd {
         return
     }
 
-    # Get worktree path from cw _path command
-    $worktreePath = & cw _path $Branch 2>$null
-    $exitCode = $LASTEXITCODE
+    # Get worktree path directly from git worktree list
+    $worktreePath = git worktree list --porcelain 2>$null |
+        ForEach-Object {
+            if ($_ -match '^worktree (.+)$') { $path = $Matches[1] }
+            if ($_ -match "^branch refs/heads/$Branch$") { $path }
+        } | Select-Object -First 1
 
-    if ($exitCode -ne 0) {
+    if (-not $worktreePath) {
         Write-Error "Error: No worktree found for branch '$Branch'"
         return
     }

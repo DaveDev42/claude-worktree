@@ -2,12 +2,11 @@
 
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..exceptions import GitError, InvalidBranchError, WorktreeNotFoundError
 from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, git_command
 
-console = Console()
+console = get_console()
 
 
 def stash_save(message: str | None = None) -> None:
@@ -34,13 +33,13 @@ def stash_save(message: str | None = None) -> None:
     # Check if there are changes to stash
     status_result = git_command("status", "--porcelain", repo=cwd, capture=True)
     if not status_result.stdout.strip():
-        console.print("[yellow]⚠[/yellow] No changes to stash\n")
+        console.print("[yellow]![/yellow] No changes to stash\n")
         return
 
     # Create stash (include untracked files)
     console.print(f"[yellow]Stashing changes in {branch_name}...[/yellow]")
     git_command("stash", "push", "--include-untracked", "-m", stash_msg, repo=cwd)
-    console.print(f"[bold green]✓[/bold green] Stashed changes: {stash_msg}\n")
+    console.print(f"[bold green]*[/bold green] Stashed changes: {stash_msg}\n")
 
 
 def stash_list() -> None:
@@ -136,10 +135,10 @@ def stash_apply(target_branch: str, stash_ref: str = "stash@{0}") -> None:
     try:
         # Apply the stash to the target worktree
         git_command("stash", "apply", stash_ref, repo=worktree_path)
-        console.print(f"[bold green]✓[/bold green] Stash applied to {target_branch}\n")
+        console.print(f"[bold green]*[/bold green] Stash applied to {target_branch}\n")
         console.print(f"[dim]Worktree path: {worktree_path}[/dim]\n")
     except GitError as e:
-        console.print(f"[bold red]✗[/bold red] Failed to apply stash: {e}\n")
+        console.print(f"[bold red]x[/bold red] Failed to apply stash: {e}\n")
         console.print(
             "[yellow]Tip:[/yellow] There may be conflicts. Check the worktree and resolve manually.\n"
         )

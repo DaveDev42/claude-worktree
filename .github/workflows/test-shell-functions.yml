@@ -1,0 +1,118 @@
+name: Shell Function Tests
+
+# This workflow runs shell-specific tests on PRs and main branch pushes
+# Ensures shell integrations work correctly across all platforms
+on:
+  push:
+    branches:
+      - main  # Run on main branch pushes (after PR merge)
+  pull_request:
+    branches:
+      - main  # Run on all PRs to main
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  test-unix-shells:
+    name: Test ${{ matrix.shell }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        shell: [bash, zsh, fish]
+        python-version: ["3.11"]
+
+    env:
+      CW_AI_TOOL: ""  # Disable AI tool launching during tests
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: "pyproject.toml"
+
+    - name: Install ${{ matrix.shell }}
+      run: |
+        if [ "${{ matrix.shell }}" = "fish" ]; then
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y fish
+          else
+            brew install fish
+          fi
+        elif [ "${{ matrix.shell }}" = "zsh" ]; then
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update
+            sudo apt-get install -y zsh
+          fi
+          # macOS already has zsh
+        fi
+        # bash is pre-installed on all runners
+
+    - name: Verify ${{ matrix.shell }} installation
+      run: |
+        which ${{ matrix.shell }}
+        ${{ matrix.shell }} --version
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+
+    - name: Run ${{ matrix.shell }} tests
+      run: |
+        # Run shell-specific tests for this shell
+        # Convert shell name to TitleCase (bash -> Bash, zsh -> Zsh, fish -> Fish)
+        shell_title="$(echo ${{ matrix.shell }} | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        pytest tests/e2e/test_shell_functions.py::Test${shell_title}ShellFunction -v -m shell --no-cov
+      shell: bash
+
+    - name: Run shell script syntax tests
+      run: |
+        pytest tests/e2e/test_shell_functions.py::TestShellScriptSyntax -v -m shell --no-cov
+
+
+  test-powershell:
+    name: Test PowerShell on Windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    env:
+      CW_AI_TOOL: ""  # Disable AI tool launching during tests
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: "pyproject.toml"
+
+    - name: Verify PowerShell installation
+      run: |
+        pwsh --version
+      shell: pwsh
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+
+    - name: Run PowerShell tests
+      run: |
+        pytest tests/e2e/test_shell_functions.py::TestPowerShellFunction -v -m shell --no-cov
+      shell: pwsh

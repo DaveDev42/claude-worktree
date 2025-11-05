@@ -5,8 +5,7 @@ import sys
 import time
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from ..exceptions import (
     GitError,
@@ -32,7 +31,7 @@ from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
 from .helpers import get_worktree_metadata, resolve_worktree_target
 
-console = Console()
+console = get_console()
 
 
 def create_worktree(
@@ -90,7 +89,7 @@ def create_worktree(
 
     if existing_worktree:
         console.print(
-            f"\n[bold yellow]⚠ Worktree already exists[/bold yellow]\n"
+            f"\n[bold yellow]! Worktree already exists[/bold yellow]\n"
             f"Branch '[cyan]{branch_name}[/cyan]' already has a worktree at:\n"
             f"  [blue]{existing_worktree}[/blue]\n"
         )
@@ -135,7 +134,7 @@ def create_worktree(
     branch_already_exists = False
     if branch_exists(branch_name, repo) and not existing_worktree:
         console.print(
-            f"\n[bold yellow]⚠ Branch already exists[/bold yellow]\n"
+            f"\n[bold yellow]! Branch already exists[/bold yellow]\n"
             f"Branch '[cyan]{branch_name}[/cyan]' already exists but has no worktree.\n"
         )
 
@@ -209,7 +208,7 @@ def create_worktree(
     set_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), base_branch, repo=repo)
     set_config(CONFIG_KEY_BASE_PATH.format(branch_name), str(repo), repo=repo)
 
-    console.print("[bold green]✓[/bold green] Worktree created successfully\n")
+    console.print("[bold green]*[/bold green] Worktree created successfully\n")
 
     # Change directory
     if not no_cd:
@@ -325,7 +324,7 @@ def finish_worktree(
 
         if conflicted_files and ai_merge:
             # Offer AI assistance for conflict resolution
-            console.print("\n[bold yellow]⚠ Rebase conflicts detected![/bold yellow]\n")
+            console.print("\n[bold yellow]! Rebase conflicts detected![/bold yellow]\n")
             console.print("[cyan]Conflicted files:[/cyan]")
             for file in conflicted_files:
                 console.print(f"  • {file}")
@@ -374,7 +373,7 @@ def finish_worktree(
             error_msg += "\n\nTip: Use --ai-merge flag to get AI assistance with conflicts"
         raise RebaseError(error_msg)
 
-    console.print("[bold green]✓[/bold green] Rebase successful\n")
+    console.print("[bold green]*[/bold green] Rebase successful\n")
 
     # Verify base path exists
     if not base_path.exists():
@@ -407,7 +406,7 @@ def finish_worktree(
             f"  git merge {feature_branch}"
         )
 
-    console.print(f"[bold green]✓[/bold green] Merged {feature_branch} into {base_branch}\n")
+    console.print(f"[bold green]*[/bold green] Merged {feature_branch} into {base_branch}\n")
 
     # Push to remote if requested
     if push:
@@ -417,9 +416,9 @@ def finish_worktree(
             console.print(f"[yellow]Pushing {base_branch} to origin...[/yellow]")
             try:
                 git_command("push", "origin", base_branch, repo=base_path)
-                console.print("[bold green]✓[/bold green] Pushed to origin\n")
+                console.print("[bold green]*[/bold green] Pushed to origin\n")
             except GitError as e:
-                console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
+                console.print(f"[yellow]![/yellow] Push failed: {e}\n")
 
     # Cleanup: remove worktree and branch
     if not confirm_step(f"Clean up worktree and delete branch {feature_branch}"):
@@ -442,7 +441,7 @@ def finish_worktree(
     unset_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), repo=repo)
     unset_config(CONFIG_KEY_BASE_PATH.format(feature_branch), repo=repo)
 
-    console.print("[bold green]✓ Cleanup complete![/bold green]\n")
+    console.print("[bold green]* Cleanup complete![/bold green]\n")
 
 
 def delete_worktree(
@@ -493,7 +492,7 @@ def delete_worktree(
                     break
         if branch_name is None and not keep_branch:
             console.print(
-                "[yellow]⚠[/yellow] Worktree is detached or branch not found. "
+                "[yellow]![/yellow] Worktree is detached or branch not found. "
                 "Branch deletion will be skipped.\n"
             )
     else:
@@ -544,7 +543,7 @@ def delete_worktree(
     if not no_force:
         rm_args.append("--force")
     git_command(*rm_args, repo=repo)
-    console.print("[bold green]✓[/bold green] Worktree removed\n")
+    console.print("[bold green]*[/bold green] Worktree removed\n")
 
     # Delete branch if requested
     if branch_name and not keep_branch:
@@ -555,16 +554,16 @@ def delete_worktree(
         unset_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo=repo)
         unset_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo=repo)
 
-        console.print("[bold green]✓[/bold green] Local branch and metadata removed\n")
+        console.print("[bold green]*[/bold green] Local branch and metadata removed\n")
 
         # Delete remote branch if requested
         if delete_remote:
             console.print(f"[yellow]Deleting remote branch: origin/{branch_name}[/yellow]")
             try:
                 git_command("push", "origin", f":{branch_name}", repo=repo)
-                console.print("[bold green]✓[/bold green] Remote branch deleted\n")
+                console.print("[bold green]*[/bold green] Remote branch deleted\n")
             except GitError as e:
-                console.print(f"[yellow]⚠[/yellow] Remote branch deletion failed: {e}\n")
+                console.print(f"[yellow]![/yellow] Remote branch deletion failed: {e}\n")
 
 
 def sync_worktree(
@@ -609,10 +608,10 @@ def sync_worktree(
     console.print("[yellow]Fetching updates from remote...[/yellow]")
     fetch_result = git_command("fetch", "--all", "--prune", repo=repo, check=False)
     if fetch_result.returncode != 0:
-        console.print("[yellow]⚠[/yellow] Fetch failed or no remote configured\n")
+        console.print("[yellow]![/yellow] Fetch failed or no remote configured\n")
 
     if fetch_only:
-        console.print("[bold green]✓[/bold green] Fetch complete\n")
+        console.print("[bold green]*[/bold green] Fetch complete\n")
         return
 
     # Sync each worktree
@@ -621,7 +620,7 @@ def sync_worktree(
         base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
         if not base_branch:
             console.print(
-                f"\n[yellow]⚠[/yellow] Skipping {branch}: "
+                f"\n[yellow]![/yellow] Skipping {branch}: "
                 f"No base branch metadata (not created with 'cw new')\n"
             )
             continue
@@ -650,7 +649,7 @@ def sync_worktree(
 
         try:
             git_command("rebase", rebase_target, repo=worktree_path)
-            console.print("[bold green]✓[/bold green] Rebase successful")
+            console.print("[bold green]*[/bold green] Rebase successful")
         except GitError:
             # Rebase failed - check if there are conflicts
             conflicts_result = git_command(
@@ -669,7 +668,7 @@ def sync_worktree(
 
             if conflicted_files and ai_merge and not all_worktrees:
                 # Offer AI assistance for conflict resolution
-                console.print("\n[bold yellow]⚠ Rebase conflicts detected![/bold yellow]\n")
+                console.print("\n[bold yellow]! Rebase conflicts detected![/bold yellow]\n")
                 console.print("[cyan]Conflicted files:[/cyan]")
                 for file in conflicted_files:
                     console.print(f"  • {file}")
@@ -721,13 +720,13 @@ def sync_worktree(
                     error_msg += "\n\nTip: Use --ai-merge flag to get AI assistance with conflicts"
 
             if all_worktrees:
-                console.print(f"[bold red]✗[/bold red] {error_msg}")
+                console.print(f"[bold red]x[/bold red] {error_msg}")
                 console.print("[yellow]Continuing with remaining worktrees...[/yellow]")
                 continue
             else:
                 raise RebaseError(error_msg)
 
-    console.print("\n[bold green]✓ Sync complete![/bold green]\n")
+    console.print("\n[bold green]* Sync complete![/bold green]\n")
 
 
 def clean_worktrees(
@@ -846,12 +845,12 @@ def clean_worktrees(
 
     # If nothing to delete
     if not worktrees_to_delete and not interactive:
-        console.print("[bold green]✓[/bold green] No worktrees match the cleanup criteria\n")
+        console.print("[bold green]*[/bold green] No worktrees match the cleanup criteria\n")
 
         # Show warning if there are branches with deleted remotes but no gh CLI
         if gh_unavailable_branches and not has_gh:
             console.print(
-                "\n[yellow]⚠ Warning:[/yellow] Found worktrees with deleted remote branches:\n"
+                "\n[yellow]! Warning:[/yellow] Found worktrees with deleted remote branches:\n"
             )
             for branch in gh_unavailable_branches:
                 console.print(f"  • {branch}")
@@ -924,13 +923,13 @@ def clean_worktrees(
         try:
             # Use delete_worktree function
             delete_worktree(target=branch, keep_branch=False, delete_remote=False, no_force=False)
-            console.print(f"[bold green]✓[/bold green] Deleted {branch}")
+            console.print(f"[bold green]*[/bold green] Deleted {branch}")
             deleted_count += 1
         except Exception as e:
-            console.print(f"[bold red]✗[/bold red] Failed to delete {branch}: {e}")
+            console.print(f"[bold red]x[/bold red] Failed to delete {branch}: {e}")
 
     console.print(
-        f"\n[bold green]✓ Cleanup complete! Deleted {deleted_count} worktree(s)[/bold green]\n"
+        f"\n[bold green]* Cleanup complete! Deleted {deleted_count} worktree(s)[/bold green]\n"
     )
 
     # Automatically prune stale worktree administrative data
@@ -938,6 +937,6 @@ def clean_worktrees(
         console.print("[dim]Pruning stale worktree metadata...[/dim]")
         try:
             git_command("worktree", "prune", repo=repo)
-            console.print("[dim]✓ Prune complete[/dim]\n")
+            console.print("[dim]* Prune complete[/dim]\n")
         except GitError as e:
             console.print(f"[dim yellow]Warning: Failed to prune: {e}[/dim yellow]\n")

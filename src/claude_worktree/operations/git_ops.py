@@ -4,14 +4,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from rich.console import Console
-
 from ..config import get_ai_tool_command
+from ..console import get_console
 from ..exceptions import GitError, RebaseError
 from ..git_utils import git_command, has_command
 from ..helpers import get_worktree_metadata, resolve_worktree_target
 
-console = Console()
+console = get_console()
 
 
 def _generate_pr_description_with_ai(
@@ -108,7 +107,7 @@ BODY:
 
             if result.returncode != 0:
                 console.print(
-                    f"[yellow]⚠[/yellow] AI tool failed (exit code {result.returncode})\n"
+                    f"[yellow]![/yellow] AI tool failed (exit code {result.returncode})\n"
                 )
                 return None, None
 
@@ -130,12 +129,12 @@ BODY:
                         break
 
             if title and body:
-                console.print("[bold green]✓[/bold green] AI generated PR description\n")
+                console.print("[bold green]*[/bold green] AI generated PR description\n")
                 console.print(f"[dim]Title:[/dim] {title}")
                 console.print(f"[dim]Body preview:[/dim] {body[:100]}...\n")
                 return title, body
             else:
-                console.print("[yellow]⚠[/yellow] Could not parse AI output\n")
+                console.print("[yellow]![/yellow] Could not parse AI output\n")
                 return None, None
 
         finally:
@@ -143,10 +142,10 @@ BODY:
             prompt_file.unlink(missing_ok=True)
 
     except subprocess.TimeoutExpired:
-        console.print("[yellow]⚠[/yellow] AI tool timed out\n")
+        console.print("[yellow]![/yellow] AI tool timed out\n")
         return None, None
     except Exception as e:
-        console.print(f"[yellow]⚠[/yellow] AI generation failed: {e}\n")
+        console.print(f"[yellow]![/yellow] AI generation failed: {e}\n")
         return None, None
 
 
@@ -229,7 +228,7 @@ def create_pr_worktree(
                 error_msg += f"\n  • {file}"
         raise RebaseError(error_msg)
 
-    console.print("[bold green]✓[/bold green] Rebase successful\n")
+    console.print("[bold green]*[/bold green] Rebase successful\n")
 
     # Push to remote if requested
     if push:
@@ -237,9 +236,9 @@ def create_pr_worktree(
         try:
             # Push with -u to set upstream
             git_command("push", "-u", "origin", feature_branch, repo=cwd)
-            console.print("[bold green]✓[/bold green] Pushed to origin\n")
+            console.print("[bold green]*[/bold green] Pushed to origin\n")
         except GitError as e:
-            console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
+            console.print(f"[yellow]![/yellow] Push failed: {e}\n")
             raise
 
     # Create pull request
@@ -290,7 +289,7 @@ def create_pr_worktree(
             check=True,
         )
         pr_url = result.stdout.strip()
-        console.print("[bold green]✓[/bold green] Pull request created!\n")
+        console.print("[bold green]*[/bold green] Pull request created!\n")
         console.print(f"[bold]PR URL:[/bold] {pr_url}\n")
         console.print(
             "[dim]Note: Worktree is still active. Use 'cw delete' to remove it after PR is merged.[/dim]\n"

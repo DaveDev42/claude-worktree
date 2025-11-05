@@ -2,9 +2,13 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main  # Run on main branch pushes (after PR merge)
+      - develop  # Run on develop branch pushes
   pull_request:
-    branches: [ main, develop ]
+    branches:
+      - main  # Run on all PRs to main
+      - develop  # Run on all PRs to develop
   workflow_dispatch:
 
 jobs:

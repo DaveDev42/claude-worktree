@@ -10,10 +10,12 @@ function cw-cd
     end
 
     set -l branch $argv[1]
-    set -l worktree_path (cw _path "$branch" 2>/dev/null)
-    set -l exit_code $status
+    set -l worktree_path (git worktree list --porcelain 2>/dev/null | awk -v branch="$branch" '
+        /^worktree / { path=$2 }
+        /^branch / && $2 == "refs/heads/"branch { print path; exit }
+    ')
 
-    if test $exit_code -ne 0
+    if test -z "$worktree_path"
         echo "Error: No worktree found for branch '$branch'" >&2
         return 1
     end

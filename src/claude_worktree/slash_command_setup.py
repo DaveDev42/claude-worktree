@@ -4,11 +4,11 @@ import shutil
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from .config import load_config, save_config
+from .console import get_console
 
-console = Console()
+console = get_console()
 
 
 def detect_ai_tools() -> dict[str, bool]:
@@ -120,11 +120,11 @@ def install_slash_command() -> bool:
                 (claude_cw_dir / filename).write_text(content)
 
             console.print(
-                f"[bold green]✓[/bold green] Installed for Claude Code/Happy: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
+                f"[bold green]*[/bold green] Installed for Claude Code/Happy: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
             )
             success_count += 1
         except Exception as e:
-            console.print(f"[bold red]✗[/bold red] Failed to install for Claude Code/Happy: {e}")
+            console.print(f"[bold red]x[/bold red] Failed to install for Claude Code/Happy: {e}")
 
     # Install for Codex (separate directory)
     if installed_tools.get("codex"):
@@ -143,11 +143,11 @@ def install_slash_command() -> bool:
                 (codex_cw_dir / filename).write_text(content)
 
             console.print(
-                f"[bold green]✓[/bold green] Installed for Codex: {codex_dir / 'cw.md'} + {len(subcommands)} subcommands"
+                f"[bold green]*[/bold green] Installed for Codex: {codex_dir / 'cw.md'} + {len(subcommands)} subcommands"
             )
             success_count += 1
         except Exception as e:
-            console.print(f"[bold red]✗[/bold red] Failed to install for Codex: {e}")
+            console.print(f"[bold red]x[/bold red] Failed to install for Codex: {e}")
 
     if success_count > 0:
         console.print("\n[bold]Available commands in your AI session:[/bold]")
