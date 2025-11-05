@@ -906,25 +906,19 @@ def cd(
     ),
 ) -> None:
     """
-    Print the path to a worktree's directory.
+    Print the path to a worktree's directory and optionally setup cw-cd shell function.
 
-    This command prints the worktree path to stdout. Since a CLI tool cannot
-    directly change your shell's directory, use the cw-cd shell function for
-    actual directory navigation.
-
-    To install the shell function:
-        bash/zsh:   source <(cw _shell-function bash)
-        fish:       cw _shell-function fish | source
-        PowerShell: cw _shell-function powershell | Invoke-Expression
-
-    Then use: cw-cd <branch>
+    This command always prints the worktree path to stdout for use in scripts (e.g., cd $(cw cd fix-auth)).
+    If the cw-cd shell function is not installed and not in --print mode, prompts to run shell-setup.
 
     Example:
-        cw cd fix-auth          # Show path and installation hint
-        cw cd fix-auth --print  # Print path only (for scripting)
+        cw cd fix-auth          # Print path and offer shell-setup if not installed
+        cw cd fix-auth --print  # Print path only (no prompts)
+        cd $(cw cd fix-auth)    # Use in scripts
     """
+    import os
 
-    from .git_utils import find_worktree_by_branch, get_repo_root
+    from .git_utils import find_worktree_by_branch, get_repo_root, is_non_interactive
 
     try:
         repo = get_repo_root()
@@ -938,27 +932,49 @@ def cd(
             console.print(f"[bold red]Error:[/bold red] No worktree found for branch '{branch}'")
             raise typer.Exit(code=1)
 
-        if print_only:
-            # Script-friendly output: path only
-            print(worktree_path)
-        else:
-            # User-friendly output: path + helpful message
-            console.print(f"[bold cyan]Worktree path:[/bold cyan] {worktree_path}")
-            console.print()
-            console.print(
-                "[dim]To navigate directly to worktrees, install the cw-cd shell function:[/dim]"
-            )
-            console.print()
-            console.print("[bold]Quick setup:[/bold] [cyan]cw shell-setup[/cyan]")
-            console.print()
-            console.print("[dim]Or install manually:[/dim]")
-            console.print("[dim]  bash/zsh:  [/dim] source <(cw _shell-function bash)")
-            console.print("[dim]  fish:      [/dim] cw _shell-function fish | source")
-            console.print(
-                "[dim]  PowerShell:[/dim] cw _shell-function powershell | Invoke-Expression"
-            )
-            console.print()
-            console.print(f"[dim]Then use:[/dim] cw-cd {branch}")
+        # Check if cw-cd shell function is installed (only if not in print-only mode and interactive)
+        if not print_only and not is_non_interactive():
+            # Check shell config files for cw-cd installation
+            shell_env = os.environ.get("SHELL", "")
+            cw_cd_installed = False
+
+            if "bash" in shell_env:
+                bashrc = Path.home() / ".bashrc"
+                if bashrc.exists() and "cw _shell-function" in bashrc.read_text():
+                    cw_cd_installed = True
+            elif "zsh" in shell_env:
+                zshrc = Path.home() / ".zshrc"
+                if zshrc.exists() and "cw _shell-function" in zshrc.read_text():
+                    cw_cd_installed = True
+            elif "fish" in shell_env:
+                config_fish = Path.home() / ".config" / "fish" / "config.fish"
+                if config_fish.exists() and "cw _shell-function" in config_fish.read_text():
+                    cw_cd_installed = True
+
+            # If not installed, offer to run shell-setup
+            if not cw_cd_installed:
+                console.print(f"[bold cyan]Worktree path:[/bold cyan] {worktree_path}\n")
+                console.print(
+                    "[dim]💡 Tip: Install the cw-cd shell function for easier navigation![/dim]"
+                )
+                console.print(
+                    f"[dim]   With cw-cd installed, you can just type: [cyan]cw-cd {branch}[/cyan][/dim]\n"
+                )
+
+                try:
+                    response = typer.confirm("Run shell-setup now?", default=False)
+                    if response:
+                        console.print("")
+                        shell_setup()
+                        console.print("")
+                except (KeyboardInterrupt, EOFError):
+                    console.print(
+                        "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
+                    )
+
+        # Always print path to stdout (for scripting)
+        print(worktree_path)
+
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
