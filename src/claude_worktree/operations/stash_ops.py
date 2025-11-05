@@ -7,7 +7,7 @@ from rich.console import Console
 from ..exceptions import GitError, InvalidBranchError, WorktreeNotFoundError
 from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, git_command
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def stash_save(message: str | None = None) -> None:

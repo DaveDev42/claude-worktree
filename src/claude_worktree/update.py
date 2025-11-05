@@ -14,7 +14,7 @@ from rich.prompt import Confirm
 
 from . import __version__
 
-console = Console()
+console = Console(legacy_windows=False)
 
 # Cache directory for update check
 CACHE_DIR = Path.home() / ".cache" / "claude-worktree"

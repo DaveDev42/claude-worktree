@@ -13,7 +13,7 @@ from ..exceptions import GitError, WorktreeNotFoundError
 from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, has_command
 from ..helpers import resolve_worktree_target
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def _run_command_in_shell(

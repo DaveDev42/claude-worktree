@@ -11,7 +11,7 @@ from ..exceptions import GitError, RebaseError
 from ..git_utils import git_command, has_command
 from ..helpers import get_worktree_metadata, resolve_worktree_target
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def _generate_pr_description_with_ai(

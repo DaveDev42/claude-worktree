@@ -18,7 +18,7 @@ from ..git_utils import (
     set_config,
 )
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def change_base_branch(

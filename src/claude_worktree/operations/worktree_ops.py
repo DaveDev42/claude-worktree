@@ -32,7 +32,7 @@ from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
 from .helpers import get_worktree_metadata, resolve_worktree_target
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def create_worktree(

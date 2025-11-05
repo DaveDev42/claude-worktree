@@ -51,7 +51,7 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=True,
 )
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def version_callback(value: bool) -> None:

@@ -8,7 +8,7 @@ from rich.console import Console
 
 from .config import load_config, save_config
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def detect_ai_tools() -> dict[str, bool]:

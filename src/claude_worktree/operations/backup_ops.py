@@ -11,7 +11,7 @@ from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_wo
 from ..exceptions import GitError
 from ..git_utils import get_config, get_repo_root, git_command, parse_worktrees, set_config
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def get_backups_dir() -> Path:

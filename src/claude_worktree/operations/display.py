@@ -17,7 +17,7 @@ from ..git_utils import (
     parse_worktrees,
 )
 
-console = Console()
+console = Console(legacy_windows=False)
 
 
 def get_worktree_status(path: str, repo: Path) -> str:
