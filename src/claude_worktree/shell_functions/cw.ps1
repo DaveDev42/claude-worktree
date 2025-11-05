@@ -18,7 +18,7 @@ function cw-cd {
     $worktreePath = git worktree list --porcelain 2>$null |
         ForEach-Object {
             if ($_ -match '^worktree (.+)$') { $path = $Matches[1] }
-            if ($_ -match "^branch refs/heads/$Branch`$") { $path }
+            if ($_ -match "^branch refs/heads/$Branch$") { $path }
         } | Select-Object -First 1
 
     if (-not $worktreePath) {
