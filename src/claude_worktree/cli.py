@@ -1193,7 +1193,17 @@ def shell_function(
             script_content = pkg_resources.read_text("claude_worktree.shell_functions", shell_file)
 
         # Output the shell function script
-        print(script_content)
+        try:
+            print(script_content, flush=True)
+        except BrokenPipeError:
+            # Handle broken pipe gracefully (e.g., when piped to head or in process substitution)
+            # This is expected behavior and not an error
+            # Suppress any stderr messages during cleanup
+            import os
+
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stderr.fileno())
+            os.close(devnull)
     except Exception as e:
         print(f"Error: Failed to read shell function: {e}", file=sys.stderr)
         raise typer.Exit(code=1)

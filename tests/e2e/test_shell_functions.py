@@ -33,9 +33,9 @@ class TestBashShellFunction:
         create_worktree(branch_name="test-bash", no_cd=True)
 
         # Source shell function and execute cw-cd
-        bash_script = """
+        bash_script = f"""
         set -e
-        source <(cw _shell-function bash)
+        source <({sys.executable} -m claude_worktree _shell-function bash)
         cw-cd test-bash
         pwd
         """
@@ -52,8 +52,8 @@ class TestBashShellFunction:
 
     def test_cw_cd_error_on_nonexistent_branch(self, temp_git_repo: Path) -> None:
         """Test that cw-cd fails gracefully for non-existent branch."""
-        bash_script = """
-        source <(cw _shell-function bash)
+        bash_script = f"""
+        source <({sys.executable} -m claude_worktree _shell-function bash)
         cw-cd nonexistent-branch
         """
 
@@ -70,8 +70,8 @@ class TestBashShellFunction:
 
     def test_cw_cd_no_args_shows_usage(self, temp_git_repo: Path) -> None:
         """Test that cw-cd without arguments shows usage."""
-        bash_script = """
-        source <(cw _shell-function bash)
+        bash_script = f"""
+        source <({sys.executable} -m claude_worktree _shell-function bash)
         cw-cd
         """
 
@@ -93,8 +93,8 @@ class TestBashShellFunction:
         create_worktree(branch_name="feature-2", no_cd=True)
 
         # Simulate tab completion
-        bash_script = """
-        source <(cw _shell-function bash)
+        bash_script = f"""
+        source <({sys.executable} -m claude_worktree _shell-function bash)
 
         # Trigger completion function
         COMP_WORDS=(cw-cd "feat")
@@ -102,7 +102,7 @@ class TestBashShellFunction:
         _cw_cd_completion
 
         # Print completion results
-        printf '%s\\n' "${COMPREPLY[@]}"
+        printf '%s\\n' "${{COMPREPLY[@]}}"
         """
 
         result = subprocess.run(
@@ -129,8 +129,8 @@ class TestZshShellFunction:
 
         create_worktree(branch_name="test-zsh", no_cd=True)
 
-        zsh_script = """
-        source <(cw _shell-function zsh)
+        zsh_script = f"""
+        source <({sys.executable} -m claude_worktree _shell-function zsh)
         cw-cd test-zsh
         pwd
         """
@@ -158,8 +158,8 @@ class TestFishShellFunction:
 
         create_worktree(branch_name="test-fish", no_cd=True)
 
-        fish_script = """
-        cw _shell-function fish | source
+        fish_script = f"""
+        {sys.executable} -m claude_worktree _shell-function fish | source
         cw-cd test-fish
         pwd
         """
@@ -184,8 +184,8 @@ class TestFishShellFunction:
         create_worktree(branch_name="feature-y", no_cd=True)
 
         # Fish completion query
-        fish_script = """
-        cw _shell-function fish | source
+        fish_script = f"""
+        {sys.executable} -m claude_worktree _shell-function fish | source
 
         # Test completion
         complete -C"cw-cd feat"
@@ -215,8 +215,8 @@ class TestPowerShellFunction:
 
         create_worktree(branch_name="test-pwsh", no_cd=True)
 
-        pwsh_script = """
-        cw _shell-function powershell | Invoke-Expression
+        pwsh_script = f"""
+        {sys.executable} -m claude_worktree _shell-function powershell | Invoke-Expression
         cw-cd test-pwsh
         Get-Location
         """
@@ -238,8 +238,8 @@ class TestPowerShellFunction:
         if not has_command("pwsh") and not has_command("powershell"):
             pytest.skip("PowerShell not installed")
 
-        pwsh_script = """
-        cw _shell-function powershell | Invoke-Expression
+        pwsh_script = f"""
+        {sys.executable} -m claude_worktree _shell-function powershell | Invoke-Expression
         cw-cd nonexistent-branch 2>&1
         """
 
@@ -292,11 +292,12 @@ class TestShellScriptSyntax:
         pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
 
         # Test script can be sourced without errors
+        pwsh_test = f"{sys.executable} -m claude_worktree _shell-function powershell | Out-Null; if ($?) {{ exit 0 }} else {{ exit 1 }}"
         result = subprocess.run(
             [
                 pwsh_cmd,
                 "-Command",
-                "cw _shell-function powershell | Out-Null; if ($?) { exit 0 } else { exit 1 }",
+                pwsh_test,
             ],
             capture_output=True,
             text=True,
