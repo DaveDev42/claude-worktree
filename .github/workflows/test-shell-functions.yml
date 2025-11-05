@@ -1,17 +1,18 @@
-name: Shell Function Tests (Optional)
+name: Shell Function Tests
 
-# This workflow runs optional shell-specific tests
-# Triggered manually or weekly to verify shell integrations
+# This workflow runs shell-specific tests on every push
+# Ensures shell integrations work correctly across all platforms
 on:
-  workflow_dispatch:  # Manual trigger
-  schedule:
-    # Run every Monday at 9:00 UTC
-    - cron: '0 9 * * 1'
   push:
-    # Only run on changes to shell scripts
-    paths:
-      - 'src/claude_worktree/shell_functions/**'
-      - 'tests/e2e/test_shell_functions.py'
+    branches:
+      - main
+      - 'refactor/**'
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Manual trigger
 
 jobs:
   test-unix-shells:
