@@ -111,9 +111,12 @@ def create_pr_worktree(
 
     if title:
         pr_args.extend(["--title", title])
-
-    if body:
-        pr_args.extend(["--body", body])
+        if body:
+            pr_args.extend(["--body", body])
+    else:
+        # Use --fill to auto-generate title and body from commit messages
+        # This prevents gh from prompting for input in non-interactive environments
+        pr_args.append("--fill")
 
     if draft:
         pr_args.append("--draft")
