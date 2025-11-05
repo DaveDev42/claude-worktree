@@ -1,33 +1,13 @@
 """
 Platform-specific shell function tests.
 
-NOTE: Most shell function E2E tests are currently skipped in CI due to limitations
-with process substitution when running Python via subprocess managers (uv run, pytest).
-
-Shell functions are verified through:
-1. Syntax validation tests (active) - ensure scripts have no syntax errors
-2. Manual testing - shell functions work correctly in real user environments
-3. Integration with installed `cw` command (real usage scenario)
-
-The issue: Tests use `python -m claude_worktree _shell-function bash` in process
-substitution `<(...)`, which doesn't work reliably in CI environments due to timing
-issues with stdout closure.
-
-Real users: Use installed `cw` command which works perfectly:
-  source <(cw _shell-function bash)    # Works in real usage
-  cw-cd feature-branch                  # ✓ Successfully navigates
-
-Why skip E2E tests:
-- Process substitution + subprocess + pytest creates race conditions
-- Shell reads from pipe before Python fully flushes stdout
-- Not reproducible in real user environments
-- Would require complex workarounds (temp files, polling, etc.)
-
-The shell functions themselves are correct and work in production.
+Tests verify that shell functions (cw-cd) work correctly across different shells.
+Uses temporary files instead of process substitution for reliable CI testing.
 """
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -40,103 +20,151 @@ SKIP_ON_WINDOWS = pytest.mark.skipif(sys.platform == "win32", reason="Unix shell
 SKIP_ON_UNIX = pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
 
 
+def get_shell_function_script(shell: str) -> str:
+    """Get shell function script content by running the CLI command.
+
+    Uses subprocess to execute the command and capture output to avoid
+    process substitution issues in tests.
+    """
+    result = subprocess.run(
+        [sys.executable, "-m", "claude_worktree", "_shell-function", shell],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout
+
+
 @pytest.mark.shell
 @SKIP_ON_WINDOWS
 class TestBashShellFunction:
     """Test cw-cd in bash shell."""
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
     def test_cw_cd_changes_directory(self, temp_git_repo: Path, disable_claude) -> None:
         """Test that cw-cd actually changes directory in bash."""
         # Create worktree
         create_worktree(branch_name="test-bash", no_cd=True)
 
-        # Source shell function and execute cw-cd
-        bash_script = f"""
-        set -e
-        source <({sys.executable} -m claude_worktree _shell-function bash)
-        cw-cd test-bash
-        pwd
-        """
+        # Get shell function script and write to temp file
+        script_content = get_shell_function_script("bash")
 
-        result = subprocess.run(
-            ["bash", "-c", bash_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        assert result.returncode == 0, f"cw-cd failed: {result.stderr}"
-        assert "test-bash" in result.stdout, "Should change to worktree directory"
+        try:
+            # Source shell function and execute cw-cd
+            bash_script = f"""
+            set -e
+            source {script_file}
+            cw-cd test-bash
+            pwd
+            """
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
+            result = subprocess.run(
+                ["bash", "-c", bash_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 0, f"cw-cd failed: {result.stderr}"
+            assert "test-bash" in result.stdout, "Should change to worktree directory"
+        finally:
+            Path(script_file).unlink(missing_ok=True)
+
     def test_cw_cd_error_on_nonexistent_branch(self, temp_git_repo: Path) -> None:
         """Test that cw-cd fails gracefully for non-existent branch."""
-        bash_script = f"""
-        source <({sys.executable} -m claude_worktree _shell-function bash)
-        cw-cd nonexistent-branch
-        """
+        script_content = get_shell_function_script("bash")
 
-        result = subprocess.run(
-            ["bash", "-c", bash_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        assert result.returncode != 0, "Should fail for non-existent branch"
-        output = result.stdout + result.stderr
-        assert "Error" in output or "not found" in output.lower()
+        try:
+            bash_script = f"""
+            source {script_file}
+            cw-cd nonexistent-branch
+            """
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
+            result = subprocess.run(
+                ["bash", "-c", bash_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode != 0, "Should fail for non-existent branch"
+            output = result.stdout + result.stderr
+            assert "Error" in output or "not found" in output.lower()
+        finally:
+            Path(script_file).unlink(missing_ok=True)
+
     def test_cw_cd_no_args_shows_usage(self, temp_git_repo: Path) -> None:
         """Test that cw-cd without arguments shows usage."""
-        bash_script = f"""
-        source <({sys.executable} -m claude_worktree _shell-function bash)
-        cw-cd
-        """
+        script_content = get_shell_function_script("bash")
 
-        result = subprocess.run(
-            ["bash", "-c", bash_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        assert result.returncode != 0, "Should fail without arguments"
-        output = result.stdout + result.stderr
-        assert "Usage" in output, "Should show usage message"
+        try:
+            bash_script = f"""
+            source {script_file}
+            cw-cd
+            """
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
+            result = subprocess.run(
+                ["bash", "-c", bash_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode != 0, "Should fail without arguments"
+            output = result.stdout + result.stderr
+            assert "Usage" in output, "Should show usage message"
+        finally:
+            Path(script_file).unlink(missing_ok=True)
+
     def test_bash_tab_completion(self, temp_git_repo: Path, disable_claude) -> None:
         """Test bash tab completion for cw-cd."""
         # Create multiple worktrees
         create_worktree(branch_name="feature-1", no_cd=True)
         create_worktree(branch_name="feature-2", no_cd=True)
 
-        # Simulate tab completion
-        bash_script = f"""
-        source <({sys.executable} -m claude_worktree _shell-function bash)
+        script_content = get_shell_function_script("bash")
 
-        # Trigger completion function
-        COMP_WORDS=(cw-cd "feat")
-        COMP_CWORD=1
-        _cw_cd_completion
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        # Print completion results
-        printf '%s\\n' "${{COMPREPLY[@]}}"
-        """
+        try:
+            # Simulate tab completion
+            bash_script = f"""
+            source {script_file}
 
-        result = subprocess.run(
-            ["bash", "-c", bash_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+            # Trigger completion function
+            COMP_WORDS=(cw-cd "feat")
+            COMP_CWORD=1
+            _cw_cd_completion
 
-        assert result.returncode == 0
-        assert "feature-1" in result.stdout
-        assert "feature-2" in result.stdout
+            # Print completion results
+            printf '%s\\n' "${{COMPREPLY[@]}}"
+            """
+
+            result = subprocess.run(
+                ["bash", "-c", bash_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 0
+            assert "feature-1" in result.stdout
+            assert "feature-2" in result.stdout
+        finally:
+            Path(script_file).unlink(missing_ok=True)
 
 
 @pytest.mark.shell
@@ -144,7 +172,6 @@ class TestBashShellFunction:
 class TestZshShellFunction:
     """Test cw-cd in zsh shell."""
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
     def test_cw_cd_changes_directory(self, temp_git_repo: Path, disable_claude) -> None:
         """Test that cw-cd works in zsh."""
         if not has_command("zsh"):
@@ -152,21 +179,30 @@ class TestZshShellFunction:
 
         create_worktree(branch_name="test-zsh", no_cd=True)
 
-        zsh_script = f"""
-        source <({sys.executable} -m claude_worktree _shell-function zsh)
-        cw-cd test-zsh
-        pwd
-        """
+        script_content = get_shell_function_script("zsh")
 
-        result = subprocess.run(
-            ["zsh", "-c", zsh_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".zsh", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        assert result.returncode == 0, f"cw-cd failed in zsh: {result.stderr}"
-        assert "test-zsh" in result.stdout
+        try:
+            zsh_script = f"""
+            source {script_file}
+            cw-cd test-zsh
+            pwd
+            """
+
+            result = subprocess.run(
+                ["zsh", "-c", zsh_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 0, f"cw-cd failed in zsh: {result.stderr}"
+            assert "test-zsh" in result.stdout
+        finally:
+            Path(script_file).unlink(missing_ok=True)
 
 
 @pytest.mark.shell
@@ -174,7 +210,6 @@ class TestZshShellFunction:
 class TestFishShellFunction:
     """Test cw-cd in fish shell."""
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
     def test_cw_cd_changes_directory(self, temp_git_repo: Path, disable_claude) -> None:
         """Test that cw-cd works in fish."""
         if not has_command("fish"):
@@ -182,23 +217,31 @@ class TestFishShellFunction:
 
         create_worktree(branch_name="test-fish", no_cd=True)
 
-        fish_script = f"""
-        {sys.executable} -m claude_worktree _shell-function fish | source
-        cw-cd test-fish
-        pwd
-        """
+        script_content = get_shell_function_script("fish")
 
-        result = subprocess.run(
-            ["fish", "-c", fish_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".fish", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        assert result.returncode == 0, f"cw-cd failed in fish: {result.stderr}"
-        assert "test-fish" in result.stdout
+        try:
+            fish_script = f"""
+            source {script_file}
+            cw-cd test-fish
+            pwd
+            """
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
+            result = subprocess.run(
+                ["fish", "-c", fish_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 0, f"cw-cd failed in fish: {result.stderr}"
+            assert "test-fish" in result.stdout
+        finally:
+            Path(script_file).unlink(missing_ok=True)
+
     def test_fish_tab_completion(self, temp_git_repo: Path, disable_claude) -> None:
         """Test fish tab completion for cw-cd."""
         if not has_command("fish"):
@@ -208,24 +251,33 @@ class TestFishShellFunction:
         create_worktree(branch_name="feature-x", no_cd=True)
         create_worktree(branch_name="feature-y", no_cd=True)
 
-        # Fish completion query
-        fish_script = f"""
-        {sys.executable} -m claude_worktree _shell-function fish | source
+        script_content = get_shell_function_script("fish")
 
-        # Test completion
-        complete -C"cw-cd feat"
-        """
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".fish", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
-        result = subprocess.run(
-            ["fish", "-c", fish_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            # Fish completion query
+            fish_script = f"""
+            source {script_file}
 
-        # Fish completions should include our branches
-        # Note: The exact output format depends on fish version
-        assert result.returncode == 0
+            # Test completion
+            complete -C"cw-cd feat"
+            """
+
+            result = subprocess.run(
+                ["fish", "-c", fish_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            # Fish completions should include our branches
+            # Note: The exact output format depends on fish version
+            assert result.returncode == 0
+        finally:
+            Path(script_file).unlink(missing_ok=True)
 
 
 @pytest.mark.shell
@@ -233,7 +285,6 @@ class TestFishShellFunction:
 class TestPowerShellFunction:
     """Test cw-cd in PowerShell (Windows only)."""
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
     def test_cw_cd_changes_directory(self, temp_git_repo: Path, disable_claude) -> None:
         """Test that cw-cd works in PowerShell."""
         if not has_command("pwsh") and not has_command("powershell"):
@@ -241,46 +292,63 @@ class TestPowerShellFunction:
 
         create_worktree(branch_name="test-pwsh", no_cd=True)
 
-        pwsh_script = f"""
-        {sys.executable} -m claude_worktree _shell-function powershell | Invoke-Expression
-        cw-cd test-pwsh
-        Get-Location
-        """
+        script_content = get_shell_function_script("powershell")
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ps1", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
         pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
 
-        result = subprocess.run(
-            [pwsh_cmd, "-Command", pwsh_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            pwsh_script = f"""
+            . {script_file}
+            cw-cd test-pwsh
+            Get-Location
+            """
 
-        assert result.returncode == 0, f"cw-cd failed in PowerShell: {result.stderr}"
-        assert "test-pwsh" in result.stdout
+            result = subprocess.run(
+                [pwsh_cmd, "-Command", pwsh_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
 
-    @pytest.mark.skip(reason="Shell function loading via process substitution is unreliable in CI")
+            assert result.returncode == 0, f"cw-cd failed in PowerShell: {result.stderr}"
+            assert "test-pwsh" in result.stdout
+        finally:
+            Path(script_file).unlink(missing_ok=True)
+
     def test_cw_cd_error_handling_powershell(self, temp_git_repo: Path) -> None:
         """Test PowerShell error handling."""
         if not has_command("pwsh") and not has_command("powershell"):
             pytest.skip("PowerShell not installed")
 
-        pwsh_script = f"""
-        {sys.executable} -m claude_worktree _shell-function powershell | Invoke-Expression
-        cw-cd nonexistent-branch 2>&1
-        """
+        script_content = get_shell_function_script("powershell")
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ps1", delete=False) as f:
+            f.write(script_content)
+            script_file = f.name
 
         pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
 
-        result = subprocess.run(
-            [pwsh_cmd, "-Command", pwsh_script],
-            cwd=temp_git_repo,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            pwsh_script = f"""
+            . {script_file}
+            cw-cd nonexistent-branch 2>&1
+            """
 
-        output = result.stdout + result.stderr
-        assert "Error" in output or "not found" in output.lower()
+            result = subprocess.run(
+                [pwsh_cmd, "-Command", pwsh_script],
+                cwd=temp_git_repo,
+                capture_output=True,
+                text=True,
+            )
+
+            output = result.stdout + result.stderr
+            assert "Error" in output or "not found" in output.lower()
+        finally:
+            Path(script_file).unlink(missing_ok=True)
 
 
 @pytest.mark.shell
