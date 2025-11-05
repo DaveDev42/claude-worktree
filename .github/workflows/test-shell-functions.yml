@@ -71,7 +71,9 @@ jobs:
     - name: Run ${{ matrix.shell }} tests
       run: |
         # Run shell-specific tests for this shell
-        pytest tests/e2e/test_shell_functions.py::Test$(echo ${{ matrix.shell }} | sed 's/\b\(.\)/\u\1/')ShellFunction -v -m shell --no-cov
+        # Convert shell name to TitleCase (bash -> Bash, zsh -> Zsh, fish -> Fish)
+        shell_title="$(echo ${{ matrix.shell }} | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        pytest tests/e2e/test_shell_functions.py::Test${shell_title}ShellFunction -v -m shell --no-cov
       shell: bash
 
     - name: Run shell script syntax tests
