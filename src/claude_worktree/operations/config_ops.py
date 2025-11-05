@@ -71,7 +71,9 @@ def change_base_branch(
         console.print("[bold]The following operations would be performed:[/bold]\n")
         console.print("  1. [cyan]Fetch[/cyan] updates from remote")
         console.print(f"  2. [cyan]Rebase[/cyan] {feature_branch} onto {new_base}")
-        console.print(f"  3. [cyan]Update[/cyan] base branch metadata: {current_base} → {new_base}")
+        console.print(
+            f"  3. [cyan]Update[/cyan] base branch metadata: {current_base} -> {new_base}"
+        )
         console.print("\n[dim]Run without --dry-run to execute these operations.[/dim]\n")
         return
 
@@ -267,7 +269,7 @@ def import_config(import_file: Path, apply: bool = False) -> None:
             save_config(import_data["config"])
             console.print("[bold green]*[/bold green] Configuration imported\n")
         except Exception as e:
-            console.print(f"[yellow]⚠[/yellow] Configuration import failed: {e}\n")
+            console.print(f"[yellow]![/yellow] Configuration import failed: {e}\n")
 
     # Import worktree metadata
     console.print("[yellow]Importing worktree metadata...[/yellow]\n")
@@ -276,13 +278,13 @@ def import_config(import_file: Path, apply: bool = False) -> None:
         base_branch = wt.get("base_branch")
 
         if not branch or not base_branch:
-            console.print("[yellow]⚠[/yellow] Skipping invalid worktree entry\n")
+            console.print("[yellow]![/yellow] Skipping invalid worktree entry\n")
             continue
 
         # Check if branch exists locally
         if not branch_exists(branch, repo):
             console.print(
-                f"[yellow]⚠[/yellow] Branch '{branch}' not found locally. "
+                f"[yellow]![/yellow] Branch '{branch}' not found locally. "
                 f"Create it with 'cw new {branch} --base {base_branch}'"
             )
             continue
@@ -294,7 +296,7 @@ def import_config(import_file: Path, apply: bool = False) -> None:
             console.print(f"[bold green]*[/bold green] Imported metadata for: {branch}")
             imported_count += 1
         except Exception as e:
-            console.print(f"[yellow]⚠[/yellow] Failed to import {branch}: {e}")
+            console.print(f"[yellow]![/yellow] Failed to import {branch}: {e}")
 
     console.print(
         f"\n[bold green]* Import complete! Imported {imported_count} worktree(s)[/bold green]\n"

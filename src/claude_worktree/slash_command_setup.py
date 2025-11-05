@@ -124,7 +124,7 @@ def install_slash_command() -> bool:
             )
             success_count += 1
         except Exception as e:
-            console.print(f"[bold red]✗[/bold red] Failed to install for Claude Code/Happy: {e}")
+            console.print(f"[bold red]x[/bold red] Failed to install for Claude Code/Happy: {e}")
 
     # Install for Codex (separate directory)
     if installed_tools.get("codex"):
@@ -147,7 +147,7 @@ def install_slash_command() -> bool:
             )
             success_count += 1
         except Exception as e:
-            console.print(f"[bold red]✗[/bold red] Failed to install for Codex: {e}")
+            console.print(f"[bold red]x[/bold red] Failed to install for Codex: {e}")
 
     if success_count > 0:
         console.print("\n[bold]Available commands in your AI session:[/bold]")

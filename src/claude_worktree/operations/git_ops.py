@@ -108,7 +108,7 @@ BODY:
 
             if result.returncode != 0:
                 console.print(
-                    f"[yellow]⚠[/yellow] AI tool failed (exit code {result.returncode})\n"
+                    f"[yellow]![/yellow] AI tool failed (exit code {result.returncode})\n"
                 )
                 return None, None
 
@@ -135,7 +135,7 @@ BODY:
                 console.print(f"[dim]Body preview:[/dim] {body[:100]}...\n")
                 return title, body
             else:
-                console.print("[yellow]⚠[/yellow] Could not parse AI output\n")
+                console.print("[yellow]![/yellow] Could not parse AI output\n")
                 return None, None
 
         finally:
@@ -143,10 +143,10 @@ BODY:
             prompt_file.unlink(missing_ok=True)
 
     except subprocess.TimeoutExpired:
-        console.print("[yellow]⚠[/yellow] AI tool timed out\n")
+        console.print("[yellow]![/yellow] AI tool timed out\n")
         return None, None
     except Exception as e:
-        console.print(f"[yellow]⚠[/yellow] AI generation failed: {e}\n")
+        console.print(f"[yellow]![/yellow] AI generation failed: {e}\n")
         return None, None
 
 
@@ -239,7 +239,7 @@ def create_pr_worktree(
             git_command("push", "-u", "origin", feature_branch, repo=cwd)
             console.print("[bold green]*[/bold green] Pushed to origin\n")
         except GitError as e:
-            console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
+            console.print(f"[yellow]![/yellow] Push failed: {e}\n")
             raise
 
     # Create pull request

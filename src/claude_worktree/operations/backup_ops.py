@@ -131,7 +131,7 @@ def backup_worktree(
             backup_count += 1
 
         except GitError as e:
-            console.print(f"  [red]✗[/red] Backup failed: {e}")
+            console.print(f"  [red]x[/red] Backup failed: {e}")
             continue
 
     console.print(
@@ -312,7 +312,7 @@ def restore_worktree(
             )
             if result.returncode != 0:
                 console.print(
-                    f"  [yellow]⚠[/yellow] Failed to restore uncommitted changes: {result.stderr}"
+                    f"  [yellow]![/yellow] Failed to restore uncommitted changes: {result.stderr}"
                 )
 
         console.print("[bold green]*[/bold green] Restore complete!")

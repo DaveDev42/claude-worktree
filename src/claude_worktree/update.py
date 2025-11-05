@@ -248,7 +248,7 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
 
     # Handle unknown installation method
     if installer is None:
-        console.print("\n[yellow]⚠[/yellow] Could not detect how claude-worktree was installed.")
+        console.print("\n[yellow]![/yellow] Could not detect how claude-worktree was installed.")
         console.print("\nPlease upgrade manually using one of these methods:")
         console.print("  [cyan]pip install --upgrade claude-worktree[/cyan]")
         console.print("  [cyan]uv tool upgrade claude-worktree[/cyan]")
@@ -258,7 +258,7 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
     # Handle source installations
     if installer == "source":
         console.print(
-            "\n[yellow]⚠[/yellow] You appear to be running from source (editable install)."
+            "\n[yellow]![/yellow] You appear to be running from source (editable install)."
         )
         console.print("\nTo upgrade, you have two options:")
         console.print("  1. [cyan]git pull[/cyan] in your development directory")
@@ -273,7 +273,7 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
         console.print(f"[dim]Verifying version {target_version} is available...[/dim]")
         if not check_package_available(target_version):
             console.print(
-                f"\n[yellow]⚠[/yellow] Version {target_version} not yet available on PyPI CDN."
+                f"\n[yellow]![/yellow] Version {target_version} not yet available on PyPI CDN."
             )
             console.print(
                 "[dim]This is normal immediately after a release. The CDN may take a few minutes to sync.[/dim]"
@@ -287,7 +287,7 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
             # Check again
             if not check_package_available(target_version):
                 console.print(
-                    "\n[yellow]⚠[/yellow] Version still not available. Please try again in a few minutes."
+                    "\n[yellow]![/yellow] Version still not available. Please try again in a few minutes."
                 )
                 console.print("[dim]You can manually retry with:[/dim] [cyan]cw upgrade[/cyan]\n")
                 return False
@@ -334,21 +334,21 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
             # Check if anything was actually upgraded
             output = result.stdout + result.stderr
             if "Nothing to upgrade" in output or "already installed" in output.lower():
-                console.print("\n[yellow]⚠[/yellow] Already at the latest version")
+                console.print("\n[yellow]![/yellow] Already at the latest version")
                 return False
 
             console.print("[bold green]*[/bold green] Upgrade completed successfully!")
             console.print(f"\nPlease restart {sys.argv[0]} to use the new version.\n")
             return True
         else:
-            console.print("[bold red]✗[/bold red] Upgrade failed")
+            console.print("[bold red]x[/bold red] Upgrade failed")
             return False
 
     except subprocess.CalledProcessError as e:
-        console.print(f"[bold red]✗[/bold red] Upgrade failed: {e}")
+        console.print(f"[bold red]x[/bold red] Upgrade failed: {e}")
         return False
     except FileNotFoundError:
-        console.print(f"[bold red]✗[/bold red] {installer} not found")
+        console.print(f"[bold red]x[/bold red] {installer} not found")
         return False
 
 
@@ -391,7 +391,7 @@ def check_for_updates(auto: bool = True) -> bool:
             mark_update_checked(failed=True)
         else:
             console.print(
-                "[bold red]✗[/bold red] Failed to check for updates. Please try again later.\n"
+                "[bold red]x[/bold red] Failed to check for updates. Please try again later.\n"
             )
         return False
 

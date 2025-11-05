@@ -52,10 +52,10 @@ def doctor() -> None:
         if git_version >= min_version:
             console.print(f"   [green]*[/green] Git version {version_str} (minimum: 2.31.0)")
         else:
-            console.print(f"   [red]✗[/red] Git version {version_str} is too old (minimum: 2.31.0)")
+            console.print(f"   [red]x[/red] Git version {version_str} is too old (minimum: 2.31.0)")
             issues_found += 1
     except Exception as e:
-        console.print(f"   [red]✗[/red] Could not detect Git version: {e}")
+        console.print(f"   [red]x[/red] Could not detect Git version: {e}")
         issues_found += 1
 
     console.print()
@@ -77,14 +77,14 @@ def doctor() -> None:
 
         if status == "stale":
             stale_count += 1
-            console.print(f"   [red]✗[/red] {branch_name}: Stale (directory missing)")
+            console.print(f"   [red]x[/red] {branch_name}: Stale (directory missing)")
             issues_found += 1
 
     if stale_count == 0:
         console.print(f"   [green]*[/green] All {len(worktrees)} worktrees are accessible")
     else:
         console.print(
-            f"   [yellow]⚠[/yellow] {stale_count} stale worktree(s) found (use 'cw prune')"
+            f"   [yellow]![/yellow] {stale_count} stale worktree(s) found (use 'cw prune')"
         )
 
     console.print()
@@ -110,7 +110,7 @@ def doctor() -> None:
 
     if dirty_worktrees:
         console.print(
-            f"   [yellow]⚠[/yellow] {len(dirty_worktrees)} worktree(s) with uncommitted changes:"
+            f"   [yellow]![/yellow] {len(dirty_worktrees)} worktree(s) with uncommitted changes:"
         )
         for branch_name, _path in dirty_worktrees:
             console.print(f"      • {branch_name}")
@@ -182,7 +182,7 @@ def doctor() -> None:
 
     if behind_worktrees:
         console.print(
-            f"   [yellow]⚠[/yellow] {len(behind_worktrees)} worktree(s) behind base branch:"
+            f"   [yellow]![/yellow] {len(behind_worktrees)} worktree(s) behind base branch:"
         )
         for branch_name, base_branch, count in behind_worktrees:
             console.print(f"      • {branch_name}: {count} commit(s) behind {base_branch}")
@@ -218,7 +218,7 @@ def doctor() -> None:
 
     if conflicted_worktrees:
         console.print(
-            f"   [red]✗[/red] {len(conflicted_worktrees)} worktree(s) with merge conflicts:"
+            f"   [red]x[/red] {len(conflicted_worktrees)} worktree(s) with merge conflicts:"
         )
         for branch_name, files in conflicted_worktrees:
             console.print(f"      • {branch_name}: {len(files)} conflicted file(s)")
@@ -235,9 +235,9 @@ def doctor() -> None:
         console.print("[bold green]* Everything looks healthy![/bold green]\n")
     else:
         if issues_found > 0:
-            console.print(f"[bold red]✗ {issues_found} issue(s) found[/bold red]")
+            console.print(f"[bold red]x {issues_found} issue(s) found[/bold red]")
         if warnings_found > 0:
-            console.print(f"[bold yellow]⚠ {warnings_found} warning(s) found[/bold yellow]")
+            console.print(f"[bold yellow]! {warnings_found} warning(s) found[/bold yellow]")
         console.print()
 
     # Recommendations

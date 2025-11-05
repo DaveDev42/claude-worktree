@@ -84,7 +84,7 @@ def launch_ai_tool(
     # Check if the command exists
     if not has_command(ai_tool_name):
         console.print(
-            f"[yellow]⚠[/yellow] {ai_tool_name} not detected. "
+            f"[yellow]![/yellow] {ai_tool_name} not detected. "
             f"Install it or update your config with 'cw config set ai-tool <tool>'.\n"
         )
         return

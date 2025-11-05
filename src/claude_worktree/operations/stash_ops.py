@@ -34,7 +34,7 @@ def stash_save(message: str | None = None) -> None:
     # Check if there are changes to stash
     status_result = git_command("status", "--porcelain", repo=cwd, capture=True)
     if not status_result.stdout.strip():
-        console.print("[yellow]⚠[/yellow] No changes to stash\n")
+        console.print("[yellow]![/yellow] No changes to stash\n")
         return
 
     # Create stash (include untracked files)
@@ -139,7 +139,7 @@ def stash_apply(target_branch: str, stash_ref: str = "stash@{0}") -> None:
         console.print(f"[bold green]*[/bold green] Stash applied to {target_branch}\n")
         console.print(f"[dim]Worktree path: {worktree_path}[/dim]\n")
     except GitError as e:
-        console.print(f"[bold red]✗[/bold red] Failed to apply stash: {e}\n")
+        console.print(f"[bold red]x[/bold red] Failed to apply stash: {e}\n")
         console.print(
             "[yellow]Tip:[/yellow] There may be conflicts. Check the worktree and resolve manually.\n"
         )
