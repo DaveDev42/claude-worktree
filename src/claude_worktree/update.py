@@ -292,7 +292,7 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
                 console.print("[dim]You can manually retry with:[/dim] [cyan]cw upgrade[/cyan]\n")
                 return False
 
-            console.print("[green]✓[/green] Version is now available!")
+            console.print("[green]*[/green] Version is now available!")
 
     console.print(f"\n[cyan]Upgrading using {installer}...[/cyan]")
 
@@ -337,7 +337,7 @@ def upgrade_package(installer: str | None = None, target_version: str | None = N
                 console.print("\n[yellow]⚠[/yellow] Already at the latest version")
                 return False
 
-            console.print("[bold green]✓[/bold green] Upgrade completed successfully!")
+            console.print("[bold green]*[/bold green] Upgrade completed successfully!")
             console.print(f"\nPlease restart {sys.argv[0]} to use the new version.\n")
             return True
         else:
@@ -406,7 +406,7 @@ def check_for_updates(auto: bool = True) -> bool:
     # Compare versions
     if not is_newer_version(latest_version, current_version):
         if not auto:
-            console.print("\n[green]✓ You are already running the latest version![/green]\n")
+            console.print("\n[green]* You are already running the latest version![/green]\n")
         return False
 
     # New version available!

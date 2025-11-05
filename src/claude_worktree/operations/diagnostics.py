@@ -50,7 +50,7 @@ def doctor() -> None:
         min_version = parse("2.31.0")
 
         if git_version >= min_version:
-            console.print(f"   [green]✓[/green] Git version {version_str} (minimum: 2.31.0)")
+            console.print(f"   [green]*[/green] Git version {version_str} (minimum: 2.31.0)")
         else:
             console.print(f"   [red]✗[/red] Git version {version_str} is too old (minimum: 2.31.0)")
             issues_found += 1
@@ -81,7 +81,7 @@ def doctor() -> None:
             issues_found += 1
 
     if stale_count == 0:
-        console.print(f"   [green]✓[/green] All {len(worktrees)} worktrees are accessible")
+        console.print(f"   [green]*[/green] All {len(worktrees)} worktrees are accessible")
     else:
         console.print(
             f"   [yellow]⚠[/yellow] {stale_count} stale worktree(s) found (use 'cw prune')"
@@ -116,7 +116,7 @@ def doctor() -> None:
             console.print(f"      • {branch_name}")
         warnings_found += 1
     else:
-        console.print("   [green]✓[/green] No uncommitted changes")
+        console.print("   [green]*[/green] No uncommitted changes")
 
     console.print()
 
@@ -189,7 +189,7 @@ def doctor() -> None:
         console.print("   [dim]Tip: Use 'cw sync --all' to update all worktrees[/dim]")
         warnings_found += 1
     else:
-        console.print("   [green]✓[/green] All worktrees are up-to-date with base")
+        console.print("   [green]*[/green] All worktrees are up-to-date with base")
 
     console.print()
 
@@ -225,14 +225,14 @@ def doctor() -> None:
         console.print("   [dim]Tip: Use 'cw finish --ai-merge' for AI-assisted resolution[/dim]")
         issues_found += 1
     else:
-        console.print("   [green]✓[/green] No merge conflicts detected")
+        console.print("   [green]*[/green] No merge conflicts detected")
 
     console.print()
 
     # Summary
     console.print("[bold cyan]Summary:[/bold cyan]")
     if issues_found == 0 and warnings_found == 0:
-        console.print("[bold green]✓ Everything looks healthy![/bold green]\n")
+        console.print("[bold green]* Everything looks healthy![/bold green]\n")
     else:
         if issues_found > 0:
             console.print(f"[bold red]✗ {issues_found} issue(s) found[/bold red]")

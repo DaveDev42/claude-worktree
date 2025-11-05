@@ -120,7 +120,7 @@ def install_slash_command() -> bool:
                 (claude_cw_dir / filename).write_text(content)
 
             console.print(
-                f"[bold green]✓[/bold green] Installed for Claude Code/Happy: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
+                f"[bold green]*[/bold green] Installed for Claude Code/Happy: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
             )
             success_count += 1
         except Exception as e:
@@ -143,7 +143,7 @@ def install_slash_command() -> bool:
                 (codex_cw_dir / filename).write_text(content)
 
             console.print(
-                f"[bold green]✓[/bold green] Installed for Codex: {codex_dir / 'cw.md'} + {len(subcommands)} subcommands"
+                f"[bold green]*[/bold green] Installed for Codex: {codex_dir / 'cw.md'} + {len(subcommands)} subcommands"
             )
             success_count += 1
         except Exception as e:

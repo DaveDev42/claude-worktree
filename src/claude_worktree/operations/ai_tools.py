@@ -104,7 +104,7 @@ def launch_ai_tool(
             cwd=str(path),
         )
         console.print(
-            f"[bold green]✓[/bold green] {ai_tool_name} running in tmux session '{tmux_session}'\n"
+            f"[bold green]*[/bold green] {ai_tool_name} running in tmux session '{tmux_session}'\n"
         )
         return
 
@@ -125,7 +125,7 @@ def launch_ai_tool(
 APPLESCRIPT
         """
         subprocess.run(["bash", "-lc", script], check=True)
-        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in new iTerm tab\n")
+        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm tab\n")
         return
 
     if iterm:
@@ -143,12 +143,12 @@ APPLESCRIPT
 APPLESCRIPT
         """
         subprocess.run(["bash", "-lc", script], check=True)
-        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in new iTerm window\n")
+        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm window\n")
         return
 
     if bg:
         _run_command_in_shell(cmd, path, background=True)
-        console.print(f"[bold green]✓[/bold green] {ai_tool_name} running in background\n")
+        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in background\n")
     else:
         console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
         _run_command_in_shell(cmd, path, background=False, check=False)
@@ -187,7 +187,7 @@ def resume_worktree(
 
     # Check for existing session
     if session_manager.session_exists(branch_name):
-        console.print(f"[green]✓[/green] Found session for branch: [bold]{branch_name}[/bold]")
+        console.print(f"[green]*[/green] Found session for branch: [bold]{branch_name}[/bold]")
 
         # Load session metadata
         metadata = session_manager.load_session_metadata(branch_name)

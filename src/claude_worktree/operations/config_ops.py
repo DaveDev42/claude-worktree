@@ -125,14 +125,14 @@ def change_base_branch(
             )
         raise RebaseError(error_msg)
 
-    console.print("[bold green]✓[/bold green] Rebase successful\n")
+    console.print("[bold green]*[/bold green] Rebase successful\n")
 
     # Update base branch metadata
     console.print("[yellow]Updating base branch metadata...[/yellow]")
     set_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), new_base, repo=repo)
-    console.print("[bold green]✓[/bold green] Base branch metadata updated\n")
+    console.print("[bold green]*[/bold green] Base branch metadata updated\n")
 
-    console.print(f"[bold green]✓ Base branch changed to '{new_base}'![/bold green]\n")
+    console.print(f"[bold green]* Base branch changed to '{new_base}'![/bold green]\n")
 
 
 def export_config(output_file: Path | None = None) -> None:
@@ -194,7 +194,7 @@ def export_config(output_file: Path | None = None) -> None:
     try:
         with open(output_file, "w") as f:
             json.dump(export_data, f, indent=2)
-        console.print("[bold green]✓[/bold green] Export complete!\n")
+        console.print("[bold green]*[/bold green] Export complete!\n")
         console.print("[bold]Exported:[/bold]")
         console.print(f"  • {len(export_data['worktrees'])} worktree(s)")
         console.print("  • Configuration settings")
@@ -265,7 +265,7 @@ def import_config(import_file: Path, apply: bool = False) -> None:
         console.print("[yellow]Importing global configuration...[/yellow]")
         try:
             save_config(import_data["config"])
-            console.print("[bold green]✓[/bold green] Configuration imported\n")
+            console.print("[bold green]*[/bold green] Configuration imported\n")
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Configuration import failed: {e}\n")
 
@@ -291,13 +291,13 @@ def import_config(import_file: Path, apply: bool = False) -> None:
         try:
             set_config(CONFIG_KEY_BASE_BRANCH.format(branch), base_branch, repo=repo)
             set_config(CONFIG_KEY_BASE_PATH.format(branch), str(repo), repo=repo)
-            console.print(f"[bold green]✓[/bold green] Imported metadata for: {branch}")
+            console.print(f"[bold green]*[/bold green] Imported metadata for: {branch}")
             imported_count += 1
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Failed to import {branch}: {e}")
 
     console.print(
-        f"\n[bold green]✓ Import complete! Imported {imported_count} worktree(s)[/bold green]\n"
+        f"\n[bold green]* Import complete! Imported {imported_count} worktree(s)[/bold green]\n"
     )
     console.print(
         "[dim]Note: This only imports metadata. "

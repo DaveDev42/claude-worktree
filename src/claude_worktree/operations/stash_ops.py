@@ -40,7 +40,7 @@ def stash_save(message: str | None = None) -> None:
     # Create stash (include untracked files)
     console.print(f"[yellow]Stashing changes in {branch_name}...[/yellow]")
     git_command("stash", "push", "--include-untracked", "-m", stash_msg, repo=cwd)
-    console.print(f"[bold green]✓[/bold green] Stashed changes: {stash_msg}\n")
+    console.print(f"[bold green]*[/bold green] Stashed changes: {stash_msg}\n")
 
 
 def stash_list() -> None:
@@ -136,7 +136,7 @@ def stash_apply(target_branch: str, stash_ref: str = "stash@{0}") -> None:
     try:
         # Apply the stash to the target worktree
         git_command("stash", "apply", stash_ref, repo=worktree_path)
-        console.print(f"[bold green]✓[/bold green] Stash applied to {target_branch}\n")
+        console.print(f"[bold green]*[/bold green] Stash applied to {target_branch}\n")
         console.print(f"[dim]Worktree path: {worktree_path}[/dim]\n")
     except GitError as e:
         console.print(f"[bold red]✗[/bold red] Failed to apply stash: {e}\n")

@@ -1095,7 +1095,7 @@ def shell_setup() -> None:
     if profile_path and profile_path.exists():
         content = profile_path.read_text()
         if "cw _shell-function" in content or "cw-cd" in content:
-            console.print("[green]✓[/green] cw-cd function is already installed!\n")
+            console.print("[green]*[/green] cw-cd function is already installed!\n")
             console.print(f"Found in: [dim]{profile_path}[/dim]")
             raise typer.Exit(code=0)
 
@@ -1127,7 +1127,7 @@ def shell_setup() -> None:
             f.write("\n# claude-worktree shell function\n")
             f.write(f"{setup_line}\n")
 
-        console.print(f"\n[bold green]✓[/bold green] Successfully added to {profile_path}")
+        console.print(f"\n[bold green]*[/bold green] Successfully added to {profile_path}")
         console.print("\n[bold]Next steps:[/bold]")
         console.print(f"  1. Restart your shell or run: [cyan]source {profile_path}[/cyan]")
         console.print("  2. Try it out: [cyan]cw-cd <branch-name>[/cyan]")
@@ -1258,10 +1258,10 @@ def set_cmd(
             command = parts[0]
             args = parts[1:] if len(parts) > 1 else []
             set_ai_tool(command, args)
-            console.print(f"[bold green]✓[/bold green] AI tool set to: {value}")
+            console.print(f"[bold green]*[/bold green] AI tool set to: {value}")
         else:
             set_config_value(key, value)
-            console.print(f"[bold green]✓[/bold green] {key} = {value}")
+            console.print(f"[bold green]*[/bold green] {key} = {value}")
     except (ClaudeWorktreeError, ConfigError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -1293,7 +1293,7 @@ def use_preset_cmd(
     """
     try:
         use_preset(preset)
-        console.print(f"[bold green]✓[/bold green] Using preset: {preset}")
+        console.print(f"[bold green]*[/bold green] Using preset: {preset}")
     except (ClaudeWorktreeError, ConfigError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -1329,7 +1329,7 @@ def reset() -> None:
     """
     try:
         reset_config()
-        console.print("[bold green]✓[/bold green] Configuration reset to defaults")
+        console.print("[bold green]*[/bold green] Configuration reset to defaults")
     except (ClaudeWorktreeError, ConfigError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

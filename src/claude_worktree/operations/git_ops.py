@@ -130,7 +130,7 @@ BODY:
                         break
 
             if title and body:
-                console.print("[bold green]✓[/bold green] AI generated PR description\n")
+                console.print("[bold green]*[/bold green] AI generated PR description\n")
                 console.print(f"[dim]Title:[/dim] {title}")
                 console.print(f"[dim]Body preview:[/dim] {body[:100]}...\n")
                 return title, body
@@ -229,7 +229,7 @@ def create_pr_worktree(
                 error_msg += f"\n  • {file}"
         raise RebaseError(error_msg)
 
-    console.print("[bold green]✓[/bold green] Rebase successful\n")
+    console.print("[bold green]*[/bold green] Rebase successful\n")
 
     # Push to remote if requested
     if push:
@@ -237,7 +237,7 @@ def create_pr_worktree(
         try:
             # Push with -u to set upstream
             git_command("push", "-u", "origin", feature_branch, repo=cwd)
-            console.print("[bold green]✓[/bold green] Pushed to origin\n")
+            console.print("[bold green]*[/bold green] Pushed to origin\n")
         except GitError as e:
             console.print(f"[yellow]⚠[/yellow] Push failed: {e}\n")
             raise
@@ -290,7 +290,7 @@ def create_pr_worktree(
             check=True,
         )
         pr_url = result.stdout.strip()
-        console.print("[bold green]✓[/bold green] Pull request created!\n")
+        console.print("[bold green]*[/bold green] Pull request created!\n")
         console.print(f"[bold]PR URL:[/bold] {pr_url}\n")
         console.print(
             "[dim]Note: Worktree is still active. Use 'cw delete' to remove it after PR is merged.[/dim]\n"
