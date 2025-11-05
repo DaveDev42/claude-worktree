@@ -971,7 +971,7 @@ def test_change_base_branch_dry_run(
     assert "Fetch" in captured.out
     assert "Rebase" in captured.out
     assert "Update" in captured.out
-    assert "main → master" in captured.out
+    assert "main -> master" in captured.out
 
     # Verify base branch was NOT changed
     result = subprocess.run(
