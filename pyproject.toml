@@ -72,6 +72,12 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
 ]
+markers = [
+    "unit: Pure functions without side effects (fast)",
+    "integration: Tests with real git/filesystem operations (medium)",
+    "e2e: End-to-end user workflows (slow)",
+    "shell: Platform-specific shell function tests (optional)",
+]
 
 [tool.ruff]
 line-length = 100
