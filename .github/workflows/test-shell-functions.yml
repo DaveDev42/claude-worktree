@@ -1,17 +1,14 @@
 name: Shell Function Tests
 
-# This workflow runs shell-specific tests on every push
+# This workflow runs shell-specific tests on PRs and main branch pushes
 # Ensures shell integrations work correctly across all platforms
 on:
   push:
     branches:
-      - main
-      - 'refactor/**'
-      - 'feature/**'
-      - 'fix/**'
+      - main  # Run on main branch pushes (after PR merge)
   pull_request:
     branches:
-      - main
+      - main  # Run on all PRs to main
   workflow_dispatch:  # Manual trigger
 
 jobs:
