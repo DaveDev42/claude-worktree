@@ -967,6 +967,11 @@ def cd(
                         console.print("")
                         shell_setup()
                         console.print("")
+                    else:
+                        # User declined
+                        console.print(
+                            "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
+                        )
                 except (KeyboardInterrupt, EOFError):
                     console.print(
                         "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"

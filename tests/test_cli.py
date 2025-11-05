@@ -256,8 +256,18 @@ def test_cd_command_help() -> None:
     assert "Print the path to a worktree" in result.stdout
 
 
-def test_cd_command_execution(temp_git_repo: Path, disable_claude) -> None:
+def test_cd_command_execution(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
     """Test cd command with real worktree."""
+    # Mock is_non_interactive to return False (simulate interactive environment)
+    from claude_worktree import git_utils
+
+    monkeypatch.setattr(git_utils, "is_non_interactive", lambda: False)
+
+    # Mock typer.confirm to avoid blocking prompt
+    import typer
+
+    monkeypatch.setattr(typer, "confirm", lambda *args, **kwargs: False)
+
     # Create worktree
     runner.invoke(app, ["new", "cd-test", "--no-cd"])
     expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-cd-test"
@@ -441,8 +451,18 @@ def test_shell_setup_help() -> None:
     assert "setup" in result.stdout.lower() or "install" in result.stdout.lower()
 
 
-def test_cd_command_suggests_shell_setup(temp_git_repo: Path, disable_claude) -> None:
+def test_cd_command_suggests_shell_setup(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
     """Test cd command suggests shell-setup."""
+    # Mock is_non_interactive to return False (simulate interactive environment)
+    from claude_worktree import git_utils
+
+    monkeypatch.setattr(git_utils, "is_non_interactive", lambda: False)
+
+    # Mock typer.confirm to avoid blocking prompt
+    import typer
+
+    monkeypatch.setattr(typer, "confirm", lambda *args, **kwargs: False)
+
     # Create worktree
     runner.invoke(app, ["new", "setup-test", "--no-cd"])
 
