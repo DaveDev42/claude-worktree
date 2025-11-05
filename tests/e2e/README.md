@@ -2,6 +2,8 @@
 
 This directory contains **End-to-End (E2E) tests** that verify complete user workflows.
 
+**🚀 All tests run on every commit** - Both platform-independent workflow tests AND shell-specific function tests are executed in CI on every push/PR across all platforms (bash, zsh, fish, PowerShell) to ensure complete compatibility.
+
 ## Test Organization
 
 ### Platform-Independent Tests (`test_workflows.py`)
@@ -37,25 +39,25 @@ These tests verify core functionality by running actual `cw` CLI commands:
   - Create from develop instead of main
   - Merge back to correct base
 
-### Platform-Specific Tests (`test_shell_functions.py`)
+### Shell Function Tests (`test_shell_functions.py`)
 
-**Optional tests marked with `@pytest.mark.shell`**
+**Run on EVERY commit across ALL shells** - Marked with `@pytest.mark.shell` but executed in CI automatically.
 
 These tests verify shell functions (`cw-cd`) work in actual shells:
 
-- **TestBashShellFunction** - bash/zsh testing
+- **TestBashShellFunction** - bash testing
   - Directory changes with `cw-cd`
   - Tab completion
   - Error handling
 
-- **TestZshShellFunction** - zsh-specific tests
+- **TestZshShellFunction** - zsh-specific tests (Unix only)
 
-- **TestFishShellFunction** - fish shell tests
+- **TestFishShellFunction** - fish shell tests (auto-installed in CI)
   - Directory changes
   - Fish completion
 
-- **TestPowerShellFunction** - Windows PowerShell
-  - Directory changes (Windows only)
+- **TestPowerShellFunction** - Windows PowerShell (Windows only)
+  - Directory changes
   - Error handling
 
 - **TestShellScriptSyntax** - Syntax validation
@@ -65,73 +67,81 @@ These tests verify shell functions (`cw-cd`) work in actual shells:
 
 ## Running Tests
 
-### Quick Start (Platform-Independent)
+### Quick Start (All Tests)
 
 ```bash
-# Run all E2E tests (excluding shell-specific)
-pytest tests/e2e/ -v -m "not shell"
+# Run all E2E tests (workflows + shells)
+pytest tests/e2e/ -v
 
 # Run specific workflow test
 pytest tests/e2e/test_workflows.py::TestFeatureDevelopmentWorkflow -v
+
+# Run only shell function tests
+pytest tests/e2e/test_shell_functions.py -v -m shell
 ```
 
-### Shell Function Tests (Optional)
+### Local Development
 
 ```bash
-# Run all shell-specific tests (requires actual shells installed)
-pytest tests/e2e/test_shell_functions.py -v -m shell
+# Skip shell tests if shells not installed locally
+pytest tests/e2e/ -v -m "not shell"
 
-# Run bash tests only (Unix)
+# Run bash tests only
 pytest tests/e2e/test_shell_functions.py::TestBashShellFunction -v
 
 # Run PowerShell tests only (Windows)
 pytest tests/e2e/test_shell_functions.py::TestPowerShellFunction -v
 ```
 
-### CI/CD Usage
+### CI/CD (Automatic)
+
+**All tests run automatically on every push/PR:**
 
 ```yaml
-# GitHub Actions example
-- name: Run E2E tests (all platforms)
-  run: pytest tests/e2e/test_workflows.py -v
+# Ubuntu/macOS: Installs bash, zsh, fish → runs all shell tests
+- name: Install shells
+  run: |
+    sudo apt-get install -y zsh fish  # Ubuntu
+    brew install fish                  # macOS
 
-- name: Run shell tests (Unix only)
-  if: runner.os != 'Windows'
-  run: pytest tests/e2e/test_shell_functions.py -m shell
+# Windows: Uses built-in PowerShell → runs PowerShell tests
+- name: Run tests
+  run: pytest tests/e2e/ -v  # ALL tests including shells
 ```
 
 ## Test Execution Time
 
-| Test Suite | Duration | When to Run |
-|------------|----------|-------------|
-| `test_workflows.py` | ~11s | Every commit (required) |
-| `test_shell_functions.py` | ~5s | Pre-release (optional) |
+| Test Suite | Duration | CI Execution |
+|------------|----------|--------------|
+| `test_workflows.py` | ~11s | ✅ Every commit |
+| `test_shell_functions.py` | ~5s | ✅ Every commit |
+| **Total E2E** | **~16s** | **Every commit** |
 
 ## Test Markers
 
 Tests use pytest markers for filtering:
 
 ```python
-@pytest.mark.shell    # Shell-specific tests (optional)
+@pytest.mark.shell    # Shell-specific tests (run in CI, optional locally)
 ```
 
 Configure in `pyproject.toml`:
 ```toml
 markers = [
-    "shell: Platform-specific shell function tests (optional)",
+    "shell: Platform-specific shell function tests",
 ]
 ```
 
 ## Platform Requirements
 
-### Platform-Independent Tests
-- ✅ Python 3.11+
-- ✅ Git 2.31+
-- ✅ `cw` CLI installed
+### CI (Automatic Installation)
+- ✅ **Ubuntu**: bash (pre-installed), zsh, fish (auto-installed)
+- ✅ **macOS**: bash, zsh (pre-installed), fish (auto-installed via brew)
+- ✅ **Windows**: PowerShell (pre-installed)
 
-### Shell Function Tests
-- Unix: bash, zsh (optional: fish)
-- Windows: PowerShell or pwsh
+### Local Development
+- **Platform-Independent Tests**: Python 3.11+, Git 2.31+, `cw` CLI
+- **Shell Tests**: Install shells manually or skip with `-m "not shell"`
 
 ## Writing New E2E Tests
 
@@ -183,13 +193,30 @@ class TestYourShellFunction:
         assert result.returncode == 0
 ```
 
+## CI Strategy
+
+### Every Push/PR
+✅ **Ubuntu** (Python 3.11, 3.12)
+- Installs: bash (✓), zsh (auto), fish (auto)
+- Runs: All workflow tests + bash/zsh/fish shell tests
+
+✅ **macOS** (Python 3.11, 3.12)
+- Installs: bash (✓), zsh (✓), fish (auto)
+- Runs: All workflow tests + bash/zsh/fish shell tests
+
+✅ **Windows** (Python 3.11, 3.12)
+- Installs: PowerShell (✓)
+- Runs: All workflow tests + PowerShell shell tests
+
+**Total CI Matrix**: 3 OS × 2 Python × (workflow tests + shell tests) = **6 comprehensive test runs per commit**
+
 ## Best Practices
 
-1. **Platform-Independent First**: Always write platform-independent tests when possible
-2. **Shell Tests Are Optional**: Only add shell tests for critical shell-specific features
+1. **All Tests Are Critical**: Both workflow and shell tests run on every commit
+2. **Cross-Platform**: Use `Path` objects, avoid platform-specific assumptions
 3. **Clear Assertions**: Use descriptive assertion messages
 4. **Cleanup**: Tests should clean up worktrees (or rely on temp_git_repo fixture)
-5. **Real Operations**: E2E tests should use real git operations, not mocks
+5. **Real Operations**: E2E tests use real git operations and real shells, not mocks
 
 ## Troubleshooting
 
@@ -197,9 +224,9 @@ class TestYourShellFunction:
 - Check if using Unix-specific paths (use `Path` objects)
 - Ensure commands don't use Unix-specific flags
 
-### Shell Tests Skipped
-- Shell not installed → Expected (tests will skip)
-- Wrong platform → Expected (tests skip on wrong OS)
+### Shell Tests Skipped Locally
+- Install required shells: `sudo apt-get install zsh fish` (Ubuntu)
+- Or skip with: `pytest tests/e2e/ -m "not shell"`
 
 ### Tests Timeout
 - Default timeout: 30s per command
@@ -211,3 +238,4 @@ class TestYourShellFunction:
 - `../integration/` - Integration tests (git + filesystem)
 - `../unit/` - Unit tests (pure functions)
 - `conftest.py` - Shared fixtures
+- `.github/workflows/test.yml` - CI configuration with shell installation

@@ -65,13 +65,42 @@ jobs:
       run: |
         uv pip install --system -e ".[dev]"
 
-    - name: Run tests with pytest
+    - name: Install shells (bash, zsh, fish)
+      if: runner.os != 'Windows'
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          sudo apt-get update
+          sudo apt-get install -y zsh fish
+        else
+          # macOS already has bash and zsh
+          brew install fish
+        fi
+      shell: bash
+
+    - name: Verify shell installations
+      if: runner.os != 'Windows'
+      run: |
+        echo "Bash version:"
+        bash --version | head -1
+        echo "Zsh version:"
+        zsh --version
+        echo "Fish version:"
+        fish --version
+      shell: bash
+
+    - name: Verify PowerShell installation
+      if: runner.os == 'Windows'
+      run: |
+        pwsh --version
+      shell: pwsh
+
+    - name: Run tests with pytest (ALL tests including shell)
       uses: pavelzw/pytest-action@v2
       with:
         verbose: true
         emoji: false
         job-summary: true
-        custom-arguments: '-v -n auto -m "not shell" --cov=claude_worktree --cov-report=xml --cov-report=term'
+        custom-arguments: '-v -n auto --cov=claude_worktree --cov-report=xml --cov-report=term'
         report-title: 'Test Results (${{ matrix.os }} / Python ${{ matrix.python-version }})'
 
     - name: Upload coverage to Codecov
