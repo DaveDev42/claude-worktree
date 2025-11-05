@@ -4,11 +4,11 @@ import shutil
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from .config import load_config, save_config
+from .console import get_console
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def detect_ai_tools() -> dict[str, bool]:

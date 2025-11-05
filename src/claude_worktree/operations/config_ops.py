@@ -5,8 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH
 from ..exceptions import GitError, InvalidBranchError, RebaseError
 from ..git_utils import (
@@ -18,7 +17,7 @@ from ..git_utils import (
     set_config,
 )
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def change_base_branch(

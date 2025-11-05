@@ -71,7 +71,7 @@ jobs:
         verbose: true
         emoji: false
         job-summary: true
-        custom-arguments: '-v -n auto -m "not shell" --cov=claude_worktree --cov-report=xml --cov-report=term'
+        custom-arguments: '-v -n auto --cov=claude_worktree --cov-report=xml --cov-report=term'
         report-title: 'Test Results (${{ matrix.os }} / Python ${{ matrix.python-version }})'
 
     - name: Upload coverage to Codecov

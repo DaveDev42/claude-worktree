@@ -9,12 +9,12 @@ from typing import Any
 
 import httpx
 from packaging.version import parse
-from rich.console import Console
 from rich.prompt import Confirm
 
 from . import __version__
+from .console import get_console
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 # Cache directory for update check
 CACHE_DIR = Path.home() / ".cache" / "claude-worktree"

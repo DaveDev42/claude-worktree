@@ -4,14 +4,13 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from rich.console import Console
-
 from ..config import get_ai_tool_command
+from ..console import get_console
 from ..exceptions import GitError, RebaseError
 from ..git_utils import git_command, has_command
 from ..helpers import get_worktree_metadata, resolve_worktree_target
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def _generate_pr_description_with_ai(

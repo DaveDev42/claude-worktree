@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import typer
-from rich.console import Console
 
 from . import __version__
 from .config import (
@@ -19,6 +18,7 @@ from .config import (
 from .config import (
     list_presets as list_ai_presets,
 )
+from .console import get_console
 from .exceptions import ClaudeWorktreeError
 from .git_utils import get_repo_root, normalize_branch_name, parse_worktrees
 from .operations import (
@@ -51,7 +51,7 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=True,
 )
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def version_callback(value: bool) -> None:

@@ -4,8 +4,7 @@ import os
 import time
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH
 from ..exceptions import GitError, InvalidBranchError
 from ..git_utils import (
@@ -17,7 +16,7 @@ from ..git_utils import (
     parse_worktrees,
 )
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def get_worktree_status(path: str, repo: Path) -> str:

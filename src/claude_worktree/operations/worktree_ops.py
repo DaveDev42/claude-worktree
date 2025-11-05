@@ -5,8 +5,7 @@ import sys
 import time
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from ..exceptions import (
     GitError,
@@ -32,7 +31,7 @@ from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
 from .helpers import get_worktree_metadata, resolve_worktree_target
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def create_worktree(

@@ -6,14 +6,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from rich.console import Console
-
 from ..config import get_ai_tool_command, get_ai_tool_resume_command
+from ..console import get_console
 from ..exceptions import GitError, WorktreeNotFoundError
 from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, has_command
 from ..helpers import resolve_worktree_target
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def _run_command_in_shell(

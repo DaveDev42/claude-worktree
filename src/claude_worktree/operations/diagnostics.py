@@ -4,12 +4,12 @@ import subprocess
 from pathlib import Path
 
 from packaging.version import parse
-from rich.console import Console
 
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH
 from ..git_utils import get_config, get_repo_root, git_command, parse_worktrees
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def doctor() -> None:

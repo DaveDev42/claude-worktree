@@ -5,13 +5,12 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from rich.console import Console
-
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from ..exceptions import GitError
 from ..git_utils import get_config, get_repo_root, git_command, parse_worktrees, set_config
 
-console = Console(legacy_windows=False)
+console = get_console()
 
 
 def get_backups_dir() -> Path:
