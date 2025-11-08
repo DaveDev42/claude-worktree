@@ -407,22 +407,10 @@ class TestShellScriptSyntax:
 
         pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
 
-        # Use the helper function to get script content directly
-        # This avoids subprocess/module loading issues in CI
-        script_content = get_shell_function_script("powershell")
+        # Test actual usage pattern: pipe to Out-String then Invoke-Expression
+        # This matches the documented way to source the function in PowerShell profiles
+        pwsh_test = f"{sys.executable} -m claude_worktree _shell-function powershell | Out-String | Invoke-Expression; if ($?) {{ Write-Output 'success'; exit 0 }} else {{ exit 1 }}"
 
-        # Verify script content is not empty
-        assert script_content and script_content.strip(), "PowerShell script content is empty"
-
-        # Test with Invoke-Expression using script content directly
-        # Escape single quotes and use here-string for reliability
-        pwsh_test = f"""
-$script = @'
-{script_content}
-'@
-Invoke-Expression $script
-if ($?) {{ Write-Output 'success'; exit 0 }} else {{ exit 1 }}
-"""
         result = subprocess.run(
             [
                 pwsh_cmd,

@@ -1,6 +1,6 @@
 # claude-worktree shell functions for PowerShell
 # Source this file to enable shell functions:
-#   cw _shell-function powershell | Invoke-Expression
+#   cw _shell-function powershell | Out-String | Invoke-Expression
 
 # Navigate to a worktree by branch name
 function cw-cd {
