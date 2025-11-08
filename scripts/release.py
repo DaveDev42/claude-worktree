@@ -178,7 +178,7 @@ def run_tests(skip_tests: bool = False, dry_run: bool = False) -> None:
         return
 
     print("Running tests...")
-    run_command(["uv", "run", "pytest"], dry_run=dry_run)
+    run_command(["uv", "run", "--extra", "dev", "pytest"], dry_run=dry_run)
     print("✅ All tests passed")
 
 
