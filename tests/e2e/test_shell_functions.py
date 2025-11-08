@@ -400,7 +400,6 @@ class TestShellScriptSyntax:
         assert result.returncode == 0, f"PowerShell syntax error: {result.stderr}"
 
     @SKIP_ON_UNIX
-    @pytest.mark.skip(reason="CI packaging issue - script works in real usage")
     def test_powershell_invoke_expression(self) -> None:
         """Validate PowerShell script works with Invoke-Expression (profile usage)."""
         if not has_command("pwsh") and not has_command("powershell"):
@@ -408,9 +407,22 @@ class TestShellScriptSyntax:
 
         pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
 
-        # Test the exact pattern used in PowerShell profiles:
-        # cw _shell-function powershell | Invoke-Expression
-        pwsh_test = f"{sys.executable} -m claude_worktree _shell-function powershell | Invoke-Expression; if ($?) {{ Write-Output 'success'; exit 0 }} else {{ exit 1 }}"
+        # Use the helper function to get script content directly
+        # This avoids subprocess/module loading issues in CI
+        script_content = get_shell_function_script("powershell")
+
+        # Verify script content is not empty
+        assert script_content and script_content.strip(), "PowerShell script content is empty"
+
+        # Test with Invoke-Expression using script content directly
+        # Escape single quotes and use here-string for reliability
+        pwsh_test = f"""
+$script = @'
+{script_content}
+'@
+Invoke-Expression $script
+if ($?) {{ Write-Output 'success'; exit 0 }} else {{ exit 1 }}
+"""
         result = subprocess.run(
             [
                 pwsh_cmd,

@@ -276,6 +276,14 @@ Session restoration workflow:
 - **Mocking**: Mock git commands to avoid filesystem changes
 - **Fixtures**: Reusable test repositories
 
+**CRITICAL: Test Policy**
+- **NEVER skip or ignore tests** using `@pytest.mark.skip`, `pytest.skip()`, or similar
+- **NEVER comment out failing tests**
+- **ALWAYS fix the root cause** of test failures
+- If a test fails in CI but works locally, investigate the CI environment difference and fix the test or code
+- Skipping tests hides bugs and breaks quality assurance
+- Every test must have a valid reason to exist; if it doesn't, delete it - don't skip it
+
 ## Common Development Tasks
 
 ### Running tests (MANDATORY before commits)
