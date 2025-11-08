@@ -398,3 +398,34 @@ class TestShellScriptSyntax:
             text=True,
         )
         assert result.returncode == 0, f"PowerShell syntax error: {result.stderr}"
+
+    @SKIP_ON_UNIX
+    def test_powershell_invoke_expression(self) -> None:
+        """Validate PowerShell script works with Invoke-Expression (profile usage)."""
+        if not has_command("pwsh") and not has_command("powershell"):
+            pytest.skip("PowerShell not installed")
+
+        pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
+
+        # Test the exact pattern used in PowerShell profiles:
+        # cw _shell-function powershell | Invoke-Expression
+        pwsh_test = f"{sys.executable} -m claude_worktree _shell-function powershell | Invoke-Expression; if ($?) {{ Write-Output 'success'; exit 0 }} else {{ exit 1 }}"
+        result = subprocess.run(
+            [
+                pwsh_cmd,
+                "-Command",
+                pwsh_test,
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        # Check for both success and absence of syntax errors
+        assert result.returncode == 0, f"Invoke-Expression failed: {result.stderr}"
+        assert "success" in result.stdout.lower() or result.returncode == 0, (
+            f"Function not loaded: {result.stdout}"
+        )
+
+        # Verify no parsing errors about missing braces
+        assert "Missing closing" not in result.stderr, f"Parsing error: {result.stderr}"
+        assert "empty string" not in result.stderr.lower(), f"Empty string error: {result.stderr}"

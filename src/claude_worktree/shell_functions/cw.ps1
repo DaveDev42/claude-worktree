@@ -15,7 +15,8 @@ function cw-cd {
     }
 
     # Get worktree path directly from git worktree list
-    $worktreePath = git worktree list --porcelain 2>$null |
+    $worktreePath = git worktree list --porcelain 2>&1 |
+        Where-Object { $_ -is [string] } |
         ForEach-Object {
             if ($_ -match '^worktree (.+)$') { $path = $Matches[1] }
             if ($_ -match "^branch refs/heads/$Branch$") { $path }
@@ -40,7 +41,8 @@ Register-ArgumentCompleter -CommandName cw-cd -ParameterName Branch -ScriptBlock
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
 
     # Get list of worktree branches from git
-    $branches = git worktree list --porcelain 2>$null |
+    $branches = git worktree list --porcelain 2>&1 |
+        Where-Object { $_ -is [string] } |
         Select-String -Pattern '^branch ' |
         ForEach-Object { $_ -replace '^branch refs/heads/', '' } |
         Sort-Object -Unique
