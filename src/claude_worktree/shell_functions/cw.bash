@@ -3,23 +3,30 @@
 #   source <(cw _shell-function bash)
 
 # Navigate to a worktree by branch name
+# If no argument is provided, navigate to the base (main) worktree
 cw-cd() {
-    if [ $# -eq 0 ]; then
-        echo "Usage: cw-cd <branch-name>" >&2
-        return 1
-    fi
-
     local branch="$1"
     local worktree_path
 
-    # Get worktree path directly from git worktree list
-    worktree_path=$(git worktree list --porcelain 2>/dev/null | awk -v branch="$branch" '
-        /^worktree / { path=$2 }
-        /^branch / && $2 == "refs/heads/"branch { print path; exit }
-    ')
+    if [ $# -eq 0 ]; then
+        # No argument - navigate to base (main) worktree
+        worktree_path=$(git worktree list --porcelain 2>/dev/null | awk '
+            /^worktree / { print $2; exit }
+        ')
+    else
+        # Argument provided - navigate to specified branch worktree
+        worktree_path=$(git worktree list --porcelain 2>/dev/null | awk -v branch="$branch" '
+            /^worktree / { path=$2 }
+            /^branch / && $2 == "refs/heads/"branch { print path; exit }
+        ')
+    fi
 
     if [ -z "$worktree_path" ]; then
-        echo "Error: No worktree found for branch '$branch'" >&2
+        if [ $# -eq 0 ]; then
+            echo "Error: No worktree found (not in a git repository?)" >&2
+        else
+            echo "Error: No worktree found for branch '$branch'" >&2
+        fi
         return 1
     fi
 

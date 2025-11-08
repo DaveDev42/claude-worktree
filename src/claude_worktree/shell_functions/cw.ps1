@@ -3,27 +3,38 @@
 #   cw _shell-function powershell | Out-String | Invoke-Expression
 
 # Navigate to a worktree by branch name
+# If no argument is provided, navigate to the base (main) worktree
 function cw-cd {
     param(
         [Parameter(Mandatory=$false, Position=0)]
         [string]$Branch
     )
 
+    $worktreePath = $null
+
     if (-not $Branch) {
-        Write-Error "Usage: cw-cd <branch-name>"
-        return
+        # No argument - navigate to base (main) worktree
+        $worktreePath = git worktree list --porcelain 2>&1 |
+            Where-Object { $_ -is [string] } |
+            ForEach-Object {
+                if ($_ -match '^worktree (.+)$') { $Matches[1]; break }
+            } | Select-Object -First 1
+    } else {
+        # Argument provided - navigate to specified branch worktree
+        $worktreePath = git worktree list --porcelain 2>&1 |
+            Where-Object { $_ -is [string] } |
+            ForEach-Object {
+                if ($_ -match '^worktree (.+)$') { $path = $Matches[1] }
+                if ($_ -match "^branch refs/heads/$Branch$") { $path }
+            } | Select-Object -First 1
     }
 
-    # Get worktree path directly from git worktree list
-    $worktreePath = git worktree list --porcelain 2>&1 |
-        Where-Object { $_ -is [string] } |
-        ForEach-Object {
-            if ($_ -match '^worktree (.+)$') { $path = $Matches[1] }
-            if ($_ -match "^branch refs/heads/$Branch$") { $path }
-        } | Select-Object -First 1
-
     if (-not $worktreePath) {
-        Write-Error "Error: No worktree found for branch '$Branch'"
+        if (-not $Branch) {
+            Write-Error "Error: No worktree found (not in a git repository?)"
+        } else {
+            Write-Error "Error: No worktree found for branch '$Branch'"
+        }
         return
     }
 

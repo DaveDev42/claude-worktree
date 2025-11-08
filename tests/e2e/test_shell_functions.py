@@ -100,8 +100,8 @@ class TestBashShellFunction:
         finally:
             Path(script_file).unlink(missing_ok=True)
 
-    def test_cw_cd_no_args_shows_usage(self, temp_git_repo: Path) -> None:
-        """Test that cw-cd without arguments shows usage."""
+    def test_cw_cd_no_args_navigates_to_base(self, temp_git_repo: Path) -> None:
+        """Test that cw-cd without arguments navigates to base (main) worktree."""
         script_content = get_shell_function_script("bash")
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
@@ -112,6 +112,7 @@ class TestBashShellFunction:
             bash_script = f"""
             source {script_file}
             cw-cd
+            pwd
             """
 
             result = subprocess.run(
@@ -121,9 +122,11 @@ class TestBashShellFunction:
                 text=True,
             )
 
-            assert result.returncode != 0, "Should fail without arguments"
+            assert result.returncode == 0, f"Should succeed without arguments: {result.stderr}"
             output = result.stdout + result.stderr
-            assert "Usage" in output, "Should show usage message"
+            assert "Switched to worktree:" in output, "Should show switched message"
+            # Verify we switched to the base repository (temp_git_repo)
+            assert str(temp_git_repo) in result.stdout, "Should navigate to base worktree"
         finally:
             Path(script_file).unlink(missing_ok=True)
 
