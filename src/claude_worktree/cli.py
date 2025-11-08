@@ -1074,7 +1074,7 @@ def shell_setup() -> None:
         console.print("\n[bold]fish:[/bold]")
         console.print("  cw _shell-function fish | source")
         console.print("\n[bold]PowerShell:[/bold]")
-        console.print("  cw _shell-function powershell | Invoke-Expression")
+        console.print("  cw _shell-function powershell | Out-String | Invoke-Expression")
         raise typer.Exit(code=0)
 
     console.print(f"[bold cyan]Detected shell:[/bold cyan] {shell_name}\n")
@@ -1084,7 +1084,9 @@ def shell_setup() -> None:
         console.print(
             "[bold]To enable cw-cd in PowerShell, add the following to your $PROFILE:[/bold]\n"
         )
-        console.print("[cyan]cw _shell-function powershell | Invoke-Expression[/cyan]\n")
+        console.print(
+            "[cyan]cw _shell-function powershell | Out-String | Invoke-Expression[/cyan]\n"
+        )
         console.print("To find your PowerShell profile location, run: [cyan]$PROFILE[/cyan]")
         console.print(
             "\nIf the profile file doesn't exist, create it with: [cyan]New-Item -Path $PROFILE -ItemType File -Force[/cyan]"
@@ -1162,7 +1164,7 @@ def shell_function(
     Example:
         bash/zsh:   source <(cw _shell-function bash)
         fish:       cw _shell-function fish | source
-        PowerShell: cw _shell-function powershell | Invoke-Expression
+        PowerShell: cw _shell-function powershell | Out-String | Invoke-Expression
     """
     import sys
 
