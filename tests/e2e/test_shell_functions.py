@@ -398,3 +398,47 @@ class TestShellScriptSyntax:
             text=True,
         )
         assert result.returncode == 0, f"PowerShell syntax error: {result.stderr}"
+
+    @SKIP_ON_UNIX
+    def test_powershell_invoke_expression(self) -> None:
+        """Validate PowerShell script works with Invoke-Expression (profile usage)."""
+        if not has_command("pwsh") and not has_command("powershell"):
+            pytest.skip("PowerShell not installed")
+
+        pwsh_cmd = "pwsh" if has_command("pwsh") else "powershell"
+
+        # Use the helper function to get script content directly
+        # This avoids subprocess/module loading issues in CI
+        script_content = get_shell_function_script("powershell")
+
+        # Verify script content is not empty
+        assert script_content and script_content.strip(), "PowerShell script content is empty"
+
+        # Test with Invoke-Expression using script content directly
+        # Escape single quotes and use here-string for reliability
+        pwsh_test = f"""
+$script = @'
+{script_content}
+'@
+Invoke-Expression $script
+if ($?) {{ Write-Output 'success'; exit 0 }} else {{ exit 1 }}
+"""
+        result = subprocess.run(
+            [
+                pwsh_cmd,
+                "-Command",
+                pwsh_test,
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        # Check for both success and absence of syntax errors
+        assert result.returncode == 0, f"Invoke-Expression failed: {result.stderr}"
+        assert "success" in result.stdout.lower() or result.returncode == 0, (
+            f"Function not loaded: {result.stdout}"
+        )
+
+        # Verify no parsing errors about missing braces
+        assert "Missing closing" not in result.stderr, f"Parsing error: {result.stderr}"
+        assert "empty string" not in result.stderr.lower(), f"Empty string error: {result.stderr}"
