@@ -566,6 +566,72 @@ def delete_worktree(
                 console.print(f"[yellow]![/yellow] Remote branch deletion failed: {e}\n")
 
 
+def _topological_sort_worktrees(
+    worktrees: list[tuple[str, Path]], repo: Path
+) -> list[tuple[str, Path]]:
+    """
+    Sort worktrees by dependency order using topological sort.
+
+    Worktrees that serve as base branches for other worktrees are sorted first.
+
+    Args:
+        worktrees: List of (branch_name, path) tuples
+        repo: Repository path
+
+    Returns:
+        Sorted list of (branch_name, path) tuples in dependency order
+    """
+    # Build dependency graph: {branch: [branches_that_depend_on_it]}
+    graph: dict[str, list[str]] = {branch: [] for branch, _ in worktrees}
+    in_degree: dict[str, int] = {branch: 0 for branch, _ in worktrees}
+    worktree_map: dict[str, Path] = dict(worktrees)
+
+    # Collect all branch names (including non-worktree branches that might be bases)
+    all_branches = set(graph.keys())
+
+    # Build the dependency graph
+    for branch, _ in worktrees:
+        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
+        if base_branch:
+            # If base_branch is another worktree, add dependency
+            if base_branch in graph:
+                graph[base_branch].append(branch)
+                in_degree[branch] += 1
+            # If base_branch is not a worktree (e.g., main, develop), add it
+            elif base_branch not in all_branches:
+                all_branches.add(base_branch)
+                graph[base_branch] = []
+
+    # Kahn's algorithm for topological sort
+    queue = [branch for branch, degree in in_degree.items() if degree == 0]
+    sorted_branches = []
+
+    while queue:
+        # Sort alphabetically for deterministic order
+        queue.sort()
+        current = queue.pop(0)
+        sorted_branches.append(current)
+
+        # Process dependents
+        if current in graph:
+            for dependent in graph[current]:
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    queue.append(dependent)
+
+    # Check for cycles
+    if len(sorted_branches) != len(worktrees):
+        # Cycle detected - return original order with warning
+        console.print(
+            "[yellow]Warning: Circular dependency detected in worktree base branches. "
+            "Syncing in original order.[/yellow]\n"
+        )
+        return worktrees
+
+    # Return sorted worktrees (only those that are actual worktrees)
+    return [(branch, worktree_map[branch]) for branch in sorted_branches if branch in worktree_map]
+
+
 def sync_worktree(
     target: str | None = None,
     all_worktrees: bool = False,
@@ -599,6 +665,9 @@ def sync_worktree(
             # Normalize branch name
             branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
             worktrees_to_sync.append((branch_name, path))
+
+        # Sort by dependency order (topological sort)
+        worktrees_to_sync = _topological_sort_worktrees(worktrees_to_sync, repo)
     elif target or not all_worktrees:
         # Sync specific worktree by branch name or current worktree
         worktree_path, branch_name, _ = resolve_worktree_target(target)
@@ -613,6 +682,44 @@ def sync_worktree(
     if fetch_only:
         console.print("[bold green]*[/bold green] Fetch complete\n")
         return
+
+    # If syncing all worktrees, update local base branches from origin first
+    if all_worktrees and fetch_result.returncode == 0:
+        # Collect unique base branches
+        base_branches = set()
+        for branch, _ in worktrees_to_sync:
+            base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
+            if base_branch:
+                base_branches.add(base_branch)
+
+        # Update each base branch from origin
+        if base_branches:
+            console.print("\n[yellow]Updating local base branches from origin...[/yellow]")
+            for base_branch in base_branches:
+                # Check if origin/{base_branch} exists
+                check_result = git_command(
+                    "rev-parse",
+                    "--verify",
+                    f"origin/{base_branch}",
+                    repo=repo,
+                    check=False,
+                    capture=True,
+                )
+                if check_result.returncode == 0:
+                    # Update local branch to match origin (fast-forward only)
+                    try:
+                        # Use git branch -f to force update without switching branches
+                        git_command("branch", "-f", base_branch, f"origin/{base_branch}", repo=repo)
+                        console.print(
+                            f"  [bold green]*[/bold green] Updated {base_branch} from origin"
+                        )
+                    except GitError as e:
+                        console.print(f"  [yellow]![/yellow] Failed to update {base_branch}: {e}")
+                else:
+                    console.print(
+                        f"  [dim]Skipping {base_branch}: origin/{base_branch} not found[/dim]"
+                    )
+            console.print()
 
     # Sync each worktree
     for branch, worktree_path in worktrees_to_sync:
