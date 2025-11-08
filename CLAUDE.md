@@ -276,6 +276,14 @@ Session restoration workflow:
 - **Mocking**: Mock git commands to avoid filesystem changes
 - **Fixtures**: Reusable test repositories
 
+**CRITICAL: Test Policy**
+- **NEVER skip or ignore tests** using `@pytest.mark.skip`, `pytest.skip()`, or similar
+- **NEVER comment out failing tests**
+- **ALWAYS fix the root cause** of test failures
+- If a test fails in CI but works locally, investigate the CI environment difference and fix the test or code
+- Skipping tests hides bugs and breaks quality assurance
+- Every test must have a valid reason to exist; if it doesn't, delete it - don't skip it
+
 ## Common Development Tasks
 
 ### Running tests (MANDATORY before commits)
@@ -484,10 +492,42 @@ uv publish
 
 **Step-by-step release process:**
 
+**RECOMMENDED: Use the automated release script** (`scripts/release.py`):
+
+```bash
+# Patch release (default: 0.10.20 → 0.10.21)
+uv run python scripts/release.py
+
+# Minor release (0.10.21 → 0.11.0)
+uv run python scripts/release.py --minor
+
+# Major release (0.11.0 → 1.0.0)
+uv run python scripts/release.py --major
+
+# Dry-run to preview changes
+uv run python scripts/release.py --dry-run
+
+# Skip tests (not recommended)
+uv run python scripts/release.py --skip-tests
+```
+
+The script automatically:
+1. ✅ Checks git working tree is clean
+2. ✅ Reads current version from `pyproject.toml`
+3. ✅ Calculates new version based on semantic versioning
+4. ✅ Runs tests (`uv run --extra dev pytest`)
+5. ✅ Updates `pyproject.toml` and `uv.lock`
+6. ✅ Creates `release/vX.Y.Z` branch
+7. ✅ Commits changes with proper message
+8. ✅ Pushes to remote
+9. ✅ Creates GitHub PR via `gh` CLI
+
+**Manual release process** (if script unavailable):
+
 1. **Run tests and update version** (in main repository):
    ```bash
    # Ensure all tests pass
-   uv run pytest
+   uv run --extra dev pytest
 
    # Check git status
    git status
