@@ -191,6 +191,12 @@ def main(
     ),
 ) -> None:
     """Claude Code × git worktree helper CLI."""
+    import sys
+
+    # Skip callbacks for internal commands that output machine-readable content
+    if len(sys.argv) > 1 and sys.argv[1] in ["_shell-function", "_path"]:
+        return
+
     # Check for updates on first run of the day
     check_for_updates(auto=True)
 
@@ -1180,6 +1186,7 @@ def shell_function(
             shell_file = "cw.ps1"
 
         # Use importlib.resources to read the file from the package
+        script_content = None
         try:
             # Python 3.9+
             from importlib.resources import files
@@ -1192,10 +1199,18 @@ def shell_function(
 
             script_content = pkg_resources.read_text("claude_worktree.shell_functions", shell_file)
 
-        # Output the shell function script
-        print(script_content, end="", flush=True)
+        if not script_content or not script_content.strip():
+            print(f"Error: Shell function file is empty for {shell}", file=sys.stderr)
+            raise typer.Exit(code=1)
+
+        # Output the shell function script to stdout only (no extra output)
+        sys.stdout.write(script_content)
+        sys.stdout.flush()
     except Exception as e:
         print(f"Error: Failed to read shell function: {e}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc(file=sys.stderr)
         raise typer.Exit(code=1)
 
 
