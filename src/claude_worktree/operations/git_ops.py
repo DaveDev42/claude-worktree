@@ -93,8 +93,13 @@ BODY:
             # Run AI tool with the prompt
             console.print("[yellow]Generating PR description with AI...[/yellow]")
 
-            # Construct AI command with prompt file
-            ai_cmd = ai_command + ["--prompt", str(prompt_file)]
+            # Read prompt content from file
+            # Note: AI tools like claude/happy accept prompt as positional argument, not via --prompt flag
+            with open(prompt_file) as f:
+                prompt_text = f.read()
+
+            # Construct AI command with prompt as positional argument
+            ai_cmd = ai_command + [prompt_text]
 
             result = subprocess.run(
                 ai_cmd,
