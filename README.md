@@ -332,8 +332,29 @@ Contributions welcome! For development setup:
 git clone https://github.com/DaveDev42/claude-worktree.git
 cd claude-worktree
 uv pip install -e ".[dev]"
-pytest
+
+# Run tests
+uv run --extra dev pytest
+
+# Run linting
+ruff check src/ tests/
+mypy src/claude_worktree
 ```
+
+**For maintainers:** Use the automated release script to create new releases:
+
+```bash
+# Create a patch release (0.10.20 → 0.10.21)
+uv run python scripts/release.py
+
+# Create a minor release (0.10.20 → 0.11.0)
+uv run python scripts/release.py --minor
+
+# Create a major release (0.11.0 → 1.0.0)
+uv run python scripts/release.py --major
+```
+
+See [CLAUDE.md](CLAUDE.md) for detailed development and release workflows.
 
 ## License
 
