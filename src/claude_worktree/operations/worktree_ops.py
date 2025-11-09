@@ -359,13 +359,13 @@ def finish_worktree(
             context += "- Stage all conflicted files after resolving\n"
             context += "- Complete the entire rebase process\n"
 
-            # Save context to temporary file
+            # Save context to temporary file (for session restoration)
             from ..session_manager import save_context
 
             save_context(feature_branch, context)
 
-            # Launch AI tool in the worktree
-            launch_ai_tool(cwd, bg=False)
+            # Launch AI tool with prompt for automated conflict resolution
+            launch_ai_tool(cwd, bg=False, prompt=context)
 
             console.print("\n[yellow]AI conflict resolution completed.[/yellow]")
             console.print("[yellow]Verify the resolution and re-run if needed.[/yellow]\n")
@@ -785,7 +785,8 @@ def sync_worktree(
                             from ..session_manager import save_context
 
                             save_context(branch, context)
-                            launch_ai_tool(worktree_path, bg=False)
+                            # Launch AI tool with prompt for automated conflict resolution
+                            launch_ai_tool(worktree_path, bg=False, prompt=context)
 
                             console.print("\n[yellow]AI conflict resolution completed.[/yellow]")
                             console.print(
@@ -915,13 +916,13 @@ def sync_worktree(
                 context += "- Stage all conflicted files after resolving\n"
                 context += "- Complete the entire rebase process\n"
 
-                # Save context to temporary file
+                # Save context to temporary file (for session restoration)
                 from ..session_manager import save_context
 
                 save_context(branch, context)
 
-                # Launch AI tool in the worktree
-                launch_ai_tool(worktree_path, bg=False)
+                # Launch AI tool with prompt for automated conflict resolution
+                launch_ai_tool(worktree_path, bg=False, prompt=context)
 
                 console.print("\n[yellow]AI conflict resolution completed.[/yellow]")
                 console.print("[yellow]Verify the resolution and re-run sync if needed.[/yellow]\n")
