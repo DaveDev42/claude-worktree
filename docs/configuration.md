@@ -421,9 +421,9 @@ cw resume <TAB>   # Shows available branches
 - Tab completion works in both PowerShell and PowerShell Core
 - Command Prompt does not support tab completion
 
-## Shell Navigation Helper
+## Shell Integration (cw-cd + Tab Completion)
 
-Install the `cw-cd` shell function to quickly navigate between worktrees.
+Install the `cw-cd` shell function and tab completion for a better shell experience.
 
 ### Quick Setup (Recommended)
 
@@ -433,9 +433,13 @@ cw shell-setup
 
 This interactive command will:
 1. Detect your current shell (bash/zsh/fish/PowerShell)
-2. Check if `cw-cd` is already installed
-3. Offer to automatically add it to your shell profile
+2. Install both `cw-cd` function and tab completion
+3. Automatically add configuration to your shell profile
 4. Provide next steps
+
+**What it installs:**
+- **cw-cd function:** Navigate between worktrees with `cw-cd <branch>`
+- **Tab completion:** Autocomplete for `cw` commands, options, and branch names
 
 ### Manual Installation
 
