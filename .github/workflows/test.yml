@@ -84,3 +84,80 @@ jobs:
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
+
+  shell-tests:
+    name: Shell Tests (${{ matrix.os }} / ${{ matrix.shell }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux shells
+          - os: ubuntu-latest
+            shell: bash
+          - os: ubuntu-latest
+            shell: zsh
+          - os: ubuntu-latest
+            shell: fish
+
+          # macOS shells
+          - os: macos-latest
+            shell: bash
+          - os: macos-latest
+            shell: zsh
+          - os: macos-latest
+            shell: fish
+
+          # Windows shells
+          - os: windows-latest
+            shell: powershell
+          - os: windows-latest
+            shell: pwsh
+
+    env:
+      CW_AI_TOOL: ""  # Disable AI tool launching during tests
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: "pyproject.toml"
+
+    - name: Install dependencies
+      run: |
+        uv pip install --system -e ".[dev]"
+
+    - name: Install shell (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        if [ "${{ matrix.shell }}" = "zsh" ]; then
+          sudo apt-get update
+          sudo apt-get install -y zsh
+        elif [ "${{ matrix.shell }}" = "fish" ]; then
+          sudo apt-add-repository -y ppa:fish-shell/release-3
+          sudo apt-get update
+          sudo apt-get install -y fish
+        fi
+
+    - name: Install shell (macOS)
+      if: matrix.os == 'macos-latest' && matrix.shell == 'fish'
+      run: |
+        brew install fish
+
+    - name: Install PowerShell (Windows)
+      if: matrix.os == 'windows-latest' && matrix.shell == 'pwsh'
+      shell: pwsh
+      run: |
+        # pwsh is already installed on windows-latest
+
+    - name: Run shell function tests
+      run: |
+        uv run pytest tests/e2e/test_shell_functions.py -v --tb=short
