@@ -250,18 +250,58 @@ jobs:
       run: |
         TAG="v${{ steps.version.outputs.version }}"
 
-        # Simple release notes
-        cat > release_notes.md <<EOF
-        ## Release v${{ steps.version.outputs.version }}
-
-        Auto-released from merged PR #${{ github.event.pull_request.number }}
-
-        **Full Changelog**: https://github.com/${{ github.repository }}/commits/v${{ steps.version.outputs.version }}
-        EOF
-
-        # Create release
+        # Create release with auto-generated notes from PRs
         gh release create "$TAG" \
           --repo '${{ github.repository }}' \
           --title "v${{ steps.version.outputs.version }}" \
-          --notes-file release_notes.md \
+          --generate-notes \
           dist/*
+
+  # Step 6: Update CHANGELOG.md from GitHub Releases
+  update-changelog:
+    name: Update CHANGELOG.md
+    needs: [publish-to-github, auto-tag-and-release]
+    if: needs.auto-tag-and-release.outputs.tag_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        pip install httpx
+
+    - name: Run changelog sync
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        python scripts/changelog_sync.py --limit 30
+
+    - name: Commit and push CHANGELOG.md
+      continue-on-error: true
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Check if there are changes
+        if git diff --quiet CHANGELOG.md; then
+          echo "No changes to CHANGELOG.md"
+          exit 0
+        fi
+
+        # Commit and push
+        git add CHANGELOG.md
+        git commit -m "docs: Update CHANGELOG.md from GitHub Releases [skip ci]"
+        git push origin main
+
+        echo "✅ CHANGELOG.md updated successfully"

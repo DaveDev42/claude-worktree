@@ -354,6 +354,16 @@ uv run python scripts/release.py --minor
 uv run python scripts/release.py --major
 ```
 
+**CHANGELOG management:** The changelog is automatically generated from GitHub Releases. When a release PR is merged:
+1. GitHub automatically creates a Release with notes (PR-based)
+2. Workflow updates `CHANGELOG.md` from Releases
+3. Changes are committed to main
+
+To manually update the changelog:
+```bash
+python scripts/changelog_sync.py
+```
+
 See [CLAUDE.md](CLAUDE.md) for detailed development and release workflows.
 
 ## License
