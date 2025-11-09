@@ -1115,16 +1115,24 @@ def shell_setup() -> None:
     # Offer to install
     console.print("[bold]Setup shell integration?[/bold]")
     console.print(f"\nThis will add the following to [cyan]{profile_path}[/cyan]:")
-    console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
-    console.print(f"  [dim]{shell_function_line}[/dim]")
 
     if shell_name == "zsh":
+        # zsh: Show tab completion first, then shell functions
         console.print("\n  [dim]# Tab completion support[/dim]")
         console.print("  [dim]FPATH=$HOME/.zfunc:$FPATH[/dim]")
         console.print("  [dim]autoload -Uz compinit && compinit[/dim]")
+        console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
+        console.print(f"  [dim]{shell_function_line}[/dim]")
     elif shell_name == "bash":
+        # bash: Show shell functions first, then tab completion
+        console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
+        console.print(f"  [dim]{shell_function_line}[/dim]")
         console.print("\n  [dim]# Tab completion support[/dim]")
         console.print('  [dim]eval "$(cw --show-completion bash 2>/dev/null || true)"[/dim]')
+    else:
+        # other shells: just shell functions
+        console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
+        console.print(f"  [dim]{shell_function_line}[/dim]")
 
     console.print("")
 
