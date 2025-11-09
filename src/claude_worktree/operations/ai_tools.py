@@ -95,8 +95,15 @@ def launch_ai_tool(
     if ai_tool_name == "claude":
         cmd_parts.append("--dangerously-skip-permissions")
 
-    # Add prompt as positional argument if provided
+    # Add non-interactive flags if prompt is provided (for automated tasks)
     if prompt:
+        if ai_tool_name == "claude":
+            # Use --print mode to execute and exit (non-interactive)
+            cmd_parts.append("--print")
+            # Ensure all tools are available for conflict resolution
+            cmd_parts.append("--tools")
+            cmd_parts.append("default")
+        # Add prompt as positional argument
         cmd_parts.append(prompt)
 
     cmd = " ".join(shlex.quote(part) for part in cmd_parts)
