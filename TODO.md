@@ -31,8 +31,8 @@ No high priority tasks at this time.
   - Test AI launch with conflict context
 
 - [ ] **Increase test coverage to >90%**
-  - Current coverage: Unknown (run pytest --cov to check)
-  - Focus on edge cases in core.py
+  - Current coverage: 54% (3102 statements, 1418 missing)
+  - Focus on edge cases in core.py and operations modules
   - Add integration tests for common workflows
 
 ## Known Issues
