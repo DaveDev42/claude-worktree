@@ -1034,10 +1034,13 @@ def worktree_path(
 @app.command(name="shell-setup", rich_help_panel="Configuration")
 def shell_setup() -> None:
     """
-    Interactive shell function setup assistant.
+    Interactive shell integration setup (cw-cd function + tab completion).
 
-    Automatically detects your shell and offers to add the cw-cd function
-    to your shell configuration file (.bashrc, .zshrc, config.fish, or $PROFILE).
+    Automatically detects your shell and offers to add both:
+    - cw-cd function for directory navigation
+    - Tab completion for cw commands and branch names
+
+    Adds the configuration to your shell profile (.bashrc, .zshrc, config.fish, or $PROFILE).
 
     Example:
         cw shell-setup
@@ -1093,11 +1096,11 @@ def shell_setup() -> None:
         )
         raise typer.Exit(code=0)
 
-    # Unix shells: offer to add to profile
+    # Unix shells: prepare setup lines
     if shell_name in ["bash", "zsh"]:
-        setup_line = "source <(cw _shell-function bash)"
+        shell_function_line = "source <(cw _shell-function bash)"
     else:  # fish
-        setup_line = "cw _shell-function fish | source"
+        shell_function_line = "cw _shell-function fish | source"
 
     # Check if already installed
     if profile_path and profile_path.exists():
@@ -1108,43 +1111,78 @@ def shell_setup() -> None:
             raise typer.Exit(code=0)
 
     # Offer to install
-    console.print("[bold]Setup cw-cd function?[/bold]")
-    console.print(f"\nThis will add the following line to [cyan]{profile_path}[/cyan]:")
-    console.print(f"\n  [dim]{setup_line}[/dim]\n")
+    console.print("[bold]Setup shell integration?[/bold]")
+    console.print(f"\nThis will add the following to [cyan]{profile_path}[/cyan]:")
+    console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
+    console.print(f"  [dim]{shell_function_line}[/dim]")
+
+    if shell_name == "zsh":
+        console.print("\n  [dim]# Tab completion support[/dim]")
+        console.print("  [dim]FPATH=$HOME/.zfunc:$FPATH[/dim]")
+        console.print("  [dim]autoload -Uz compinit && compinit[/dim]")
+    elif shell_name == "bash":
+        console.print("\n  [dim]# Tab completion support[/dim]")
+        console.print('  [dim]eval "$(cw --show-completion bash 2>/dev/null || true)"[/dim]')
+
+    console.print("")
 
     response = typer.confirm("Add to your shell profile?", default=True)
 
     if not response:
         console.print("\n[yellow]Setup cancelled.[/yellow]")
-        console.print(f"\nTo install manually, add this to {profile_path}:")
-        console.print(f"  {setup_line}")
+        console.print(f"\nTo install manually, add the above lines to {profile_path}")
         raise typer.Exit(code=0)
 
     if not profile_path:
         console.print("\n[yellow]Could not determine profile path.[/yellow]")
-        console.print("\nTo install manually, add this to your shell profile:")
-        console.print(f"  {setup_line}")
+        console.print("\nTo install manually, add the above lines to your shell profile")
         raise typer.Exit(code=1)
 
     try:
         # Create parent directories if needed
         profile_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # For zsh, also create completion directory and file
+        if shell_name == "zsh":
+            zfunc_dir = Path.home() / ".zfunc"
+            zfunc_dir.mkdir(exist_ok=True)
+
+            # Create completion file
+            completion_file = zfunc_dir / "_cw"
+            completion_content = """#compdef cw
+
+_cw_completion() {
+  eval $(env _TYPER_COMPLETE_ARGS="${words[1,$CURRENT]}" _CW_COMPLETE=complete_zsh cw)
+}
+
+compdef _cw_completion cw"""
+            completion_file.write_text(completion_content)
+            console.print(f"[dim]Created completion file: {completion_file}[/dim]")
+
         # Append to profile file
         with profile_path.open("a") as f:
-            f.write("\n# claude-worktree shell function\n")
-            f.write(f"{setup_line}\n")
+            f.write("\n# claude-worktree shell integration\n")
+            f.write(f"{shell_function_line}\n")
+
+            if shell_name == "zsh":
+                # Add FPATH and compinit for tab completion
+                f.write("\n# claude-worktree tab completion\n")
+                f.write("FPATH=$HOME/.zfunc:$FPATH\n")
+                f.write("autoload -Uz compinit && compinit\n")
+            elif shell_name == "bash":
+                # Add bash completion
+                f.write("\n# claude-worktree tab completion\n")
+                f.write('eval "$(cw --show-completion bash 2>/dev/null || true)"\n')
 
         console.print(f"\n[bold green]*[/bold green] Successfully added to {profile_path}")
         console.print("\n[bold]Next steps:[/bold]")
         console.print(f"  1. Restart your shell or run: [cyan]source {profile_path}[/cyan]")
-        console.print("  2. Try it out: [cyan]cw-cd <branch-name>[/cyan]")
-        console.print("  3. Tab completion works too: [cyan]cw-cd <TAB>[/cyan]")
+        console.print("  2. Try directory navigation: [cyan]cw-cd <branch-name>[/cyan]")
+        console.print("  3. Try tab completion: [cyan]cw <TAB>[/cyan] or [cyan]cw new <TAB>[/cyan]")
 
     except Exception as e:
         console.print(f"\n[bold red]Error:[/bold red] Failed to update {profile_path}: {e}")
-        console.print(f"\nTo install manually, add this to {profile_path}:")
-        console.print(f"  {setup_line}")
+        console.print(f"\nTo install manually, add the lines shown above to {profile_path}")
         raise typer.Exit(code=1)
 
 
