@@ -323,45 +323,54 @@ def finish_worktree(
         )
 
         if conflicted_files and ai_merge:
-            # Offer AI assistance for conflict resolution
+            # AI merge: resolve conflicts automatically
             console.print("\n[bold yellow]! Rebase conflicts detected![/bold yellow]\n")
             console.print("[cyan]Conflicted files:[/cyan]")
             for file in conflicted_files:
                 console.print(f"  • {file}")
             console.print()
 
-            from rich.prompt import Confirm
+            console.print("\n[cyan]Launching AI to resolve conflicts automatically...[/cyan]\n")
 
-            if Confirm.ask("Would you like AI to help resolve these conflicts?", default=True):
-                console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
+            # Create detailed prompt for AI to actually resolve conflicts
+            context = "Resolve the merge conflicts in this repository and complete the rebase.\n\n"
+            context += "**Current situation:**\n"
+            context += (
+                f"- Branch '{feature_branch}' has conflicts when rebasing onto '{rebase_target}'\n"
+            )
+            context += "- A rebase is currently in progress\n"
+            context += f"- {len(conflicted_files)} file(s) have conflicts\n\n"
+            context += "**Conflicted files:**\n"
+            for file in conflicted_files:
+                context += f"- {file}\n"
+            context += "\n"
+            context += "**Your task:**\n"
+            context += "1. Read each conflicted file to understand the conflicts\n"
+            context += (
+                "2. Resolve the conflicts by choosing the appropriate changes or merging them\n"
+            )
+            context += "3. Edit the files to remove conflict markers (<<<<<<< ======= >>>>>>>)\n"
+            context += "4. Stage ALL resolved files using: `git add <file1> <file2> ...`\n"
+            context += "5. Continue the rebase using: `git rebase --continue`\n"
+            context += "6. If the rebase completes successfully, report back\n"
+            context += "\n"
+            context += "**Important:**\n"
+            context += "- Make sure to actually execute the git commands, not just suggest them\n"
+            context += "- Stage all conflicted files after resolving\n"
+            context += "- Complete the entire rebase process\n"
 
-                # Create context message for AI
-                context = "# Merge Conflict Resolution\n\n"
-                context += f"Branch '{feature_branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
-                context += f"Conflicted files ({len(conflicted_files)}):\n"
-                for file in conflicted_files:
-                    context += f"  - {file}\n"
-                context += "\n"
-                context += "Please help resolve these conflicts. For each file:\n"
-                context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
-                context += "2. Choose or merge the appropriate changes\n"
-                context += "3. Remove the conflict markers\n"
-                context += "4. Stage the resolved files with: git add <file>\n"
-                context += "5. Continue the rebase with: git rebase --continue\n"
+            # Save context to temporary file (for session restoration)
+            from ..session_manager import save_context
 
-                # Save context to temporary file
-                from ..session_manager import save_context
+            save_context(feature_branch, context)
 
-                save_context(feature_branch, context)
+            # Launch AI tool with prompt for automated conflict resolution
+            launch_ai_tool(cwd, bg=False, prompt=context)
 
-                # Launch AI tool in the worktree
-                launch_ai_tool(cwd, bg=False)
-
-                console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
-                console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
-                console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
-                console.print("  3. Re-run: [cyan]cw finish[/cyan]\n")
-                sys.exit(0)
+            console.print("\n[yellow]AI conflict resolution completed.[/yellow]")
+            console.print("[yellow]Verify the resolution and re-run if needed.[/yellow]\n")
+            console.print("Re-run: [cyan]cw finish[/cyan] to continue\n")
+            sys.exit(0)
 
         # Abort the rebase
         git_command("rebase", "--abort", repo=cwd, check=False)
@@ -566,6 +575,72 @@ def delete_worktree(
                 console.print(f"[yellow]![/yellow] Remote branch deletion failed: {e}\n")
 
 
+def _topological_sort_worktrees(
+    worktrees: list[tuple[str, Path]], repo: Path
+) -> list[tuple[str, Path]]:
+    """
+    Sort worktrees by dependency order using topological sort.
+
+    Worktrees that serve as base branches for other worktrees are sorted first.
+
+    Args:
+        worktrees: List of (branch_name, path) tuples
+        repo: Repository path
+
+    Returns:
+        Sorted list of (branch_name, path) tuples in dependency order
+    """
+    # Build dependency graph: {branch: [branches_that_depend_on_it]}
+    graph: dict[str, list[str]] = {branch: [] for branch, _ in worktrees}
+    in_degree: dict[str, int] = {branch: 0 for branch, _ in worktrees}
+    worktree_map: dict[str, Path] = dict(worktrees)
+
+    # Collect all branch names (including non-worktree branches that might be bases)
+    all_branches = set(graph.keys())
+
+    # Build the dependency graph
+    for branch, _ in worktrees:
+        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
+        if base_branch:
+            # If base_branch is another worktree, add dependency
+            if base_branch in graph:
+                graph[base_branch].append(branch)
+                in_degree[branch] += 1
+            # If base_branch is not a worktree (e.g., main, develop), add it
+            elif base_branch not in all_branches:
+                all_branches.add(base_branch)
+                graph[base_branch] = []
+
+    # Kahn's algorithm for topological sort
+    queue = [branch for branch, degree in in_degree.items() if degree == 0]
+    sorted_branches = []
+
+    while queue:
+        # Sort alphabetically for deterministic order
+        queue.sort()
+        current = queue.pop(0)
+        sorted_branches.append(current)
+
+        # Process dependents
+        if current in graph:
+            for dependent in graph[current]:
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    queue.append(dependent)
+
+    # Check for cycles
+    if len(sorted_branches) != len(worktrees):
+        # Cycle detected - return original order with warning
+        console.print(
+            "[yellow]Warning: Circular dependency detected in worktree base branches. "
+            "Syncing in original order.[/yellow]\n"
+        )
+        return worktrees
+
+    # Return sorted worktrees (only those that are actual worktrees)
+    return [(branch, worktree_map[branch]) for branch in sorted_branches if branch in worktree_map]
+
+
 def sync_worktree(
     target: str | None = None,
     all_worktrees: bool = False,
@@ -590,15 +665,25 @@ def sync_worktree(
 
     # Determine which worktrees to sync
     if all_worktrees:
-        # Sync all worktrees
+        # Collect all worktrees (including main repository)
+        all_worktrees_list = parse_worktrees(repo)
+        if not all_worktrees_list:
+            console.print("[yellow]No worktrees found[/yellow]\n")
+            return
+
+        # Collect worktrees (exclude detached only)
         worktrees_to_sync = []
-        for branch, path in parse_worktrees(repo):
-            # Skip main repository and detached worktrees
-            if path.resolve() == repo.resolve() or branch == "(detached)":
+        for branch, path in all_worktrees_list:
+            # Skip detached worktrees
+            if branch == "(detached)":
                 continue
+
             # Normalize branch name
             branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
             worktrees_to_sync.append((branch_name, path))
+
+        # Sort by dependency order (topological sort)
+        worktrees_to_sync = _topological_sort_worktrees(worktrees_to_sync, repo)
     elif target or not all_worktrees:
         # Sync specific worktree by branch name or current worktree
         worktree_path, branch_name, _ = resolve_worktree_target(target)
@@ -616,14 +701,136 @@ def sync_worktree(
 
     # Sync each worktree
     for branch, worktree_path in worktrees_to_sync:
-        # Get base branch from metadata
+        # Get base branch from metadata (if exists)
         base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch), repo)
+
+        # If no metadata (e.g., main repository), use origin/{branch} as fallback
         if not base_branch:
-            console.print(
-                f"\n[yellow]![/yellow] Skipping {branch}: "
-                f"No base branch metadata (not created with 'cw new')\n"
-            )
-            continue
+            # Check if origin/{branch} exists
+            if fetch_result.returncode == 0:
+                check_result = git_command(
+                    "rev-parse",
+                    "--verify",
+                    f"origin/{branch}",
+                    repo=worktree_path,
+                    check=False,
+                    capture=True,
+                )
+                if check_result.returncode == 0:
+                    # Use origin/{branch} as base
+                    console.print("\n[bold cyan]Syncing worktree:[/bold cyan]")
+                    console.print(f"  Branch:  [green]{branch}[/green]")
+                    console.print(f"  Path:    [blue]{worktree_path}[/blue]\n")
+
+                    console.print(f"[yellow]Rebasing {branch} onto origin/{branch}...[/yellow]")
+                    try:
+                        git_command("rebase", f"origin/{branch}", repo=worktree_path)
+                        console.print("[bold green]*[/bold green] Rebase successful")
+                        continue
+                    except GitError:
+                        # Rebase failed - check for conflicts and handle with AI merge
+                        conflicts_result = git_command(
+                            "diff",
+                            "--name-only",
+                            "--diff-filter=U",
+                            repo=worktree_path,
+                            capture=True,
+                            check=False,
+                        )
+                        conflicted_files = (
+                            conflicts_result.stdout.strip().splitlines()
+                            if conflicts_result.returncode == 0
+                            else []
+                        )
+
+                        # Handle AI merge if requested
+                        if conflicted_files and ai_merge:
+                            console.print(
+                                "\n[bold yellow]! Rebase conflicts detected![/bold yellow]\n"
+                            )
+                            console.print("[cyan]Conflicted files:[/cyan]")
+                            for file in conflicted_files:
+                                console.print(f"  • {file}")
+                            console.print()
+
+                            console.print(
+                                "\n[cyan]Launching AI to resolve conflicts automatically...[/cyan]\n"
+                            )
+
+                            # Create detailed prompt for AI to actually resolve conflicts
+                            context = "Resolve the merge conflicts in this repository and complete the rebase.\n\n"
+                            context += "**Current situation:**\n"
+                            context += f"- Branch '{branch}' has conflicts when rebasing onto 'origin/{branch}'\n"
+                            context += "- A rebase is currently in progress\n"
+                            context += f"- {len(conflicted_files)} file(s) have conflicts\n\n"
+                            context += "**Conflicted files:**\n"
+                            for file in conflicted_files:
+                                context += f"- {file}\n"
+                            context += "\n"
+                            context += "**Your task:**\n"
+                            context += "1. Read each conflicted file to understand the conflicts\n"
+                            context += "2. Resolve the conflicts by choosing the appropriate changes or merging them\n"
+                            context += "3. Edit the files to remove conflict markers (<<<<<<< ======= >>>>>>>)\n"
+                            context += (
+                                "4. Stage ALL resolved files using: `git add <file1> <file2> ...`\n"
+                            )
+                            context += "5. Continue the rebase using: `git rebase --continue`\n"
+                            context += "6. If the rebase completes successfully, report back\n"
+                            context += "\n"
+                            context += "**Important:**\n"
+                            context += "- Make sure to actually execute the git commands, not just suggest them\n"
+                            context += "- Stage all conflicted files after resolving\n"
+                            context += "- Complete the entire rebase process\n"
+
+                            from ..session_manager import save_context
+
+                            save_context(branch, context)
+                            # Launch AI tool with prompt for automated conflict resolution
+                            launch_ai_tool(worktree_path, bg=False, prompt=context)
+
+                            console.print("\n[yellow]AI conflict resolution completed.[/yellow]")
+                            console.print(
+                                "[yellow]Verify the resolution and re-run sync if needed.[/yellow]\n"
+                            )
+                            if all_worktrees:
+                                console.print(
+                                    "Re-run: [cyan]cw sync --all --ai-merge[/cyan] to continue syncing remaining worktrees\n"
+                                )
+                            else:
+                                console.print("Re-run: [cyan]cw sync[/cyan] if needed\n")
+                            sys.exit(0)
+
+                        # Abort rebase and report error
+                        git_command("rebase", "--abort", repo=worktree_path, check=False)
+                        error_msg = (
+                            f"Rebase failed:\n  cd {worktree_path}\n  git rebase origin/{branch}"
+                        )
+                        if conflicted_files:
+                            error_msg += f"\n\nConflicted files ({len(conflicted_files)}):"
+                            for file in conflicted_files:
+                                error_msg += f"\n  • {file}"
+                            if not ai_merge:
+                                error_msg += "\n\nTip: Use --ai-merge flag to get AI assistance"
+
+                        if all_worktrees:
+                            console.print(f"[bold red]x[/bold red] {error_msg}")
+                            console.print("[yellow]Continuing with remaining worktrees...[/yellow]")
+                            continue
+                        else:
+                            raise RebaseError(error_msg)
+                else:
+                    # No origin/{branch}, skip
+                    console.print(
+                        f"\n[dim]Skipping {branch}: No metadata and no origin/{branch} found[/dim]\n"
+                    )
+                    continue
+            else:
+                # Fetch failed, can't determine remote
+                console.print(
+                    f"\n[yellow]![/yellow] Skipping {branch}: "
+                    f"No metadata (not created with 'cw new') and fetch failed\n"
+                )
+                continue
 
         console.print("\n[bold cyan]Syncing worktree:[/bold cyan]")
         console.print(f"  Feature: [green]{branch}[/green]")
@@ -666,48 +873,66 @@ def sync_worktree(
                 else []
             )
 
-            if conflicted_files and ai_merge and not all_worktrees:
-                # Offer AI assistance for conflict resolution
+            if conflicted_files and ai_merge:
+                # AI merge: resolve conflicts automatically
                 console.print("\n[bold yellow]! Rebase conflicts detected![/bold yellow]\n")
                 console.print("[cyan]Conflicted files:[/cyan]")
                 for file in conflicted_files:
                     console.print(f"  • {file}")
                 console.print()
 
-                from rich.prompt import Confirm
+                console.print("\n[cyan]Launching AI to resolve conflicts automatically...[/cyan]\n")
 
-                if Confirm.ask("Would you like AI to help resolve these conflicts?", default=True):
-                    console.print("\n[cyan]Launching AI tool with conflict context...[/cyan]\n")
+                # Create detailed prompt for AI to actually resolve conflicts
+                context = (
+                    "Resolve the merge conflicts in this repository and complete the rebase.\n\n"
+                )
+                context += "**Current situation:**\n"
+                context += (
+                    f"- Branch '{branch}' has conflicts when rebasing onto '{rebase_target}'\n"
+                )
+                context += "- A rebase is currently in progress\n"
+                context += f"- {len(conflicted_files)} file(s) have conflicts\n\n"
+                context += "**Conflicted files:**\n"
+                for file in conflicted_files:
+                    context += f"- {file}\n"
+                context += "\n"
+                context += "**Your task:**\n"
+                context += "1. Read each conflicted file to understand the conflicts\n"
+                context += (
+                    "2. Resolve the conflicts by choosing the appropriate changes or merging them\n"
+                )
+                context += (
+                    "3. Edit the files to remove conflict markers (<<<<<<< ======= >>>>>>>)\n"
+                )
+                context += "4. Stage ALL resolved files using: `git add <file1> <file2> ...`\n"
+                context += "5. Continue the rebase using: `git rebase --continue`\n"
+                context += "6. If the rebase completes successfully, report back\n"
+                context += "\n"
+                context += "**Important:**\n"
+                context += (
+                    "- Make sure to actually execute the git commands, not just suggest them\n"
+                )
+                context += "- Stage all conflicted files after resolving\n"
+                context += "- Complete the entire rebase process\n"
 
-                    # Create context message for AI
-                    context = "# Sync Rebase Conflict Resolution\n\n"
-                    context += (
-                        f"Branch '{branch}' has conflicts when rebasing onto '{rebase_target}'.\n\n"
+                # Save context to temporary file (for session restoration)
+                from ..session_manager import save_context
+
+                save_context(branch, context)
+
+                # Launch AI tool with prompt for automated conflict resolution
+                launch_ai_tool(worktree_path, bg=False, prompt=context)
+
+                console.print("\n[yellow]AI conflict resolution completed.[/yellow]")
+                console.print("[yellow]Verify the resolution and re-run sync if needed.[/yellow]\n")
+                if all_worktrees:
+                    console.print(
+                        "Re-run: [cyan]cw sync --all --ai-merge[/cyan] to continue syncing remaining worktrees\n"
                     )
-                    context += f"Conflicted files ({len(conflicted_files)}):\n"
-                    for file in conflicted_files:
-                        context += f"  - {file}\n"
-                    context += "\n"
-                    context += "Please help resolve these conflicts. For each file:\n"
-                    context += "1. Review the conflict markers (<<<<<<< ======= >>>>>>>)\n"
-                    context += "2. Choose or merge the appropriate changes\n"
-                    context += "3. Remove the conflict markers\n"
-                    context += "4. Stage the resolved files with: git add <file>\n"
-                    context += "5. Continue the rebase with: git rebase --continue\n"
-
-                    # Save context to temporary file
-                    from ..session_manager import save_context
-
-                    save_context(branch, context)
-
-                    # Launch AI tool in the worktree
-                    launch_ai_tool(worktree_path, bg=False)
-
-                    console.print("\n[yellow]After resolving conflicts with AI:[/yellow]")
-                    console.print("  1. Stage resolved files: [cyan]git add <files>[/cyan]")
-                    console.print("  2. Continue rebase: [cyan]git rebase --continue[/cyan]")
-                    console.print("  3. Re-run: [cyan]cw sync[/cyan]\n")
-                    sys.exit(0)
+                else:
+                    console.print("Re-run: [cyan]cw sync[/cyan] if needed\n")
+                sys.exit(0)
 
             # Abort the rebase
             git_command("rebase", "--abort", repo=worktree_path, check=False)

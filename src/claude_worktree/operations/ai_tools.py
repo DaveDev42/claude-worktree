@@ -59,6 +59,7 @@ def launch_ai_tool(
     iterm_tab: bool = False,
     tmux_session: str | None = None,
     resume: bool = False,
+    prompt: str | None = None,
 ) -> None:
     """
     Launch AI coding assistant in the specified directory.
@@ -70,6 +71,7 @@ def launch_ai_tool(
         iterm_tab: Launch in new iTerm tab (macOS only)
         tmux_session: Launch in new tmux session
         resume: Use resume command (adds --resume flag)
+        prompt: Initial prompt to send to AI tool (for automated tasks)
     """
     # Get configured AI tool command (with or without --resume)
     ai_cmd_parts = get_ai_tool_resume_command() if resume else get_ai_tool_command()
@@ -92,6 +94,17 @@ def launch_ai_tool(
     cmd_parts = ai_cmd_parts.copy()
     if ai_tool_name == "claude":
         cmd_parts.append("--dangerously-skip-permissions")
+
+    # Add non-interactive flags if prompt is provided (for automated tasks)
+    if prompt:
+        if ai_tool_name == "claude":
+            # Use --print mode to execute and exit (non-interactive)
+            cmd_parts.append("--print")
+            # Ensure all tools are available for conflict resolution
+            cmd_parts.append("--tools")
+            cmd_parts.append("default")
+        # Add prompt as positional argument
+        cmd_parts.append(prompt)
 
     cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 

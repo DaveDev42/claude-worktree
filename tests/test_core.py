@@ -1192,6 +1192,126 @@ def test_sync_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch)
     assert (worktree_path / "main-work.txt").exists()
 
 
+def test_sync_all_worktrees(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test sync --all updates local base branches and rebases all worktrees."""
+    from claude_worktree.operations import sync_worktree
+
+    # Create two worktrees from main
+    worktree1 = create_worktree(
+        branch_name="wt1",
+        base_branch="main",
+        no_cd=True,
+    )
+    worktree2 = create_worktree(
+        branch_name="wt2",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Make commits in each worktree
+    (worktree1 / "wt1-file.txt").write_text("wt1 content")
+    subprocess.run(["git", "add", "."], cwd=worktree1, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "wt1 work"],
+        cwd=worktree1,
+        check=True,
+        capture_output=True,
+    )
+
+    (worktree2 / "wt2-file.txt").write_text("wt2 content")
+    subprocess.run(["git", "add", "."], cwd=worktree2, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "wt2 work"],
+        cwd=worktree2,
+        check=True,
+        capture_output=True,
+    )
+
+    # Make a new commit in main (simulating upstream changes)
+    (temp_git_repo / "main-work.txt").write_text("main work")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Main work"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Run sync --all from main repo
+    monkeypatch.chdir(temp_git_repo)
+    sync_worktree(all_worktrees=True)
+
+    # Verify both worktrees were rebased and now have the main-work.txt file
+    assert (worktree1 / "main-work.txt").exists()
+    assert (worktree1 / "wt1-file.txt").exists()
+
+    assert (worktree2 / "main-work.txt").exists()
+    assert (worktree2 / "wt2-file.txt").exists()
+
+
+def test_sync_nested_worktrees(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test sync --all with nested worktrees (worktree depending on another worktree)."""
+    from claude_worktree.operations import sync_worktree
+
+    # Create first worktree from main
+    worktree_a = create_worktree(
+        branch_name="feature-a",
+        base_branch="main",
+        no_cd=True,
+    )
+
+    # Make a commit in feature-a
+    (worktree_a / "feature-a.txt").write_text("feature A")
+    subprocess.run(["git", "add", "."], cwd=worktree_a, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add feature A"],
+        cwd=worktree_a,
+        check=True,
+        capture_output=True,
+    )
+
+    # Create nested worktree from feature-a
+    worktree_a_refinement = create_worktree(
+        branch_name="feature-a-refinement",
+        base_branch="feature-a",
+        no_cd=True,
+    )
+
+    # Make a commit in feature-a-refinement
+    (worktree_a_refinement / "refinement.txt").write_text("refinement")
+    subprocess.run(["git", "add", "."], cwd=worktree_a_refinement, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add refinement"],
+        cwd=worktree_a_refinement,
+        check=True,
+        capture_output=True,
+    )
+
+    # Make a new commit in main (simulating upstream changes)
+    (temp_git_repo / "main-update.txt").write_text("main update")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Update main"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Run sync --all from main repo
+    monkeypatch.chdir(temp_git_repo)
+    sync_worktree(all_worktrees=True)
+
+    # Verify feature-a has main's update
+    assert (worktree_a / "main-update.txt").exists()
+    assert (worktree_a / "feature-a.txt").exists()
+
+    # Verify feature-a-refinement has both main's update and feature-a's update
+    # This proves topological sort worked: feature-a was synced before feature-a-refinement
+    assert (worktree_a_refinement / "main-update.txt").exists()
+    assert (worktree_a_refinement / "feature-a.txt").exists()
+    assert (worktree_a_refinement / "refinement.txt").exists()
+
+
 def test_create_worktree_existing_worktree_non_interactive(
     temp_git_repo: Path, disable_claude
 ) -> None:
