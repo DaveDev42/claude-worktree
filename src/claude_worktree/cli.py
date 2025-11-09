@@ -1163,18 +1163,24 @@ compdef _cw_completion cw"""
 
         # Append to profile file
         with profile_path.open("a") as f:
-            f.write("\n# claude-worktree shell integration\n")
-            f.write(f"{shell_function_line}\n")
-
             if shell_name == "zsh":
-                # Add FPATH and compinit for tab completion
+                # For zsh: Add FPATH and compinit FIRST, then shell functions
+                # (compdef in shell functions requires compinit to be loaded)
                 f.write("\n# claude-worktree tab completion\n")
                 f.write("FPATH=$HOME/.zfunc:$FPATH\n")
                 f.write("autoload -Uz compinit && compinit\n")
+                f.write("\n# claude-worktree shell integration\n")
+                f.write(f"{shell_function_line}\n")
             elif shell_name == "bash":
-                # Add bash completion
+                # For bash: Shell functions first, then completion
+                f.write("\n# claude-worktree shell integration\n")
+                f.write(f"{shell_function_line}\n")
                 f.write("\n# claude-worktree tab completion\n")
                 f.write('eval "$(cw --show-completion bash 2>/dev/null || true)"\n')
+            else:
+                # For other shells (fish): Just shell functions
+                f.write("\n# claude-worktree shell integration\n")
+                f.write(f"{shell_function_line}\n")
 
         console.print(f"\n[bold green]*[/bold green] Successfully added to {profile_path}")
         console.print("\n[bold]Next steps:[/bold]")
