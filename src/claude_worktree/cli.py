@@ -1097,8 +1097,10 @@ def shell_setup() -> None:
         raise typer.Exit(code=0)
 
     # Unix shells: prepare setup lines
-    if shell_name in ["bash", "zsh"]:
+    if shell_name == "bash":
         shell_function_line = "source <(cw _shell-function bash)"
+    elif shell_name == "zsh":
+        shell_function_line = "source <(cw _shell-function zsh)"
     else:  # fish
         shell_function_line = "cw _shell-function fish | source"
 
