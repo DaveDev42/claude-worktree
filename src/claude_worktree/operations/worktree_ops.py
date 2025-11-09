@@ -5,6 +5,7 @@ import sys
 import time
 from pathlib import Path
 
+from ..config import load_config
 from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from ..exceptions import (
@@ -26,6 +27,7 @@ from ..git_utils import (
     set_config,
     unset_config,
 )
+from ..shared_files import share_files
 from .ai_tools import launch_ai_tool, resume_worktree
 from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
@@ -209,6 +211,15 @@ def create_worktree(
     set_config(CONFIG_KEY_BASE_PATH.format(branch_name), str(repo), repo=repo)
 
     console.print("[bold green]*[/bold green] Worktree created successfully\n")
+
+    # Share files (node_modules, .venv, etc.) if enabled
+    config = load_config()
+    if config.get("worktree", {}).get("auto_share_files", True):
+        try:
+            share_files(repo, worktree_path)
+        except Exception as e:
+            # Non-fatal: warn but continue
+            console.print(f"[yellow]![/yellow] Warning: Failed to share files: {e}\n")
 
     # Change directory
     if not no_cd:

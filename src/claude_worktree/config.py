@@ -74,6 +74,9 @@ DEFAULT_CONFIG = {
         "prompted": False,  # Whether user has been prompted to install slash commands
         "installed": False,  # Whether slash commands are installed (user's response)
     },
+    "worktree": {
+        "auto_share_files": True,  # Automatically symlink shared files (node_modules, .venv, etc.)
+    },
 }
 
 
@@ -265,10 +268,17 @@ def set_config_value(key_path: str, value: Any) -> None:
 
     Args:
         key_path: Dot-separated path (e.g., "git.default_base_branch")
-        value: Value to set
+        value: Value to set (auto-converts "true"/"false" strings to booleans)
     """
     config = load_config()
     keys = key_path.split(".")
+
+    # Convert string boolean values to actual booleans
+    if isinstance(value, str):
+        if value.lower() == "true":
+            value = True
+        elif value.lower() == "false":
+            value = False
 
     # Navigate to the parent dict
     current = config
