@@ -525,9 +525,11 @@ def test_resume_worktree_with_branch_name(
 
 
 def test_resume_worktree_with_session(
-    temp_git_repo: Path, disable_claude, monkeypatch, capsys
+    temp_git_repo: Path, disable_claude, monkeypatch, capsys, tmp_path
 ) -> None:
-    """Test resuming with existing session metadata."""
+    """Test resuming with existing session metadata and conversation history."""
+    import json
+
     from claude_worktree import session_manager
 
     # Create worktree
@@ -540,21 +542,53 @@ def test_resume_worktree_with_session(
     session_manager.save_session_metadata("session-test", "claude", str(worktree_path))
     session_manager.save_context("session-test", "Working on authentication feature")
 
+    # Create Claude conversation history
+    claude_dir = Path.home() / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    history_file = claude_dir / "history.jsonl"
+
+    # Add a conversation entry for this project
+    with open(history_file, "a") as f:
+        f.write(
+            json.dumps(
+                {
+                    "display": "test message",
+                    "timestamp": 1234567890,
+                    "project": str(worktree_path),
+                }
+            )
+            + "\n"
+        )
+
     # Change to worktree
     monkeypatch.chdir(worktree_path)
 
-    # Resume without AI tool
-    resume_worktree(
-        worktree=None,
-    )
+    try:
+        # Resume without AI tool
+        resume_worktree(
+            worktree=None,
+        )
 
-    # Check output shows session info
-    captured = capsys.readouterr()
-    assert "Found session" in captured.out
-    assert "session-test" in captured.out
-    assert "claude" in captured.out
-    assert "Previous context" in captured.out
-    assert "Working on authentication feature" in captured.out
+        # Check output shows session info
+        captured = capsys.readouterr()
+        assert "Found session" in captured.out
+        assert "session-test" in captured.out
+        assert "claude" in captured.out
+        assert "Previous context" in captured.out
+        assert "Working on authentication feature" in captured.out
+    finally:
+        # Clean up: remove the test entry from history
+        if history_file.exists():
+            with open(history_file) as f:
+                lines = f.readlines()
+            with open(history_file, "w") as f:
+                for line in lines:
+                    try:
+                        entry = json.loads(line)
+                        if entry.get("project") != str(worktree_path):
+                            f.write(line)
+                    except json.JSONDecodeError:
+                        f.write(line)
 
 
 def test_resume_worktree_nonexistent_branch(temp_git_repo: Path, disable_claude) -> None:

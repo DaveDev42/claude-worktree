@@ -56,15 +56,45 @@ def get_session_dir(branch_name: str) -> Path:
 def session_exists(branch_name: str) -> bool:
     """Check if a session exists for the given branch.
 
+    This checks if there's an actual conversation history in Claude Code's history,
+    not just metadata. The metadata file alone doesn't mean a conversation exists.
+
     Args:
         branch_name: Name of the feature branch
 
     Returns:
-        True if session data exists, False otherwise
+        True if conversation history exists, False otherwise
     """
-    session_dir = get_session_dir(branch_name)
-    metadata_file = session_dir / "metadata.json"
-    return metadata_file.exists()
+    # Load metadata to get the worktree path
+    metadata = load_session_metadata(branch_name)
+    if not metadata:
+        return False
+
+    worktree_path = metadata.get("worktree_path")
+    if not worktree_path:
+        return False
+
+    # Check if Claude Code has conversation history for this project
+    claude_history = Path.home() / ".claude" / "history.jsonl"
+    if not claude_history.exists():
+        return False
+
+    try:
+        # Read history file and check if there are messages for this project
+        with open(claude_history) as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line)
+                    if entry.get("project") == worktree_path:
+                        # Found at least one message for this project
+                        return True
+                except json.JSONDecodeError:
+                    continue
+        return False
+    except OSError:
+        return False
 
 
 def save_session_metadata(branch_name: str, ai_tool: str, worktree_path: str) -> None:
