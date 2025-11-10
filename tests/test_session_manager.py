@@ -72,9 +72,30 @@ def test_session_exists_false(temp_sessions_dir):
     assert not session_exists("nonexistent-branch")
 
 
-def test_session_exists_true(temp_sessions_dir):
-    """Test session_exists returns True when session metadata exists."""
-    save_session_metadata("test-branch", "claude", "/path/to/worktree")
+def test_session_exists_true_with_conversation_history(temp_sessions_dir, tmp_path):
+    """Test session_exists returns True when actual conversation history exists."""
+    worktree_path = "/path/to/worktree"
+    save_session_metadata("test-branch", "claude", worktree_path)
+
+    # Create fake Claude history with an entry for this project
+    claude_dir = tmp_path / "fake_home" / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    history_file = claude_dir / "history.jsonl"
+
+    import json
+
+    with open(history_file, "w") as f:
+        f.write(
+            json.dumps(
+                {
+                    "display": "test message",
+                    "timestamp": 1234567890,
+                    "project": worktree_path,
+                }
+            )
+            + "\n"
+        )
+
     assert session_exists("test-branch")
 
 
@@ -143,13 +164,46 @@ def test_get_context_file(temp_sessions_dir):
     assert "test-branch" in str(context_file)
 
 
-def test_delete_session(temp_sessions_dir):
+def test_session_exists_false_with_only_metadata(temp_sessions_dir, tmp_path):
+    """Test session_exists returns False when only metadata exists but no conversation."""
+    worktree_path = "/path/to/worktree"
+    save_session_metadata("test-branch", "claude", worktree_path)
+
+    # Create empty Claude history (no conversation for this project)
+    claude_dir = tmp_path / "fake_home" / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    history_file = claude_dir / "history.jsonl"
+    history_file.touch()  # Empty file
+
+    assert not session_exists("test-branch")
+
+
+def test_session_exists_false_when_no_claude_history(temp_sessions_dir):
+    """Test session_exists returns False when Claude history file doesn't exist."""
+    save_session_metadata("test-branch", "claude", "/path/to/worktree")
+
+    # No Claude history file exists
+    assert not session_exists("test-branch")
+
+
+def test_delete_session(temp_sessions_dir, tmp_path):
     """Test deleting a session."""
     branch = "delete-me"
+    worktree_path = "/path/to/delete"
 
     # Create session with metadata and context
-    save_session_metadata(branch, "claude", "/path")
+    save_session_metadata(branch, "claude", worktree_path)
     save_context(branch, "Some context")
+
+    # Create conversation history
+    claude_dir = tmp_path / "fake_home" / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    history_file = claude_dir / "history.jsonl"
+
+    import json
+
+    with open(history_file, "w") as f:
+        f.write(json.dumps({"display": "test", "project": worktree_path}) + "\n")
 
     assert session_exists(branch)
 
@@ -205,7 +259,7 @@ def test_list_sessions_skips_corrupted(temp_sessions_dir):
     assert sessions[0]["branch"] == "good-branch"
 
 
-def test_session_manager_with_special_branch_names(temp_sessions_dir):
+def test_session_manager_with_special_branch_names(temp_sessions_dir, tmp_path):
     """Test session manager with various special characters in branch names."""
     special_branches = [
         "feature/user-auth",
@@ -213,8 +267,30 @@ def test_session_manager_with_special_branch_names(temp_sessions_dir):
         "hotfix/v2.0",
     ]
 
+    # Create Claude history directory
+    claude_dir = tmp_path / "fake_home" / ".claude"
+    claude_dir.mkdir(parents=True, exist_ok=True)
+    history_file = claude_dir / "history.jsonl"
+
+    import json
+
     for branch in special_branches:
-        save_session_metadata(branch, "claude", f"/path/{branch}")
+        worktree_path = f"/path/{branch}"
+        save_session_metadata(branch, "claude", worktree_path)
+
+        # Add conversation history for this branch
+        with open(history_file, "a") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "display": f"test message for {branch}",
+                        "timestamp": 1234567890,
+                        "project": worktree_path,
+                    }
+                )
+                + "\n"
+            )
+
         assert session_exists(branch)
 
         metadata = load_session_metadata(branch)
