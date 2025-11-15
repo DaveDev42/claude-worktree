@@ -16,18 +16,29 @@ from claude_worktree.shared_files import (
 def _is_link_or_junction(path: Path) -> bool:
     """Check if path is a symlink or Windows junction point.
 
-    Windows junctions are not always detected by is_symlink() or os.path.islink().
-    On Windows, we check if it's a reparse point using stat.FILE_ATTRIBUTE_REPARSE_POINT.
+    Windows junctions are not reliably detected by is_symlink() or os.path.islink().
+    We use ctypes to call GetFileAttributesW and check for the reparse point flag.
     """
-    if platform.system() == "Windows":
-        import stat
+    if not path.exists():
+        return False
 
+    if platform.system() == "Windows":
         try:
-            # On Windows, junctions have the FILE_ATTRIBUTE_REPARSE_POINT attribute
-            return bool(os.stat(str(path)).st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
-        except (OSError, AttributeError):
-            # Fallback to regular checks
-            return os.path.islink(str(path)) or path.is_symlink()
+            import ctypes
+
+            # FILE_ATTRIBUTE_REPARSE_POINT = 0x0400
+            FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+
+            # Get file attributes using Windows API
+            attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+            if attrs == -1:  # INVALID_FILE_ATTRIBUTES
+                return False
+
+            # Check if it has the reparse point attribute (junctions have this)
+            return bool(attrs & FILE_ATTRIBUTE_REPARSE_POINT)
+        except (ImportError, OSError, AttributeError):
+            # Fallback: if we can't check attributes, assume it's OK if it exists
+            return path.is_symlink() or os.path.islink(str(path))
     else:
         # On Unix/Linux, use standard check
         return os.path.islink(str(path)) or path.is_symlink()
