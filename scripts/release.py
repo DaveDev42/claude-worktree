@@ -3,11 +3,13 @@
 Automated release script for claude-worktree.
 
 Usage:
-    python scripts/release.py               # Patch release (default)
-    python scripts/release.py --minor       # Minor release
-    python scripts/release.py --major       # Major release
+    python scripts/release.py               # Patch release (default, tests skipped)
+    python scripts/release.py --minor       # Minor release (tests skipped)
+    python scripts/release.py --major       # Major release (tests skipped)
+    python scripts/release.py --run-tests   # Run tests locally before release
     python scripts/release.py --dry-run     # Simulate without changes
-    python scripts/release.py --skip-tests  # Skip test execution
+
+Note: Tests are skipped by default - GitHub Actions runs comprehensive tests on the PR.
 """
 
 import argparse
@@ -162,19 +164,19 @@ def check_git_status(dry_run: bool = False) -> None:
         raise ReleaseError("Working tree has uncommitted changes. Commit or stash them first.")
 
 
-def run_tests(skip_tests: bool = False, dry_run: bool = False) -> None:
+def run_tests(skip_tests: bool = True, dry_run: bool = False) -> None:
     """
     Run test suite with pytest.
 
     Args:
-        skip_tests: If True, skip test execution
+        skip_tests: If True, skip test execution (default: True - tests run in GitHub Actions)
         dry_run: If True, only simulate
 
     Raises:
         ReleaseError: If tests fail
     """
     if skip_tests:
-        print("⚠️  Skipping tests (--skip-tests flag)")
+        print("⚠️  Skipping tests (GitHub Actions will run them) - use --run-tests to run locally")
         return
 
     print("Running tests...")
@@ -311,11 +313,13 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python scripts/release.py               # Patch release (0.10.8 → 0.10.9)
-  python scripts/release.py --minor       # Minor release (0.10.9 → 0.11.0)
-  python scripts/release.py --major       # Major release (0.11.0 → 1.0.0)
+  python scripts/release.py               # Patch release (0.10.8 → 0.10.9, tests skipped)
+  python scripts/release.py --minor       # Minor release (0.10.9 → 0.11.0, tests skipped)
+  python scripts/release.py --major       # Major release (0.11.0 → 1.0.0, tests skipped)
+  python scripts/release.py --run-tests   # Run tests locally before release
   python scripts/release.py --dry-run     # Simulate without changes
-  python scripts/release.py --skip-tests  # Skip test execution
+
+Note: Tests are skipped by default - GitHub Actions runs them automatically.
         """,
     )
 
@@ -325,7 +329,11 @@ Examples:
     release_group.add_argument("--major", action="store_true", help="Major version bump (N.0.0)")
 
     # Options
-    parser.add_argument("--skip-tests", action="store_true", help="Skip test execution")
+    parser.add_argument(
+        "--run-tests",
+        action="store_true",
+        help="Run tests before creating release (tests are skipped by default - GitHub Actions runs them)",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -356,9 +364,9 @@ Examples:
         print(f"Current version: {current_version}")
         print(f"New version: {new_version} ({release_type.value} release)")
 
-        # Step 3: Run tests
+        # Step 3: Run tests (skip by default, run only if --run-tests flag is set)
         print("\nStep 3: Running tests...")
-        run_tests(skip_tests=args.skip_tests, dry_run=args.dry_run)
+        run_tests(skip_tests=not args.run_tests, dry_run=args.dry_run)
 
         # Step 4: Update pyproject.toml
         print("\nStep 4: Updating pyproject.toml...")
