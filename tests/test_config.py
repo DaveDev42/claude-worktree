@@ -557,8 +557,8 @@ def test_get_ai_tool_merge_command_claude(temp_config_dir: Path) -> None:
 
     prompt = "Resolve conflicts in test.txt"
     cmd = get_ai_tool_merge_command(prompt)
-    # Should include --print and --tools default flags for non-interactive execution
-    assert cmd == ["claude", "--print", "--tools", "default", prompt]
+    # Should include --print and --tools=default flags for non-interactive execution
+    assert cmd == ["claude", "--print", "--tools=default", prompt]
 
 
 def test_get_ai_tool_merge_command_claude_yolo(temp_config_dir: Path) -> None:
@@ -577,8 +577,7 @@ def test_get_ai_tool_merge_command_claude_yolo(temp_config_dir: Path) -> None:
         "claude",
         "--dangerously-skip-permissions",
         "--print",
-        "--tools",
-        "default",
+        "--tools=default",
         prompt,
     ]
 
@@ -610,7 +609,7 @@ def test_get_ai_tool_merge_command_with_extra_args(temp_config_dir: Path) -> Non
     prompt = "Resolve conflicts"
     cmd = get_ai_tool_merge_command(prompt)
     # Extra args should be inserted between base and merge flags
-    assert cmd == ["claude", "--verbose", "--print", "--tools", "default", prompt]
+    assert cmd == ["claude", "--verbose", "--print", "--tools=default", prompt]
 
 
 def test_get_ai_tool_merge_command_env_override(temp_config_dir: Path, monkeypatch) -> None:
@@ -678,4 +677,4 @@ def test_get_ai_tool_merge_command_happy_yolo(temp_config_dir: Path) -> None:
     prompt = "Resolve conflicts"
     cmd = get_ai_tool_merge_command(prompt)
     # Should include happy --yolo + merge flags
-    assert cmd == ["happy", "--yolo", "--print", "--tools", "default", prompt]
+    assert cmd == ["happy", "--yolo", "--print", "--tools=default", prompt]
