@@ -4,12 +4,17 @@ Detects project type (Node.js, Python, Rust, etc.) and automatically symlinks
 common directories like node_modules, .venv, target to save disk space and time.
 """
 
+import platform
+import subprocess
 from pathlib import Path
 from typing import TypedDict
 
 from .console import get_console
 
 console = get_console()
+
+# Detect Windows platform
+IS_WINDOWS = platform.system() == "Windows"
 
 
 class SharedFile(TypedDict):
@@ -120,6 +125,36 @@ def get_shared_files(repo_path: Path) -> list[SharedFile]:
     return shared_files
 
 
+def _create_windows_junction(source: Path, target: Path) -> None:
+    """Create a Windows junction point (requires no admin privileges).
+
+    Junction points are similar to symlinks but don't require administrator
+    privileges on Windows. They only work for directories.
+
+    Args:
+        source: Source directory (absolute path)
+        target: Target junction point path (will be created)
+
+    Raises:
+        OSError: If junction creation fails
+    """
+    # mklink /J requires absolute paths
+    source_abs = source.resolve()
+    target_abs = target.resolve()
+
+    # Use mklink /J to create junction point
+    # Note: mklink is a cmd.exe built-in command, so we need shell=True
+    result = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(target_abs), str(source_abs)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        raise OSError(f"Failed to create junction: {result.stderr.strip()}")
+
+
 def share_files(source_repo: Path, target_worktree: Path) -> None:
     """Share files/directories from source repository to target worktree.
 
@@ -156,10 +191,27 @@ def share_files(source_repo: Path, target_worktree: Path) -> None:
 
         try:
             if method == "symlink":
-                # Create symlink
-                target_path.symlink_to(source_path)
-                console.print(f"  [green]✓[/green] Symlinked: {rel_path}")
-                symlinked_paths.append(rel_path)
+                # Create symlink (with Windows-specific handling)
+                if IS_WINDOWS and source_path.is_dir():
+                    # On Windows, try junction points first (no admin required)
+                    try:
+                        _create_windows_junction(source_path, target_path)
+                        console.print(f"  [green]✓[/green] Junction: {rel_path}")
+                        symlinked_paths.append(rel_path)
+                    except OSError:
+                        # Fall back to directory symlink (may require admin)
+                        try:
+                            target_path.symlink_to(source_path, target_is_directory=True)
+                            console.print(f"  [green]✓[/green] Symlinked: {rel_path}")
+                            symlinked_paths.append(rel_path)
+                        except OSError as symlink_error:
+                            # If both junction and symlink fail, raise the symlink error
+                            raise symlink_error
+                else:
+                    # Unix/Linux or file symlink
+                    target_path.symlink_to(source_path)
+                    console.print(f"  [green]✓[/green] Symlinked: {rel_path}")
+                    symlinked_paths.append(rel_path)
             elif method == "copy":
                 # Copy file/directory
                 import shutil

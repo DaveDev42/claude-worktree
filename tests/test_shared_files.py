@@ -1,12 +1,47 @@
 """Tests for shared files functionality."""
 
+import os
+import platform
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from claude_worktree.shared_files import (
+    _create_windows_junction,
     detect_project_types,
     get_shared_files,
     share_files,
 )
+
+
+def _is_link_or_junction(path: Path) -> bool:
+    """Check if path is a symlink or Windows junction point.
+
+    Windows junctions are not reliably detected by is_symlink() or os.path.islink().
+    We use ctypes to call GetFileAttributesW and check for the reparse point flag.
+    """
+    if not path.exists():
+        return False
+
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+
+            # FILE_ATTRIBUTE_REPARSE_POINT = 0x0400
+            FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+
+            # Get file attributes using Windows API
+            attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+            if attrs == -1:  # INVALID_FILE_ATTRIBUTES
+                return False
+
+            # Check if it has the reparse point attribute (junctions have this)
+            return bool(attrs & FILE_ATTRIBUTE_REPARSE_POINT)
+        except (ImportError, OSError, AttributeError):
+            # Fallback: if we can't check attributes, assume it's OK if it exists
+            return path.is_symlink() or os.path.islink(str(path))
+    else:
+        # On Unix/Linux, use standard check
+        return os.path.islink(str(path)) or path.is_symlink()
 
 
 def test_detect_nodejs_project(tmp_path: Path) -> None:
@@ -74,7 +109,7 @@ def test_get_shared_files_python(tmp_path: Path) -> None:
 
 
 def test_share_files_symlink(tmp_path: Path) -> None:
-    """Test sharing files via symlink."""
+    """Test sharing files via symlink or junction."""
     # Setup: create source repo with node_modules
     source_repo = tmp_path / "source"
     source_repo.mkdir()
@@ -90,11 +125,12 @@ def test_share_files_symlink(tmp_path: Path) -> None:
     # Share files
     share_files(source_repo, target_worktree)
 
-    # Verify symlink was created
+    # Verify link was created (symlink or junction)
     target_node_modules = target_worktree / "node_modules"
     assert target_node_modules.exists()
-    assert target_node_modules.is_symlink()
-    assert target_node_modules.resolve() == node_modules.resolve()
+    assert _is_link_or_junction(target_node_modules)
+    # Verify it points to the right place
+    assert (target_node_modules / "test-pkg").exists()
 
 
 def test_share_files_skip_if_not_exists(tmp_path: Path) -> None:
@@ -136,7 +172,7 @@ def test_share_files_skip_if_already_exists(tmp_path: Path) -> None:
 
     # Verify existing node_modules was NOT replaced
     assert existing_node_modules.exists()
-    assert not existing_node_modules.is_symlink()
+    assert not _is_link_or_junction(existing_node_modules)
     assert (existing_node_modules / "existing-file").exists()
 
 
@@ -157,6 +193,88 @@ def test_share_files_multiple_types(tmp_path: Path) -> None:
     # Share files
     share_files(source_repo, target_worktree)
 
-    # Verify both were symlinked
-    assert (target_worktree / "node_modules").is_symlink()
-    assert (target_worktree / ".venv").is_symlink()
+    # Verify both were linked (symlink or junction)
+    assert _is_link_or_junction(target_worktree / "node_modules")
+    assert _is_link_or_junction(target_worktree / ".venv")
+
+
+def test_windows_junction_creation(tmp_path: Path) -> None:
+    """Test Windows junction point creation (mocked on non-Windows)."""
+    # Setup: create source and target directories
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    (source_dir / "test-file.txt").write_text("test content")
+
+    target_dir = tmp_path / "target"
+
+    if platform.system() == "Windows":
+        # On Windows, actually test junction creation
+        _create_windows_junction(source_dir, target_dir)
+
+        # Verify junction was created
+        assert target_dir.exists()
+        assert _is_link_or_junction(target_dir)
+        assert (target_dir / "test-file.txt").read_text() == "test content"
+    else:
+        # On non-Windows, test that the function would call subprocess correctly
+        with patch("claude_worktree.shared_files.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stderr="")
+            _create_windows_junction(source_dir, target_dir)
+
+            # Verify subprocess was called with correct arguments
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args[0][0]
+            assert call_args[0] == "cmd"
+            assert call_args[1] == "/c"
+            assert call_args[2] == "mklink"
+            assert call_args[3] == "/J"
+
+
+def test_windows_junction_failure_handling(tmp_path: Path) -> None:
+    """Test that junction creation failures are properly handled."""
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    target_dir = tmp_path / "target"
+
+    # Mock subprocess to simulate failure
+    with patch("claude_worktree.shared_files.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(
+            returncode=1, stderr="Access denied or junction creation failed"
+        )
+
+        # Should raise OSError
+        import pytest
+
+        with pytest.raises(OSError, match="Failed to create junction"):
+            _create_windows_junction(source_dir, target_dir)
+
+
+def test_share_files_windows_fallback(tmp_path: Path) -> None:
+    """Test Windows file sharing with fallback from junction to symlink."""
+    # Setup: create source repo with node_modules
+    source_repo = tmp_path / "source"
+    source_repo.mkdir()
+    (source_repo / "package.json").write_text("{}")
+    node_modules = source_repo / "node_modules"
+    node_modules.mkdir()
+
+    # Create target worktree
+    target_worktree = tmp_path / "target"
+    target_worktree.mkdir()
+
+    # Mock Windows platform
+    with patch("claude_worktree.shared_files.IS_WINDOWS", True):
+        # Mock junction creation to fail (simulating no privileges)
+        with patch("claude_worktree.shared_files._create_windows_junction") as mock_junction:
+            mock_junction.side_effect = OSError("Access denied")
+
+            # Share files - should fall back to symlink
+            share_files(source_repo, target_worktree)
+
+            # Verify junction was attempted
+            mock_junction.assert_called_once()
+
+            # Verify link was created as fallback
+            target_node_modules = target_worktree / "node_modules"
+            assert target_node_modules.exists()
+            assert _is_link_or_junction(target_node_modules)
