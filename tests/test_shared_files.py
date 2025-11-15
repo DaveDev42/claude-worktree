@@ -16,10 +16,21 @@ from claude_worktree.shared_files import (
 def _is_link_or_junction(path: Path) -> bool:
     """Check if path is a symlink or Windows junction point.
 
-    Windows junctions are not detected by Path.is_symlink() in all Python versions,
-    so we use os.path.islink() which handles both symlinks and junctions.
+    Windows junctions are not always detected by is_symlink() or os.path.islink().
+    On Windows, we check if it's a reparse point using stat.FILE_ATTRIBUTE_REPARSE_POINT.
     """
-    return os.path.islink(str(path)) or path.is_symlink()
+    if platform.system() == "Windows":
+        import stat
+
+        try:
+            # On Windows, junctions have the FILE_ATTRIBUTE_REPARSE_POINT attribute
+            return bool(os.stat(str(path)).st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+        except (OSError, AttributeError):
+            # Fallback to regular checks
+            return os.path.islink(str(path)) or path.is_symlink()
+    else:
+        # On Unix/Linux, use standard check
+        return os.path.islink(str(path)) or path.is_symlink()
 
 
 def test_detect_nodejs_project(tmp_path: Path) -> None:
