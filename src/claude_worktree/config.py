@@ -50,6 +50,45 @@ AI_TOOL_RESUME_PRESETS = {
     "codex-yolo": ["codex", "resume", "--dangerously-bypass-approvals-and-sandbox", "--last"],
 }
 
+# Predefined merge commands for AI tools used during automated conflict resolution
+# These commands are used when --ai-merge flag is passed to merge/sync commands
+# Format: {"preset_name": {"flags": [...], "prompt_position": "end"}}
+# - flags: Additional flags to add for non-interactive merge mode
+# - prompt_position: Where to insert the prompt ("end" or position index)
+AI_TOOL_MERGE_PRESETS = {
+    # Claude Code: Use --print mode for non-interactive execution
+    "claude": {
+        "flags": ["--print", "--tools", "default"],
+        "prompt_position": "end",
+    },
+    "claude-yolo": {
+        "flags": ["--print", "--tools", "default"],
+        "prompt_position": "end",
+    },
+    # Happy: Use --yolo mode for automated conflict resolution
+    "happy": {
+        "flags": ["--print", "--tools", "default"],
+        "prompt_position": "end",
+    },
+    "happy-codex": {
+        "flags": ["--print", "--tools", "default"],
+        "prompt_position": "end",
+    },
+    "happy-yolo": {
+        "flags": ["--print", "--tools", "default"],
+        "prompt_position": "end",
+    },
+    # Codex: Use non-interactive mode
+    "codex": {
+        "flags": ["--non-interactive"],
+        "prompt_position": "end",
+    },
+    "codex-yolo": {
+        "flags": ["--non-interactive"],
+        "prompt_position": "end",
+    },
+}
+
 
 DEFAULT_CONFIG = {
     "ai_tool": {
@@ -227,6 +266,71 @@ def get_ai_tool_resume_command() -> list[str]:
 
     # Custom command: append --resume flag
     return [command] + args + ["--resume"]
+
+
+def get_ai_tool_merge_command(prompt: str) -> list[str]:
+    """Get the AI tool command to execute for automated conflict resolution.
+
+    For presets with custom merge configuration, uses AI_TOOL_MERGE_PRESETS.
+    Otherwise, returns the base command with prompt appended.
+
+    Args:
+        prompt: The prompt to send to the AI tool for conflict resolution
+
+    Returns:
+        List of command parts for merge/conflict resolution
+        Empty list [] means no AI tool should be launched.
+    """
+    # Check environment variable first
+    env_tool = os.environ.get("CW_AI_TOOL")
+    if env_tool is not None:
+        if not env_tool.strip():
+            return []
+        # Environment override: use base command + prompt
+        return env_tool.split() + [prompt]
+
+    # Load from config
+    config = load_config()
+    command: str = config["ai_tool"]["command"]
+    args: list[str] = config["ai_tool"]["args"]
+
+    # Empty command means no AI tool
+    if not command.strip():
+        return []
+
+    # Check if preset has a custom merge command configuration
+    if command in AI_TOOL_MERGE_PRESETS:
+        merge_config = AI_TOOL_MERGE_PRESETS[command]
+        flags = list(merge_config.get("flags", []))
+        prompt_position = merge_config.get("prompt_position", "end")
+
+        # Get base command from preset
+        base_cmd: list[str] = AI_TOOL_PRESETS.get(command, [command]).copy()
+
+        # Build command: base + args + flags + prompt
+        cmd_parts = base_cmd + args + flags
+
+        # Insert prompt at specified position
+        if prompt_position == "end":
+            cmd_parts.append(prompt)
+        elif isinstance(prompt_position, int):
+            # Insert at specific index (for tools that need prompt in middle)
+            cmd_parts.insert(prompt_position, prompt)
+        else:
+            # Fallback: append to end if invalid position
+            cmd_parts.append(prompt)
+
+        return cmd_parts
+
+    # Check if it's a regular preset without merge config
+    if command in AI_TOOL_PRESETS:
+        base_cmd = AI_TOOL_PRESETS[command].copy()
+        if not base_cmd:  # no-op preset
+            return []
+        return base_cmd + args + [prompt]
+
+    # Custom command: just append prompt
+    return [command] + args + [prompt]
 
 
 def set_ai_tool(tool: str, args: list[str] | None = None) -> None:
