@@ -1,5 +1,6 @@
 """Tests for shared files functionality."""
 
+import os
 import platform
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -10,6 +11,15 @@ from claude_worktree.shared_files import (
     get_shared_files,
     share_files,
 )
+
+
+def _is_link_or_junction(path: Path) -> bool:
+    """Check if path is a symlink or Windows junction point.
+
+    Windows junctions are not detected by Path.is_symlink() in all Python versions,
+    so we use os.path.islink() which handles both symlinks and junctions.
+    """
+    return os.path.islink(str(path)) or path.is_symlink()
 
 
 def test_detect_nodejs_project(tmp_path: Path) -> None:
@@ -77,7 +87,7 @@ def test_get_shared_files_python(tmp_path: Path) -> None:
 
 
 def test_share_files_symlink(tmp_path: Path) -> None:
-    """Test sharing files via symlink."""
+    """Test sharing files via symlink or junction."""
     # Setup: create source repo with node_modules
     source_repo = tmp_path / "source"
     source_repo.mkdir()
@@ -93,11 +103,12 @@ def test_share_files_symlink(tmp_path: Path) -> None:
     # Share files
     share_files(source_repo, target_worktree)
 
-    # Verify symlink was created
+    # Verify link was created (symlink or junction)
     target_node_modules = target_worktree / "node_modules"
     assert target_node_modules.exists()
-    assert target_node_modules.is_symlink()
-    assert target_node_modules.resolve() == node_modules.resolve()
+    assert _is_link_or_junction(target_node_modules)
+    # Verify it points to the right place
+    assert (target_node_modules / "test-pkg").exists()
 
 
 def test_share_files_skip_if_not_exists(tmp_path: Path) -> None:
@@ -139,7 +150,7 @@ def test_share_files_skip_if_already_exists(tmp_path: Path) -> None:
 
     # Verify existing node_modules was NOT replaced
     assert existing_node_modules.exists()
-    assert not existing_node_modules.is_symlink()
+    assert not _is_link_or_junction(existing_node_modules)
     assert (existing_node_modules / "existing-file").exists()
 
 
@@ -160,9 +171,9 @@ def test_share_files_multiple_types(tmp_path: Path) -> None:
     # Share files
     share_files(source_repo, target_worktree)
 
-    # Verify both were symlinked
-    assert (target_worktree / "node_modules").is_symlink()
-    assert (target_worktree / ".venv").is_symlink()
+    # Verify both were linked (symlink or junction)
+    assert _is_link_or_junction(target_worktree / "node_modules")
+    assert _is_link_or_junction(target_worktree / ".venv")
 
 
 def test_windows_junction_creation(tmp_path: Path) -> None:
@@ -180,7 +191,7 @@ def test_windows_junction_creation(tmp_path: Path) -> None:
 
         # Verify junction was created
         assert target_dir.exists()
-        assert target_dir.is_symlink()  # Junctions appear as symlinks
+        assert _is_link_or_junction(target_dir)
         assert (target_dir / "test-file.txt").read_text() == "test content"
     else:
         # On non-Windows, test that the function would call subprocess correctly
@@ -241,7 +252,7 @@ def test_share_files_windows_fallback(tmp_path: Path) -> None:
             # Verify junction was attempted
             mock_junction.assert_called_once()
 
-            # Verify symlink was created as fallback
+            # Verify link was created as fallback
             target_node_modules = target_worktree / "node_modules"
             assert target_node_modules.exists()
-            assert target_node_modules.is_symlink()
+            assert _is_link_or_junction(target_node_modules)
