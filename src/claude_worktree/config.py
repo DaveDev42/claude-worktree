@@ -57,25 +57,26 @@ AI_TOOL_RESUME_PRESETS = {
 # - prompt_position: Where to insert the prompt ("end" or position index)
 AI_TOOL_MERGE_PRESETS = {
     # Claude Code: Use --print mode for non-interactive execution
+    # Note: Use --tools=default syntax to avoid positional arg confusion
     "claude": {
-        "flags": ["--print", "--tools", "default"],
+        "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
     "claude-yolo": {
-        "flags": ["--print", "--tools", "default"],
+        "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
     # Happy: Use --yolo mode for automated conflict resolution
     "happy": {
-        "flags": ["--print", "--tools", "default"],
+        "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
     "happy-codex": {
-        "flags": ["--print", "--tools", "default"],
+        "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
     "happy-yolo": {
-        "flags": ["--print", "--tools", "default"],
+        "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
     # Codex: Use non-interactive mode
