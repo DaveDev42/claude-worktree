@@ -6,11 +6,13 @@ from pathlib import Path
 import pytest
 
 from claude_worktree.config import (
+    AI_TOOL_MERGE_PRESETS,
     AI_TOOL_PRESETS,
     AI_TOOL_RESUME_PRESETS,
     DEFAULT_CONFIG,
     ConfigError,
     get_ai_tool_command,
+    get_ai_tool_merge_command,
     get_ai_tool_resume_command,
     get_config_path,
     list_presets,
@@ -542,3 +544,138 @@ def test_shell_completion_tracking_declined(temp_config_dir: Path) -> None:
     loaded = load_config()
     assert loaded["shell_completion"]["prompted"] is True
     assert loaded["shell_completion"]["installed"] is False
+
+
+def test_get_ai_tool_merge_command_claude(temp_config_dir: Path) -> None:
+    """Test getting merge command for claude preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    prompt = "Resolve conflicts in test.txt"
+    cmd = get_ai_tool_merge_command(prompt)
+    # Should include --print and --tools default flags for non-interactive execution
+    assert cmd == ["claude", "--print", "--tools", "default", prompt]
+
+
+def test_get_ai_tool_merge_command_claude_yolo(temp_config_dir: Path) -> None:
+    """Test getting merge command for claude-yolo preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude-yolo"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    # Should include base command + merge flags + prompt
+    assert cmd == [
+        "claude",
+        "--dangerously-skip-permissions",
+        "--print",
+        "--tools",
+        "default",
+        prompt,
+    ]
+
+
+def test_get_ai_tool_merge_command_codex(temp_config_dir: Path) -> None:
+    """Test getting merge command for codex preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "codex"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    prompt = "Fix merge conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    # Should use --non-interactive flag for codex
+    assert cmd == ["codex", "--non-interactive", prompt]
+
+
+def test_get_ai_tool_merge_command_with_extra_args(temp_config_dir: Path) -> None:
+    """Test getting merge command with additional args."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude"
+    config["ai_tool"]["args"] = ["--verbose"]
+    save_config(config)
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    # Extra args should be inserted between base and merge flags
+    assert cmd == ["claude", "--verbose", "--print", "--tools", "default", prompt]
+
+
+def test_get_ai_tool_merge_command_env_override(temp_config_dir: Path, monkeypatch) -> None:
+    """Test merge command respects environment variable override."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude"
+    save_config(config)
+
+    # Override with environment variable
+    monkeypatch.setenv("CW_AI_TOOL", "custom-tool --flag")
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    # Environment override: use base command + prompt
+    assert cmd == ["custom-tool", "--flag", prompt]
+
+
+def test_get_ai_tool_merge_command_no_tool(temp_config_dir: Path) -> None:
+    """Test getting merge command when no AI tool configured."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "no-op"
+    save_config(config)
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    assert cmd == []
+
+
+def test_ai_tool_merge_presets_defined() -> None:
+    """Test that merge presets are defined for supported tools."""
+    # Claude presets should have merge configurations
+    assert "claude" in AI_TOOL_MERGE_PRESETS
+    assert "claude-yolo" in AI_TOOL_MERGE_PRESETS
+
+    # Happy presets
+    assert "happy" in AI_TOOL_MERGE_PRESETS
+    assert "happy-codex" in AI_TOOL_MERGE_PRESETS
+    assert "happy-yolo" in AI_TOOL_MERGE_PRESETS
+
+    # Codex presets
+    assert "codex" in AI_TOOL_MERGE_PRESETS
+    assert "codex-yolo" in AI_TOOL_MERGE_PRESETS
+
+    # Verify structure
+    for _preset, config in AI_TOOL_MERGE_PRESETS.items():
+        assert "flags" in config
+        assert "prompt_position" in config
+        assert isinstance(config["flags"], list)
+        assert config["prompt_position"] in ["end", 0, 1, 2, 3]  # Valid positions
+
+
+def test_get_ai_tool_merge_command_happy_yolo(temp_config_dir: Path) -> None:
+    """Test getting merge command for happy-yolo preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "happy-yolo"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    # Should include happy --yolo + merge flags
+    assert cmd == ["happy", "--yolo", "--print", "--tools", "default", prompt]

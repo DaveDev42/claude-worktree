@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ..config import get_ai_tool_command, get_ai_tool_resume_command
+from ..config import get_ai_tool_command, get_ai_tool_merge_command, get_ai_tool_resume_command
 from ..console import get_console
 from ..exceptions import GitError, WorktreeNotFoundError
 from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, has_command
@@ -73,8 +73,16 @@ def launch_ai_tool(
         resume: Use resume command (adds --resume flag)
         prompt: Initial prompt to send to AI tool (for automated tasks)
     """
-    # Get configured AI tool command (with or without --resume)
-    ai_cmd_parts = get_ai_tool_resume_command() if resume else get_ai_tool_command()
+    # Get configured AI tool command
+    # - If prompt is provided (AI merge): use merge command with preset-specific flags
+    # - If resume flag: use resume command
+    # - Otherwise: use regular command
+    if prompt:
+        ai_cmd_parts = get_ai_tool_merge_command(prompt)
+    elif resume:
+        ai_cmd_parts = get_ai_tool_resume_command()
+    else:
+        ai_cmd_parts = get_ai_tool_command()
 
     # Skip if no AI tool configured (empty array means no-op)
     if not ai_cmd_parts:
@@ -90,21 +98,15 @@ def launch_ai_tool(
         )
         return
 
-    # Build command - add --dangerously-skip-permissions for Claude only
+    # Build command - only add --dangerously-skip-permissions if not already present
+    # (for backward compatibility with non-merge commands)
     cmd_parts = ai_cmd_parts.copy()
-    if ai_tool_name == "claude":
+    if (
+        not prompt
+        and ai_tool_name == "claude"
+        and "--dangerously-skip-permissions" not in cmd_parts
+    ):
         cmd_parts.append("--dangerously-skip-permissions")
-
-    # Add non-interactive flags if prompt is provided (for automated tasks)
-    if prompt:
-        if ai_tool_name == "claude":
-            # Use --print mode to execute and exit (non-interactive)
-            cmd_parts.append("--print")
-            # Ensure all tools are available for conflict resolution
-            cmd_parts.append("--tools")
-            cmd_parts.append("default")
-        # Add prompt as positional argument
-        cmd_parts.append(prompt)
 
     cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 
