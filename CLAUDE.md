@@ -286,31 +286,43 @@ Session restoration workflow:
 
 ## Common Development Tasks
 
-### Running tests (MANDATORY before commits)
-**IMPORTANT**: Always run the full test suite locally before committing changes!
+### Running tests
+**IMPORTANT: Skip local test runs unless absolutely necessary!**
+
+Tests are automatically run by GitHub Actions on every push and PR. Running tests locally before every commit is time-consuming and redundant.
+
+**When to run tests locally:**
+- ✅ Debugging a specific test failure
+- ✅ Developing complex new features that require iterative testing
+- ✅ Investigating test behavior before committing
+
+**When to skip tests:**
+- ❌ Before routine commits (let GitHub Actions handle it)
+- ❌ Before creating PRs (CI will catch issues)
+- ❌ In release scripts (CI runs comprehensive tests)
 
 ```bash
-# Run all tests
+# Only run tests when debugging or developing complex features
 uv run pytest
 
-# Run with verbose output
+# Run with verbose output (for debugging)
 uv run pytest -v
 
-# Run specific test file
+# Run specific test file (for targeted debugging)
 uv run pytest tests/test_core.py
 
-# Run with coverage report
+# Run with coverage report (for development)
 uv run pytest --cov=claude_worktree --cov-report=term
 ```
 
 **Pre-commit checklist:**
-1. ✅ Run `uv run pytest` - all tests must pass
-2. ✅ Run `ruff check src/ tests/` - no linting errors
-3. ✅ Run `mypy src/claude_worktree` - no type errors
+1. ⏭️ **SKIP** `uv run pytest` - GitHub Actions will run tests automatically
+2. ✅ Run `ruff check src/ tests/` - no linting errors (pre-commit hook runs this)
+3. ✅ Run `mypy src/claude_worktree` - no type errors (pre-commit hook runs this)
 4. ✅ Check `git status` for `uv.lock` changes - commit if modified
-5. ✅ Verify changes work as expected locally
+5. ✅ Verify changes work as expected locally (manual testing)
 
-The pre-commit hooks will automatically run ruff and mypy, but **you must run pytest manually** before committing. GitHub Actions will run all checks, but catching issues locally saves time and CI resources.
+The pre-commit hooks automatically run ruff and mypy. GitHub Actions will run the full test suite on every push, so you don't need to run pytest locally unless debugging.
 
 ### Git commit workflow with pre-commit hooks
 
@@ -507,28 +519,27 @@ uv run python scripts/release.py --major
 # Dry-run to preview changes
 uv run python scripts/release.py --dry-run
 
-# Skip tests (not recommended)
-uv run python scripts/release.py --skip-tests
+# Run tests locally (only if needed for debugging)
+uv run python scripts/release.py --run-tests
 ```
 
 The script automatically:
 1. ✅ Checks git working tree is clean
 2. ✅ Reads current version from `pyproject.toml`
 3. ✅ Calculates new version based on semantic versioning
-4. ✅ Runs tests (`uv run --extra dev pytest`)
+4. ⏭️ Skips tests by default (use `--skip-tests` flag, GitHub Actions will run them)
 5. ✅ Updates `pyproject.toml` and `uv.lock`
 6. ✅ Creates `release/vX.Y.Z` branch
 7. ✅ Commits changes with proper message
 8. ✅ Pushes to remote
 9. ✅ Creates GitHub PR via `gh` CLI
 
+**Note**: Tests are skipped by default because GitHub Actions will run comprehensive tests on the PR. Only run tests locally if you need to debug a specific issue before creating the release PR.
+
 **Manual release process** (if script unavailable):
 
-1. **Run tests and update version** (in main repository):
+1. **Update version** (in main repository):
    ```bash
-   # Ensure all tests pass
-   uv run --extra dev pytest
-
    # Check git status
    git status
 
@@ -541,6 +552,8 @@ The script automatically:
    git add pyproject.toml uv.lock  # Include uv.lock if modified
    git commit -m "chore: Bump version to X.Y.Z"
    ```
+
+   **Note**: Skip running tests locally - GitHub Actions will run them when you create the PR.
 
 2. **Create release branch and PR**:
    ```bash
