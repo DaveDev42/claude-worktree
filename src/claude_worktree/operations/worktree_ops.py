@@ -24,6 +24,7 @@ from ..git_utils import (
     git_command,
     has_command,
     parse_worktrees,
+    remove_worktree_safe,
     set_config,
     unset_config,
 )
@@ -454,7 +455,7 @@ def finish_worktree(
     # (can't run git commands from a removed directory)
     os.chdir(repo)
 
-    git_command("worktree", "remove", worktree_to_remove, "--force", repo=repo)
+    remove_worktree_safe(worktree_to_remove, repo=repo, force=True)
     git_command("branch", "-D", feature_branch, repo=repo)
 
     # Remove metadata
@@ -559,10 +560,7 @@ def delete_worktree(
 
     # Remove worktree
     console.print(f"[yellow]Removing worktree: {worktree_path}[/yellow]")
-    rm_args = ["worktree", "remove", worktree_path]
-    if not no_force:
-        rm_args.append("--force")
-    git_command(*rm_args, repo=repo)
+    remove_worktree_safe(worktree_path, repo=repo, force=not no_force)
     console.print("[bold green]*[/bold green] Worktree removed\n")
 
     # Delete branch if requested

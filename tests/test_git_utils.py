@@ -236,3 +236,125 @@ def test_get_branch_name_error() -> None:
     assert "@{" in get_branch_name_error("feat@{auth")
     assert "~" in get_branch_name_error("feat~auth")
     assert "space" in get_branch_name_error("feat auth").lower()
+
+
+def test_remove_worktree_safe_success(temp_git_repo: Path, monkeypatch) -> None:
+    """Test successful worktree removal via git command."""
+    from unittest.mock import Mock
+
+    from claude_worktree.git_utils import remove_worktree_safe
+
+    # Mock successful git worktree remove
+    mock_result = Mock()
+    mock_result.returncode = 0
+    mock_result.stdout = ""
+
+    mock_git_command = Mock(return_value=mock_result)
+    monkeypatch.setattr("claude_worktree.git_utils.git_command", mock_git_command)
+
+    # Test worktree path
+    worktree_path = temp_git_repo.parent / "test-worktree"
+
+    # Should succeed without raising exception
+    remove_worktree_safe(worktree_path, temp_git_repo, force=True)
+
+    # Verify git worktree remove was called with --force
+    mock_git_command.assert_called_once()
+    args = mock_git_command.call_args[0]
+    assert args[0] == "worktree"
+    assert args[1] == "remove"
+    assert str(worktree_path.resolve()) in args
+    assert "--force" in args
+
+
+def test_remove_worktree_safe_windows_fallback(
+    temp_git_repo: Path, monkeypatch, tmp_path: Path
+) -> None:
+    """Test Windows fallback when git worktree remove fails with 'Directory not empty'."""
+    from unittest.mock import Mock
+
+    from claude_worktree.git_utils import remove_worktree_safe
+
+    # Force Windows behavior
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+
+    # Create a real worktree directory with a file
+    worktree_path = tmp_path / "test-worktree"
+    worktree_path.mkdir()
+    (worktree_path / "test.txt").write_text("test content")
+
+    # Mock git worktree remove to fail with "Directory not empty"
+    def mock_git_command(*args, **kwargs):
+        if args[0] == "worktree" and args[1] == "remove":
+            result = Mock()
+            result.returncode = 128
+            result.stdout = "error: failed to delete '...': Directory not empty"
+            return result
+        elif args[0] == "worktree" and args[1] == "prune":
+            result = Mock()
+            result.returncode = 0
+            result.stdout = ""
+            return result
+        return Mock(returncode=0, stdout="")
+
+    monkeypatch.setattr("claude_worktree.git_utils.git_command", mock_git_command)
+
+    # Should succeed using shutil.rmtree fallback
+    remove_worktree_safe(worktree_path, temp_git_repo, force=True)
+
+    # Verify directory was removed
+    assert not worktree_path.exists()
+
+
+def test_remove_worktree_safe_non_windows_failure(temp_git_repo: Path, monkeypatch) -> None:
+    """Test that non-Windows errors are propagated."""
+    from unittest.mock import Mock
+
+    from claude_worktree.exceptions import GitError
+    from claude_worktree.git_utils import remove_worktree_safe
+
+    # Force non-Windows behavior
+    monkeypatch.setattr("platform.system", lambda: "Linux")
+
+    # Mock git worktree remove to fail
+    mock_result = Mock()
+    mock_result.returncode = 128
+    mock_result.stdout = "error: some other error"
+
+    mock_git_command = Mock(return_value=mock_result)
+    monkeypatch.setattr("claude_worktree.git_utils.git_command", mock_git_command)
+
+    worktree_path = temp_git_repo.parent / "test-worktree"
+
+    # Should raise GitError on non-Windows platforms
+    with pytest.raises(GitError) as exc_info:
+        remove_worktree_safe(worktree_path, temp_git_repo, force=True)
+
+    assert "Command failed" in str(exc_info.value)
+
+
+def test_remove_worktree_safe_windows_different_error(temp_git_repo: Path, monkeypatch) -> None:
+    """Test that Windows errors other than 'Directory not empty' are propagated."""
+    from unittest.mock import Mock
+
+    from claude_worktree.exceptions import GitError
+    from claude_worktree.git_utils import remove_worktree_safe
+
+    # Force Windows behavior
+    monkeypatch.setattr("platform.system", lambda: "Windows")
+
+    # Mock git worktree remove to fail with different error
+    mock_result = Mock()
+    mock_result.returncode = 128
+    mock_result.stdout = "error: permission denied"
+
+    mock_git_command = Mock(return_value=mock_result)
+    monkeypatch.setattr("claude_worktree.git_utils.git_command", mock_git_command)
+
+    worktree_path = temp_git_repo.parent / "test-worktree"
+
+    # Should raise GitError even on Windows for different errors
+    with pytest.raises(GitError) as exc_info:
+        remove_worktree_safe(worktree_path, temp_git_repo, force=True)
+
+    assert "Command failed" in str(exc_info.value)
