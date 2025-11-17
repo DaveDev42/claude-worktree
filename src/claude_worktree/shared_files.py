@@ -159,6 +159,7 @@ def share_files(source_repo: Path, target_worktree: Path) -> None:
     """Share files/directories from source repository to target worktree.
 
     Creates symlinks for specified files/directories if they exist in the source.
+    Also copies additional files specified in configuration (e.g., .env files).
     Automatically adds symlinked paths to .git/info/exclude to prevent git tracking.
 
     Args:
@@ -166,6 +167,15 @@ def share_files(source_repo: Path, target_worktree: Path) -> None:
         target_worktree: Target worktree path (newly created)
     """
     shared_files = get_shared_files(source_repo)
+
+    # Get additional files to copy from configuration
+    from .config import get_copy_files
+
+    copy_files = get_copy_files()
+
+    # Add copy files to the list
+    for file_path in copy_files:
+        shared_files.append({"path": file_path, "method": "copy"})
 
     if not shared_files:
         return

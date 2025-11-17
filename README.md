@@ -200,6 +200,8 @@ cw pr --title "Add awesome feature"
 
 ## Configuration
 
+### AI Tool Selection
+
 By default, `cw` launches Claude Code. You can easily change this:
 
 ```bash
@@ -215,6 +217,25 @@ cw config set ai-tool "your-ai-tool"
 # List available presets
 cw config list-presets
 ```
+
+### Auto-Copy Files
+
+Automatically copy project-specific files (like `.env`) to new worktrees:
+
+```bash
+# Add files to copy list
+cw config copy-files add .env
+cw config copy-files add .env.local
+cw config copy-files add config/local.json
+
+# List configured files
+cw config copy-files list
+
+# Remove a file from the list
+cw config copy-files remove .env
+```
+
+**Note:** Dependencies like `node_modules` and `.venv` are automatically symlinked (not copied) to save disk space.
 
 For detailed configuration options (Happy setup, auto-updates, export/import, etc.), see **[Configuration Guide](docs/configuration.md)**.
 

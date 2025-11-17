@@ -278,3 +278,136 @@ def test_share_files_windows_fallback(tmp_path: Path) -> None:
             target_node_modules = target_worktree / "node_modules"
             assert target_node_modules.exists()
             assert _is_link_or_junction(target_node_modules)
+
+
+def test_share_files_with_copy_files_config(tmp_path: Path, monkeypatch) -> None:
+    """Test sharing files with copy_files configuration."""
+    # Setup: mock config to return copy files
+    from claude_worktree import config
+
+    def mock_get_copy_files() -> list[str]:
+        return [".env", ".env.local"]
+
+    monkeypatch.setattr(config, "get_copy_files", mock_get_copy_files)
+
+    # Setup: create source repo with .env files
+    source_repo = tmp_path / "source"
+    source_repo.mkdir()
+    (source_repo / "package.json").write_text("{}")
+    (source_repo / ".env").write_text("SECRET=value1")
+    (source_repo / ".env.local").write_text("SECRET=value2")
+
+    # Create target worktree
+    target_worktree = tmp_path / "target"
+    target_worktree.mkdir()
+
+    # Share files
+    share_files(source_repo, target_worktree)
+
+    # Verify .env files were copied (not symlinked)
+    target_env = target_worktree / ".env"
+    target_env_local = target_worktree / ".env.local"
+
+    assert target_env.exists()
+    assert target_env_local.exists()
+    assert not _is_link_or_junction(target_env)
+    assert not _is_link_or_junction(target_env_local)
+
+    # Verify contents were copied correctly
+    assert target_env.read_text() == "SECRET=value1"
+    assert target_env_local.read_text() == "SECRET=value2"
+
+
+def test_share_files_with_nested_copy_files(tmp_path: Path, monkeypatch) -> None:
+    """Test sharing nested files with copy_files configuration."""
+    # Setup: mock config to return nested copy files
+    from claude_worktree import config
+
+    def mock_get_copy_files() -> list[str]:
+        return ["config/local.json"]
+
+    monkeypatch.setattr(config, "get_copy_files", mock_get_copy_files)
+
+    # Setup: create source repo with nested config file
+    source_repo = tmp_path / "source"
+    source_repo.mkdir()
+    (source_repo / "package.json").write_text("{}")
+    config_dir = source_repo / "config"
+    config_dir.mkdir()
+    (config_dir / "local.json").write_text('{"key": "value"}')
+
+    # Create target worktree
+    target_worktree = tmp_path / "target"
+    target_worktree.mkdir()
+
+    # Share files
+    share_files(source_repo, target_worktree)
+
+    # Verify nested config file was copied
+    target_config = target_worktree / "config" / "local.json"
+    assert target_config.exists()
+    assert not _is_link_or_junction(target_config)
+    assert target_config.read_text() == '{"key": "value"}'
+
+
+def test_share_files_copy_files_skip_if_not_exists(tmp_path: Path, monkeypatch) -> None:
+    """Test that copy_files skips files that don't exist in source."""
+    # Setup: mock config to return copy files
+    from claude_worktree import config
+
+    def mock_get_copy_files() -> list[str]:
+        return [".env", ".env.local"]
+
+    monkeypatch.setattr(config, "get_copy_files", mock_get_copy_files)
+
+    # Setup: create source repo WITHOUT .env files
+    source_repo = tmp_path / "source"
+    source_repo.mkdir()
+    (source_repo / "package.json").write_text("{}")
+
+    # Create target worktree
+    target_worktree = tmp_path / "target"
+    target_worktree.mkdir()
+
+    # Share files (should skip .env files since they don't exist)
+    share_files(source_repo, target_worktree)
+
+    # Verify .env files were NOT created
+    assert not (target_worktree / ".env").exists()
+    assert not (target_worktree / ".env.local").exists()
+
+
+def test_share_files_combined_symlink_and_copy(tmp_path: Path, monkeypatch) -> None:
+    """Test sharing files with both symlinks and copies."""
+    # Setup: mock config to return copy files
+    from claude_worktree import config
+
+    def mock_get_copy_files() -> list[str]:
+        return [".env"]
+
+    monkeypatch.setattr(config, "get_copy_files", mock_get_copy_files)
+
+    # Setup: create source repo with both node_modules and .env
+    source_repo = tmp_path / "source"
+    source_repo.mkdir()
+    (source_repo / "package.json").write_text("{}")
+    (source_repo / "node_modules").mkdir()
+    (source_repo / ".env").write_text("SECRET=value")
+
+    # Create target worktree
+    target_worktree = tmp_path / "target"
+    target_worktree.mkdir()
+
+    # Share files
+    share_files(source_repo, target_worktree)
+
+    # Verify node_modules was symlinked
+    target_node_modules = target_worktree / "node_modules"
+    assert target_node_modules.exists()
+    assert _is_link_or_junction(target_node_modules)
+
+    # Verify .env was copied
+    target_env = target_worktree / ".env"
+    assert target_env.exists()
+    assert not _is_link_or_junction(target_env)
+    assert target_env.read_text() == "SECRET=value"
