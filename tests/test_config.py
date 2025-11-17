@@ -11,12 +11,16 @@ from claude_worktree.config import (
     AI_TOOL_RESUME_PRESETS,
     DEFAULT_CONFIG,
     ConfigError,
+    add_copy_file,
     get_ai_tool_command,
     get_ai_tool_merge_command,
     get_ai_tool_resume_command,
     get_config_path,
+    get_copy_files,
+    list_copy_files,
     list_presets,
     load_config,
+    remove_copy_file,
     reset_config,
     save_config,
     set_ai_tool,
@@ -678,3 +682,94 @@ def test_get_ai_tool_merge_command_happy_yolo(temp_config_dir: Path) -> None:
     cmd = get_ai_tool_merge_command(prompt)
     # Should include happy --yolo + merge flags
     assert cmd == ["happy", "--yolo", "--print", "--tools=default", prompt]
+
+
+# Copy files configuration tests
+
+
+def test_get_copy_files_default(temp_config_dir: Path) -> None:
+    """Test getting copy files with default configuration."""
+    copy_files = get_copy_files()
+    assert copy_files == []
+
+
+def test_add_copy_file(temp_config_dir: Path) -> None:
+    """Test adding a file to copy list."""
+    add_copy_file(".env")
+    copy_files = get_copy_files()
+    assert ".env" in copy_files
+
+
+def test_add_copy_file_no_duplicates(temp_config_dir: Path) -> None:
+    """Test that adding the same file twice doesn't create duplicates."""
+    add_copy_file(".env")
+    add_copy_file(".env")
+    copy_files = get_copy_files()
+    assert copy_files.count(".env") == 1
+
+
+def test_add_multiple_copy_files(temp_config_dir: Path) -> None:
+    """Test adding multiple files to copy list."""
+    add_copy_file(".env")
+    add_copy_file(".env.local")
+    add_copy_file("config/local.json")
+
+    copy_files = get_copy_files()
+    assert ".env" in copy_files
+    assert ".env.local" in copy_files
+    assert "config/local.json" in copy_files
+    assert len(copy_files) == 3
+
+
+def test_remove_copy_file(temp_config_dir: Path) -> None:
+    """Test removing a file from copy list."""
+    add_copy_file(".env")
+    add_copy_file(".env.local")
+
+    removed = remove_copy_file(".env")
+    assert removed is True
+
+    copy_files = get_copy_files()
+    assert ".env" not in copy_files
+    assert ".env.local" in copy_files
+
+
+def test_remove_copy_file_not_in_list(temp_config_dir: Path) -> None:
+    """Test removing a file that's not in the copy list."""
+    add_copy_file(".env")
+
+    removed = remove_copy_file(".env.local")
+    assert removed is False
+
+    copy_files = get_copy_files()
+    assert ".env" in copy_files
+
+
+def test_list_copy_files_empty(temp_config_dir: Path) -> None:
+    """Test listing copy files when list is empty."""
+    output = list_copy_files()
+    assert "No files configured" in output
+    assert "cw config copy-files add" in output
+
+
+def test_list_copy_files_with_files(temp_config_dir: Path) -> None:
+    """Test listing copy files when files are configured."""
+    add_copy_file(".env")
+    add_copy_file(".env.local")
+
+    output = list_copy_files()
+    assert "Files to copy to new worktrees:" in output
+    assert ".env" in output
+    assert ".env.local" in output
+
+
+def test_copy_files_persist_after_reload(temp_config_dir: Path) -> None:
+    """Test that copy files configuration persists after reload."""
+    add_copy_file(".env")
+    add_copy_file(".env.local")
+
+    # Reload config
+    config = load_config()
+    copy_files = config["worktree"]["copy_files"]
+    assert ".env" in copy_files
+    assert ".env.local" in copy_files
