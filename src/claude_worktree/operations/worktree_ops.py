@@ -406,7 +406,17 @@ def finish_worktree(
         return
 
     console.print(f"[yellow]Merging {feature_branch} into {base_branch}...[/yellow]")
-    git_command("fetch", "--all", "--prune", repo=base_path, check=False)
+
+    # Try to fetch, but don't fail if remote is unavailable (offline work is ok)
+    fetch_result = git_command(
+        "fetch", "--all", "--prune", repo=base_path, check=False, capture=True
+    )
+    fetch_failed = fetch_result.returncode != 0
+
+    if fetch_failed:
+        console.print(
+            "[yellow]⚠[/yellow]  Warning: Failed to fetch from remote (working offline)\n"
+        )
 
     # Switch to base branch if needed
     try:
@@ -418,16 +428,41 @@ def finish_worktree(
         git_command("switch", base_branch, repo=base_path)
 
     # Perform fast-forward merge
+    merge_success = False
     try:
-        git_command("merge", "--ff-only", feature_branch, repo=base_path)
-    except GitError:
+        merge_result = git_command(
+            "merge", "--ff-only", feature_branch, repo=base_path, capture=True
+        )
+        merge_success = True
+
+        # Check if merge actually did something or was already up to date
+        if "Already up to date" in merge_result.stdout:
+            console.print(
+                f"[yellow]ℹ[/yellow]  {base_branch} was already up to date with {feature_branch}\n"
+            )
+        else:
+            console.print(
+                f"[bold green]*[/bold green] Merged {feature_branch} into {base_branch}\n"
+            )
+
+    except GitError as e:
+        console.print(
+            f"[bold red]✗[/bold red] Merge failed!\n"
+            f"\n{e}\n"
+            f"\nWorktree and branch will NOT be deleted.\n"
+            f"To retry: cw merge\n"
+            f"To cleanup manually: cw delete {feature_branch} --keep-branch\n"
+        )
         raise MergeError(
             f"Fast-forward merge failed. Manual intervention required:\n"
             f"  cd {base_path}\n"
             f"  git merge {feature_branch}"
         )
 
-    console.print(f"[bold green]*[/bold green] Merged {feature_branch} into {base_branch}\n")
+    # Verify merge succeeded before proceeding to cleanup
+    if not merge_success:
+        console.print("[bold red]✗[/bold red] Merge verification failed. Aborting cleanup.\n")
+        raise MergeError("Merge did not complete successfully")
 
     # Push to remote if requested
     if push:
@@ -442,8 +477,13 @@ def finish_worktree(
                 console.print(f"[yellow]![/yellow] Push failed: {e}\n")
 
     # Cleanup: remove worktree and branch
-    if not confirm_step(f"Clean up worktree and delete branch {feature_branch}"):
-        console.print("[yellow]Skipping cleanup step...[/yellow]")
+    console.print("\n[bold green]✓[/bold green] Merge completed successfully!\n")
+
+    if not confirm_step(f"Clean up worktree and delete branch {feature_branch} (PERMANENT)"):
+        console.print(
+            f"[yellow]Skipping cleanup.[/yellow]\n"
+            f"To cleanup later: [cyan]cw delete {feature_branch}[/cyan]\n"
+        )
         return
 
     console.print("[yellow]Cleaning up worktree and branch...[/yellow]")
