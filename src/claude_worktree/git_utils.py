@@ -1,6 +1,8 @@
 """Git operations wrapper utilities."""
 
 import os
+import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -381,3 +383,66 @@ def get_branch_name_error(branch_name: str) -> str:
     return (
         f"'{branch_name}' is not a valid branch name. See 'git check-ref-format --help' for rules"
     )
+
+
+def remove_worktree_safe(worktree_path: str | Path, repo: Path, force: bool = True) -> None:
+    """
+    Remove a git worktree with Windows-safe fallback.
+
+    On Windows, 'git worktree remove' can fail with "Directory not empty" even with --force
+    due to file locking or open file handles. This function provides a fallback that:
+    1. Tries git worktree remove first
+    2. If that fails on Windows, manually removes the directory
+    3. Cleans up git's administrative data with 'git worktree prune'
+
+    Args:
+        worktree_path: Path to the worktree directory
+        repo: Path to the main repository
+        force: Use --force flag with git worktree remove
+
+    Raises:
+        GitError: If worktree removal fails on all platforms except Windows,
+                  or if manual removal fails on Windows
+    """
+    worktree_path_obj = Path(worktree_path).resolve()
+    worktree_str = str(worktree_path_obj)
+
+    # Try git worktree remove first
+    rm_args = ["worktree", "remove", worktree_str]
+    if force:
+        rm_args.append("--force")
+
+    result = git_command(*rm_args, repo=repo, check=False, capture=True)
+
+    if result.returncode == 0:
+        # Success via git command
+        return
+
+    # Git command failed - check if it's Windows and the specific error
+    is_windows = platform.system() == "Windows"
+    is_directory_not_empty = "Directory not empty" in (result.stdout or "")
+
+    if is_windows and is_directory_not_empty:
+        # Windows-specific workaround: manually remove directory then prune
+        try:
+            if worktree_path_obj.exists():
+                # Use shutil.rmtree with onerror handler for locked files
+                def handle_remove_readonly(func: Any, path: str, exc: Any) -> None:
+                    """Handle readonly files on Windows."""
+                    os.chmod(path, 0o777)
+                    func(path)
+
+                shutil.rmtree(worktree_str, onerror=handle_remove_readonly)
+
+            # Clean up git's administrative data
+            git_command("worktree", "prune", repo=repo)
+
+        except (OSError, PermissionError) as e:
+            raise GitError(
+                f"Failed to remove worktree directory on Windows: {worktree_str}\n"
+                f"Error: {e}\n"
+                f"Try closing any programs that might have files open in this directory."
+            ) from e
+    else:
+        # Non-Windows platform or different error - propagate the original error
+        raise GitError(f"Command failed: {' '.join(rm_args)}\n{result.stdout}")
