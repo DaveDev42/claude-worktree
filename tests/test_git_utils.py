@@ -278,10 +278,15 @@ def test_remove_worktree_safe_windows_fallback(
     # Force Windows behavior
     monkeypatch.setattr("platform.system", lambda: "Windows")
 
-    # Create a real worktree directory with a file
+    # Create a real worktree directory with files and nested structure
     worktree_path = tmp_path / "test-worktree"
     worktree_path.mkdir()
     (worktree_path / "test.txt").write_text("test content")
+
+    # Create nested directory structure (simulating node_modules)
+    nested_dir = worktree_path / "node_modules" / ".pnpm" / "package"
+    nested_dir.mkdir(parents=True)
+    (nested_dir / "file.js").write_text("console.log('test');")
 
     # Mock git worktree remove to fail with "Directory not empty"
     def mock_git_command(*args, **kwargs):

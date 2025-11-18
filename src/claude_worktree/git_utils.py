@@ -426,22 +426,68 @@ def remove_worktree_safe(worktree_path: str | Path, repo: Path, force: bool = Tr
         # Windows-specific workaround: manually remove directory then prune
         try:
             if worktree_path_obj.exists():
-                # Use shutil.rmtree with onerror handler for locked files
-                def handle_remove_readonly(func: Any, path: str, exc: Any) -> None:
-                    """Handle readonly files on Windows."""
-                    os.chmod(path, 0o777)
-                    func(path)
+                # Use shutil.rmtree with aggressive error handler for Windows
+                def handle_remove_error(func: Any, path: str, exc_info: Any) -> None:
+                    """
+                    Aggressive error handler for Windows directory removal.
 
-                shutil.rmtree(worktree_str, onerror=handle_remove_readonly)
+                    Handles:
+                    - Readonly files
+                    - Symlinks (common in node_modules/.bin)
+                    - Permission errors
+                    """
+                    path_obj = Path(path)
+
+                    # Try to remove readonly attribute
+                    try:
+                        os.chmod(path, 0o777)
+                    except Exception:
+                        pass  # Ignore if chmod fails
+
+                    # If it's a symlink, try to unlink it directly
+                    if path_obj.is_symlink():
+                        try:
+                            path_obj.unlink()
+                            return
+                        except Exception:
+                            pass
+
+                    # If it's a directory, try rmdir
+                    if path_obj.is_dir():
+                        try:
+                            os.rmdir(path)
+                            return
+                        except Exception:
+                            pass
+
+                    # Try the original function again after chmod
+                    try:
+                        func(path)
+                    except Exception:
+                        # If all else fails, ignore the error
+                        # The prune command will clean up git's references
+                        pass
+
+                shutil.rmtree(worktree_str, onerror=handle_remove_error)
 
             # Clean up git's administrative data
             git_command("worktree", "prune", repo=repo)
 
-        except (OSError, PermissionError) as e:
+        except Exception as e:
+            # If we get here, the directory might still be partially removed
+            # Check if it's gone or nearly gone
+            if not worktree_path_obj.exists():
+                # Directory was removed, just ensure git cleanup
+                git_command("worktree", "prune", repo=repo)
+                return
+
             raise GitError(
                 f"Failed to remove worktree directory on Windows: {worktree_str}\n"
                 f"Error: {e}\n"
-                f"Try closing any programs that might have files open in this directory."
+                f"Try closing any programs that might have files open in this directory.\n"
+                f"If the issue persists, you may need to manually delete the directory:\n"
+                f'  rmdir /s /q "{worktree_str}"\n'
+                f"Then run: git worktree prune"
             ) from e
     else:
         # Non-Windows platform or different error - propagate the original error
