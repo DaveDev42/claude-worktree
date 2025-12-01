@@ -6,6 +6,7 @@ from pathlib import Path
 # Git config keys for metadata storage
 CONFIG_KEY_BASE_BRANCH = "branch.{}.worktreeBase"
 CONFIG_KEY_BASE_PATH = "worktree.{}.basePath"
+CONFIG_KEY_INTENDED_BRANCH = "worktree.{}.intendedBranch"
 
 
 def sanitize_branch_name(branch_name: str) -> str:

@@ -238,6 +238,99 @@ def find_worktree_by_branch(repo: Path, branch: str) -> Path | None:
     return None
 
 
+def find_worktree_by_intended_branch(repo: Path, intended_branch: str) -> Path | None:
+    """
+    Find worktree path by intended branch name (from metadata).
+
+    This function searches for a worktree using the intended branch stored in
+    git config metadata, rather than the currently checked out branch. This is
+    useful when a user has checked out a different branch within a worktree.
+
+    Search strategy:
+    1. Try direct lookup by current branch name (fast path)
+    2. Search all intended branch metadata entries
+    3. Match by path naming convention (../<repo>-<intended-branch>)
+
+    Args:
+        repo: Repository path
+        intended_branch: Intended branch name (worktree identifier)
+
+    Returns:
+        Worktree path as Path object or None if not found
+
+    Example:
+        >>> # Worktree created with "cw new fix-auth"
+        >>> # User later checked out "other-branch" inside the worktree
+        >>> path = find_worktree_by_intended_branch(repo, "fix-auth")
+        >>> # Returns: ../myproject-fix-auth (even though current branch is "other-branch")
+    """
+
+    # Normalize input
+    intended_branch = normalize_branch_name(intended_branch)
+
+    # Strategy 1: Try direct lookup by current branch name (fast path)
+    # This works if the worktree still has the intended branch checked out
+    worktree_path = find_worktree_by_branch(repo, intended_branch)
+    if worktree_path:
+        return worktree_path
+
+    # Also try with refs/heads/ prefix
+    worktree_path = find_worktree_by_branch(repo, f"refs/heads/{intended_branch}")
+    if worktree_path:
+        return worktree_path
+
+    # Strategy 2: Search all intended branch metadata
+    # This handles the case where a different branch is checked out
+    result = git_command(
+        "config",
+        "--local",
+        "--get-regexp",
+        "^worktree\\..*\\.intendedBranch",
+        repo=repo,
+        capture=True,
+        check=False,
+    )
+
+    if result.returncode == 0:
+        for line in result.stdout.strip().splitlines():
+            # Format: worktree.<branch>.intendedBranch <value>
+            parts = line.split(maxsplit=1)
+            if len(parts) == 2:
+                key, value = parts
+                # Extract branch name from key (worktree.<branch>.intendedBranch)
+                branch_name_from_key = key.split(".")[1]
+
+                # Check if this is the intended branch we're looking for
+                if branch_name_from_key == intended_branch or value == intended_branch:
+                    # Found matching metadata - now find the actual worktree
+                    # Strategy 2a: Try to find by path naming convention
+                    worktrees = parse_worktrees(repo)
+                    for _, path in worktrees:
+                        # Expected path format: ../<repo>-<intended-branch>
+                        # Handle special characters by using sanitize_branch_name
+                        from .constants import sanitize_branch_name
+
+                        expected_path_suffix = (
+                            f"{repo.name}-{sanitize_branch_name(branch_name_from_key)}"
+                        )
+                        if path.name == expected_path_suffix:
+                            return path
+
+    # Strategy 3: Fallback - check path naming convention for all worktrees
+    # This is a last resort if metadata is incomplete
+    from .constants import sanitize_branch_name
+
+    expected_path_suffix = f"{repo.name}-{sanitize_branch_name(intended_branch)}"
+    worktrees = parse_worktrees(repo)
+    for _, path in worktrees:
+        if path.name == expected_path_suffix:
+            # Verify this isn't the main repository
+            if path.resolve() != repo.resolve():
+                return path
+
+    return None
+
+
 def has_command(name: str) -> bool:
     """
     Check if a command is available in PATH.

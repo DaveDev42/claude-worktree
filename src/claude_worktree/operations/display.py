@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 from ..console import get_console
-from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH
+from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, CONFIG_KEY_INTENDED_BRANCH
 from ..exceptions import GitError, InvalidBranchError
 from ..git_utils import (
     branch_exists,
@@ -13,6 +13,7 @@ from ..git_utils import (
     get_current_branch,
     get_repo_root,
     git_command,
+    normalize_branch_name,
     parse_worktrees,
 )
 
@@ -60,13 +61,57 @@ def list_worktrees() -> None:
 
     console.print(f"\n[bold cyan]Worktrees for repository:[/bold cyan] {repo}\n")
 
-    # Calculate maximum branch name length for dynamic column width
-    max_branch_len = max((len(branch) for branch, _ in worktrees), default=20)
-    # Cap at reasonable maximum but allow for long names
-    col_width = min(max(max_branch_len + 2, 35), 60)
+    # Collect worktree data for display
+    worktree_data: list[tuple[str, str, str, str]] = []
+    for branch, path in worktrees:
+        current_branch = normalize_branch_name(branch)
+        status = get_worktree_status(str(path), repo)
+        rel_path = os.path.relpath(str(path), repo)
 
-    console.print(f"{'BRANCH':<{col_width}} {'STATUS':<10} PATH")
-    console.print("-" * (col_width + 50))
+        # Find intended branch (worktree identifier)
+        intended_branch = get_config(CONFIG_KEY_INTENDED_BRANCH.format(current_branch), repo)
+
+        # If not found via current branch, search by path naming convention
+        if not intended_branch:
+            result = git_command(
+                "config",
+                "--local",
+                "--get-regexp",
+                "^worktree\\..*\\.intendedBranch",
+                repo=repo,
+                capture=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                from ..constants import sanitize_branch_name
+
+                for line in result.stdout.strip().splitlines():
+                    parts = line.split(maxsplit=1)
+                    if len(parts) == 2:
+                        key, value = parts
+                        branch_name_from_key = key.split(".")[1]
+                        expected_path_name = (
+                            f"{repo.name}-{sanitize_branch_name(branch_name_from_key)}"
+                        )
+                        if path.name == expected_path_name:
+                            intended_branch = value
+                            break
+
+        # Use intended branch as worktree identifier, fallback to current branch
+        worktree_id = intended_branch if intended_branch else current_branch
+        worktree_data.append((worktree_id, current_branch, status, rel_path))
+
+    # Calculate column widths
+    max_worktree_len = max((len(wt) for wt, _, _, _ in worktree_data), default=20)
+    max_branch_len = max((len(br) for _, br, _, _ in worktree_data), default=20)
+    worktree_col_width = min(max(max_worktree_len + 2, 20), 35)
+    branch_col_width = min(max(max_branch_len + 2, 20), 35)
+
+    # Print header
+    console.print(
+        f"{'WORKTREE':<{worktree_col_width}} {'CURRENT BRANCH':<{branch_col_width}} {'STATUS':<10} PATH"
+    )
+    console.print("-" * (worktree_col_width + branch_col_width + 60))
 
     # Status color mapping
     status_colors = {
@@ -76,11 +121,20 @@ def list_worktrees() -> None:
         "stale": "red",
     }
 
-    for branch, path in worktrees:
-        status = get_worktree_status(str(path), repo)
-        rel_path = os.path.relpath(str(path), repo)
+    # Print worktrees
+    for worktree_id, current_branch, status, rel_path in worktree_data:
         color = status_colors.get(status, "white")
-        console.print(f"{branch:<{col_width}} [{color}]{status:<10}[/{color}] {rel_path}")
+
+        # Highlight branch mismatch
+        if worktree_id != current_branch:
+            branch_display = f"[yellow]{current_branch} (⚠️)[/yellow]"
+        else:
+            branch_display = current_branch
+
+        console.print(
+            f"{worktree_id:<{worktree_col_width}} {branch_display:<{branch_col_width}} "
+            f"[{color}]{status:<10}[/{color}] {rel_path}"
+        )
 
     console.print()
 
