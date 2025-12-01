@@ -7,7 +7,12 @@ from pathlib import Path
 
 from ..config import load_config
 from ..console import get_console
-from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
+from ..constants import (
+    CONFIG_KEY_BASE_BRANCH,
+    CONFIG_KEY_BASE_PATH,
+    CONFIG_KEY_INTENDED_BRANCH,
+    default_worktree_path,
+)
 from ..exceptions import (
     GitError,
     InvalidBranchError,
@@ -210,6 +215,7 @@ def create_worktree(
     # Store metadata
     set_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), base_branch, repo=repo)
     set_config(CONFIG_KEY_BASE_PATH.format(branch_name), str(repo), repo=repo)
+    set_config(CONFIG_KEY_INTENDED_BRANCH.format(branch_name), branch_name, repo=repo)
 
     console.print("[bold green]*[/bold green] Worktree created successfully\n")
 
@@ -461,6 +467,7 @@ def finish_worktree(
     # Remove metadata
     unset_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), repo=repo)
     unset_config(CONFIG_KEY_BASE_PATH.format(feature_branch), repo=repo)
+    unset_config(CONFIG_KEY_INTENDED_BRANCH.format(feature_branch), repo=repo)
 
     console.print("[bold green]* Cleanup complete![/bold green]\n")
 
@@ -571,6 +578,7 @@ def delete_worktree(
         # Remove metadata
         unset_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo=repo)
         unset_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo=repo)
+        unset_config(CONFIG_KEY_INTENDED_BRANCH.format(branch_name), repo=repo)
 
         console.print("[bold green]*[/bold green] Local branch and metadata removed\n")
 
