@@ -23,6 +23,7 @@ from ..exceptions import (
 from ..git_utils import (
     branch_exists,
     find_worktree_by_branch,
+    find_worktree_by_intended_branch,
     get_config,
     get_current_branch,
     get_repo_root,
@@ -79,7 +80,7 @@ def create_worktree(
     repo = get_repo_root()
 
     # Validate branch name
-    from ..git_utils import find_worktree_by_branch, get_branch_name_error, is_valid_branch_name
+    from ..git_utils import get_branch_name_error, is_valid_branch_name
 
     if not is_valid_branch_name(branch_name, repo):
         error_msg = get_branch_name_error(branch_name)
@@ -524,12 +525,10 @@ def delete_worktree(
                 "Branch deletion will be skipped.\n"
             )
     else:
-        # Target is a branch name
+        # Target is a branch name - find by intended branch (metadata)
         branch_name = target
-        # Try with and without refs/heads/ prefix
-        worktree_path_result = find_worktree_by_branch(repo, branch_name)
-        if not worktree_path_result:
-            worktree_path_result = find_worktree_by_branch(repo, f"refs/heads/{branch_name}")
+        # Use find_worktree_by_intended_branch for robust lookup
+        worktree_path_result = find_worktree_by_intended_branch(repo, branch_name)
         if not worktree_path_result:
             raise WorktreeNotFoundError(
                 f"No worktree found for branch '{branch_name}'. Try specifying the path directly."
