@@ -114,10 +114,6 @@ DEFAULT_CONFIG = {
         "prompted": False,  # Whether user has been prompted to install slash commands
         "installed": False,  # Whether slash commands are installed (user's response)
     },
-    "worktree": {
-        "auto_share_files": True,  # Automatically symlink shared files (node_modules, .venv, etc.)
-        "copy_files": [],  # Additional files to copy (e.g., [".env", ".env.local", "config.json"])
-    },
 }
 
 
@@ -440,75 +436,5 @@ def list_presets() -> str:
 
     for name, cmd in AI_TOOL_PRESETS.items():
         lines.append(f"  {name:20} -> {' '.join(cmd)}")
-
-    return "\n".join(lines)
-
-
-def get_copy_files() -> list[str]:
-    """Get list of files to copy to new worktrees.
-
-    Returns:
-        List of file paths to copy
-    """
-    config = load_config()
-    worktree_config = config.get("worktree", {})
-    copy_files: list[str] = worktree_config.get("copy_files", [])
-    return copy_files
-
-
-def add_copy_file(file_path: str) -> None:
-    """Add a file to the copy_files list.
-
-    Args:
-        file_path: Relative path to file (e.g., ".env", "config/local.json")
-    """
-    config = load_config()
-    copy_files = config.get("worktree", {}).get("copy_files", [])
-
-    if file_path not in copy_files:
-        copy_files.append(file_path)
-        if "worktree" not in config:
-            config["worktree"] = {}
-        config["worktree"]["copy_files"] = copy_files
-        save_config(config)
-
-
-def remove_copy_file(file_path: str) -> bool:
-    """Remove a file from the copy_files list.
-
-    Args:
-        file_path: Relative path to file
-
-    Returns:
-        True if file was removed, False if it wasn't in the list
-    """
-    config = load_config()
-    copy_files = config.get("worktree", {}).get("copy_files", [])
-
-    if file_path in copy_files:
-        copy_files.remove(file_path)
-        config["worktree"]["copy_files"] = copy_files
-        save_config(config)
-        return True
-
-    return False
-
-
-def list_copy_files() -> str:
-    """Get a formatted string listing all files configured to be copied.
-
-    Returns:
-        Formatted copy files list
-    """
-    copy_files = get_copy_files()
-
-    if not copy_files:
-        return (
-            "No files configured to be copied.\n\nAdd files with: cw config copy-files add <file>"
-        )
-
-    lines = ["Files to copy to new worktrees:", ""]
-    for file_path in copy_files:
-        lines.append(f"  • {file_path}")
 
     return "\n".join(lines)

@@ -5,7 +5,6 @@ import sys
 import time
 from pathlib import Path
 
-from ..config import load_config
 from ..console import get_console
 from ..constants import (
     CONFIG_KEY_BASE_BRANCH,
@@ -220,14 +219,12 @@ def create_worktree(
 
     console.print("[bold green]*[/bold green] Worktree created successfully\n")
 
-    # Share files (node_modules, .venv, etc.) if enabled
-    config = load_config()
-    if config.get("worktree", {}).get("auto_share_files", True):
-        try:
-            share_files(repo, worktree_path)
-        except Exception as e:
-            # Non-fatal: warn but continue
-            console.print(f"[yellow]![/yellow] Warning: Failed to share files: {e}\n")
+    # Copy shared files if .cwshare exists
+    try:
+        share_files(repo, worktree_path)
+    except Exception as e:
+        # Non-fatal: warn but continue
+        console.print(f"[yellow]![/yellow] Warning: Failed to share files: {e}\n")
 
     # Change directory
     if not no_cd:
