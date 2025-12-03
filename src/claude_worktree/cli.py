@@ -7,10 +7,7 @@ import typer
 from . import __version__
 from .config import (
     ConfigError,
-    add_copy_file,
-    list_copy_files,
     load_config,
-    remove_copy_file,
     reset_config,
     save_config,
     set_ai_tool,
@@ -1404,82 +1401,6 @@ def reset() -> None:
     try:
         reset_config()
         console.print("[bold green]*[/bold green] Configuration reset to defaults")
-    except (ClaudeWorktreeError, ConfigError) as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
-# Copy files commands (subcommand group)
-copy_files_app = typer.Typer(
-    name="copy-files",
-    help="Manage files to copy to new worktrees",
-    no_args_is_help=True,
-)
-config_app.add_typer(copy_files_app, name="copy-files")
-
-
-@copy_files_app.command(name="list")
-def copy_files_list_cmd() -> None:
-    """
-    List all files configured to be copied to new worktrees.
-
-    Example:
-        cw config copy-files list
-    """
-    try:
-        output = list_copy_files()
-        console.print(output)
-    except (ClaudeWorktreeError, ConfigError) as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
-@copy_files_app.command(name="add")
-def copy_files_add_cmd(
-    file_path: str = typer.Argument(
-        ...,
-        help="Relative path to file (e.g., '.env', 'config/local.json')",
-    ),
-) -> None:
-    """
-    Add a file to be copied to new worktrees.
-
-    This is useful for project-specific configuration files like .env,
-    local config files, or other files that should be copied (not symlinked)
-    to each new worktree.
-
-    Example:
-        cw config copy-files add .env
-        cw config copy-files add .env.local
-        cw config copy-files add config/local.json
-    """
-    try:
-        add_copy_file(file_path)
-        console.print(f"[bold green]*[/bold green] Added to copy list: {file_path}")
-    except (ClaudeWorktreeError, ConfigError) as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
-@copy_files_app.command(name="remove")
-def copy_files_remove_cmd(
-    file_path: str = typer.Argument(
-        ...,
-        help="Relative path to file to remove from copy list",
-    ),
-) -> None:
-    """
-    Remove a file from the copy list.
-
-    Example:
-        cw config copy-files remove .env
-    """
-    try:
-        removed = remove_copy_file(file_path)
-        if removed:
-            console.print(f"[bold green]*[/bold green] Removed from copy list: {file_path}")
-        else:
-            console.print(f"[yellow]![/yellow] File not in copy list: {file_path}")
     except (ClaudeWorktreeError, ConfigError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

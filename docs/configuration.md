@@ -249,6 +249,81 @@ cw new feature --path /tmp/urgent-fix
 cw new hotfix --path ~/projects/hotfix-dir
 ```
 
+## Sharing Files Between Worktrees (.cwshare)
+
+Use a `.cwshare` file to automatically copy specific files to new worktrees.
+
+### Overview
+
+When you run `cw new <branch>`, files listed in `.cwshare` are copied from the main repository to the new worktree. This is useful for:
+
+- Environment files (`.env`, `.env.local`)
+- Local configuration files (`config/local.json`)
+- IDE settings that shouldn't be in git
+
+### Creating a .cwshare File
+
+Create a `.cwshare` file in your repository root:
+
+```
+# Files to copy to new worktrees
+.env
+.env.local
+config/local.json
+```
+
+### File Format
+
+- One file or directory path per line
+- Lines starting with `#` are comments
+- Empty lines are ignored
+- Paths are relative to repository root
+
+### Example
+
+**`.cwshare` file:**
+```
+# Environment files
+.env
+.env.local
+
+# Local configuration
+config/local.json
+secrets/api-keys.json
+```
+
+**Result when running `cw new feature`:**
+```
+Creating worktree for branch 'feature'...
+* Worktree created successfully
+
+Copying shared files:
+  ✓ Copied: .env
+  ✓ Copied: .env.local
+  ✓ Copied: config/local.json
+  ✓ Copied: secrets/api-keys.json
+```
+
+### Notes
+
+- Files are **copied**, not symlinked (each worktree has independent copies)
+- Non-existent source files are silently skipped
+- Existing files in target are not overwritten
+- Directories are copied recursively
+- The `.cwshare` file itself should typically be in `.gitignore`
+
+### Why Copy Instead of Symlink?
+
+Previous versions used symlinks for `node_modules`, `.venv`, etc. However, this caused issues with:
+- pnpm's nested symlink structure
+- Build tools that don't handle symlinks well
+- Different dependency versions per branch
+
+The new approach:
+- Only copies files you explicitly specify
+- Works reliably across all platforms and tools
+- Each worktree has independent copies (no conflicts)
+
 ## Auto-Update Configuration
 
 By default, `claude-worktree` checks for updates once per day.
