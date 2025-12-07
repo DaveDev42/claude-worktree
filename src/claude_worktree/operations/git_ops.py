@@ -9,6 +9,7 @@ from ..console import get_console
 from ..exceptions import GitError, RebaseError
 from ..git_utils import git_command, has_command
 from ..helpers import get_worktree_metadata, resolve_worktree_target
+from ..hooks import run_hooks
 
 console = get_console()
 
@@ -196,6 +197,17 @@ def create_pr_worktree(
     console.print(f"  Base:        [green]{base_branch}[/green]")
     console.print(f"  Repo:        [blue]{repo}[/blue]\n")
 
+    # Run pre-PR hooks (can abort operation)
+    hook_context = {
+        "branch": feature_branch,
+        "base_branch": base_branch,
+        "worktree_path": str(cwd),
+        "repo_path": str(repo),
+        "event": "pr.pre",
+        "operation": "pr",
+    }
+    run_hooks("pr.pre", hook_context, cwd=cwd)
+
     # Fetch updates from remote
     console.print("[yellow]Fetching updates from remote...[/yellow]")
     fetch_result = git_command("fetch", "--all", "--prune", repo=repo, check=False)
@@ -299,6 +311,11 @@ def create_pr_worktree(
         console.print(
             "[dim]Note: Worktree is still active. Use 'cw delete' to remove it after PR is merged.[/dim]\n"
         )
+
+        # Run post-PR hooks (non-blocking) with PR URL available
+        hook_context["event"] = "pr.post"
+        hook_context["pr_url"] = pr_url
+        run_hooks("pr.post", hook_context, cwd=cwd)
     except subprocess.CalledProcessError as e:
         error_msg = f"Failed to create pull request: {e.stderr}"
         raise GitError(error_msg)

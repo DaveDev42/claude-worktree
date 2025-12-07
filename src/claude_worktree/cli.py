@@ -1721,5 +1721,276 @@ def backup_restore(
         raise typer.Exit(code=1)
 
 
+# Hook commands
+hook_app = typer.Typer(
+    name="hook",
+    help="Manage lifecycle hooks",
+    no_args_is_help=True,
+)
+app.add_typer(hook_app, name="hook", rich_help_panel="Configuration")
+
+
+def complete_hook_events() -> list[str]:
+    """Autocomplete function for hook event names."""
+    from .hooks import HOOK_EVENTS
+
+    return HOOK_EVENTS
+
+
+def complete_hook_ids(ctx: typer.Context) -> list[str]:
+    """Autocomplete function for hook IDs based on selected event."""
+    from .hooks import get_hooks
+
+    # Get event from previous argument
+    event = ctx.params.get("event")
+    if not event:
+        return []
+    try:
+        return [h["id"] for h in get_hooks(event)]
+    except Exception:
+        return []
+
+
+@hook_app.command(name="add")
+def hook_add(
+    event: str = typer.Argument(
+        ...,
+        help="Hook event (e.g., 'worktree.post_create', 'merge.pre')",
+        autocompletion=complete_hook_events,
+    ),
+    command: str = typer.Argument(
+        ...,
+        help="Shell command to execute",
+    ),
+    hook_id: str | None = typer.Option(
+        None,
+        "--id",
+        help="Custom hook identifier (auto-generated if not provided)",
+    ),
+    description: str | None = typer.Option(
+        None,
+        "--description",
+        "-d",
+        help="Human-readable description of what this hook does",
+    ),
+) -> None:
+    """
+    Add a new hook for an event.
+
+    Hooks are shell commands that run at specific lifecycle events.
+    Pre-hooks (*.pre_*) can abort the operation by returning non-zero exit code.
+    Post-hooks run after the operation completes.
+
+    Available events:
+    - worktree.pre_create, worktree.post_create
+    - worktree.pre_delete, worktree.post_delete
+    - merge.pre, merge.post
+    - pr.pre, pr.post
+    - resume.pre, resume.post
+    - sync.pre, sync.post
+
+    Example:
+        cw hook add worktree.post_create "npm install"
+        cw hook add worktree.post_create "./setup.sh" --id setup --description "Run setup script"
+        cw hook add merge.pre "npm test" --id tests --description "Run tests before merge"
+    """
+    from .hooks import HookError, add_hook
+
+    try:
+        created_id = add_hook(event, command, hook_id, description)
+        console.print(f"[bold green]✓[/bold green] Added hook '{created_id}' for {event}")
+    except HookError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@hook_app.command(name="remove")
+def hook_remove(
+    event: str = typer.Argument(
+        ...,
+        help="Hook event",
+        autocompletion=complete_hook_events,
+    ),
+    hook_id: str = typer.Argument(
+        ...,
+        help="Hook identifier to remove",
+        autocompletion=complete_hook_ids,
+    ),
+) -> None:
+    """
+    Remove a hook.
+
+    Example:
+        cw hook remove worktree.post_create setup
+        cw hook remove merge.pre tests
+    """
+    from .hooks import HookError, remove_hook
+
+    try:
+        remove_hook(event, hook_id)
+        console.print(f"[bold green]✓[/bold green] Removed hook '{hook_id}' from {event}")
+    except HookError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@hook_app.command(name="list")
+def hook_list(
+    event: str | None = typer.Argument(
+        None,
+        help="Filter by event (show all if not specified)",
+        autocompletion=complete_hook_events,
+    ),
+) -> None:
+    """
+    List all hooks or hooks for a specific event.
+
+    Example:
+        cw hook list                       # List all hooks
+        cw hook list worktree.post_create  # List hooks for specific event
+    """
+    from .hooks import HOOK_EVENTS, get_hooks
+
+    events_to_show = [event] if event else HOOK_EVENTS
+    has_any_hooks = False
+
+    for evt in events_to_show:
+        hooks = get_hooks(evt)
+        if hooks or event:  # Show event if specifically requested or has hooks
+            if hooks:
+                has_any_hooks = True
+                console.print(f"\n[bold cyan]{evt}[/bold cyan]")
+                for h in hooks:
+                    status = (
+                        "[green]enabled[/green]"
+                        if h.get("enabled", True)
+                        else "[yellow]disabled[/yellow]"
+                    )
+                    desc = f" - {h['description']}" if h.get("description") else ""
+                    console.print(f"  {h['id']} [{status}]: {h['command']}{desc}")
+            elif event:
+                # Only show "no hooks" if user specifically requested this event
+                console.print(f"\n[bold cyan]{evt}[/bold cyan]")
+                console.print("  [dim](no hooks)[/dim]")
+
+    if not event and not has_any_hooks:
+        console.print("[dim]No hooks configured. Use 'cw hook add' to add one.[/dim]")
+
+
+@hook_app.command(name="enable")
+def hook_enable(
+    event: str = typer.Argument(
+        ...,
+        help="Hook event",
+        autocompletion=complete_hook_events,
+    ),
+    hook_id: str = typer.Argument(
+        ...,
+        help="Hook identifier",
+        autocompletion=complete_hook_ids,
+    ),
+) -> None:
+    """
+    Enable a disabled hook.
+
+    Example:
+        cw hook enable worktree.post_create setup
+    """
+    from .hooks import HookError, set_hook_enabled
+
+    try:
+        set_hook_enabled(event, hook_id, True)
+        console.print(f"[bold green]✓[/bold green] Enabled hook '{hook_id}'")
+    except HookError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@hook_app.command(name="disable")
+def hook_disable(
+    event: str = typer.Argument(
+        ...,
+        help="Hook event",
+        autocompletion=complete_hook_events,
+    ),
+    hook_id: str = typer.Argument(
+        ...,
+        help="Hook identifier",
+        autocompletion=complete_hook_ids,
+    ),
+) -> None:
+    """
+    Disable a hook without removing it.
+
+    Example:
+        cw hook disable worktree.post_create setup
+    """
+    from .hooks import HookError, set_hook_enabled
+
+    try:
+        set_hook_enabled(event, hook_id, False)
+        console.print(f"[bold green]✓[/bold green] Disabled hook '{hook_id}'")
+    except HookError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@hook_app.command(name="run")
+def hook_run(
+    event: str = typer.Argument(
+        ...,
+        help="Hook event to run",
+        autocompletion=complete_hook_events,
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show what would be executed without running",
+    ),
+) -> None:
+    """
+    Manually run all hooks for an event (useful for testing).
+
+    Example:
+        cw hook run worktree.post_create
+        cw hook run worktree.post_create --dry-run
+    """
+    from .hooks import HookError, get_hooks, run_hooks
+
+    hooks = get_hooks(event)
+    if not hooks:
+        console.print(f"[yellow]No hooks configured for {event}[/yellow]")
+        return
+
+    enabled_hooks = [h for h in hooks if h.get("enabled", True)]
+    if not enabled_hooks:
+        console.print(f"[yellow]All hooks for {event} are disabled[/yellow]")
+        return
+
+    if dry_run:
+        console.print(f"[bold]Would run {len(enabled_hooks)} hook(s) for {event}:[/bold]")
+        for h in hooks:
+            status = "enabled" if h.get("enabled", True) else "disabled (skipped)"
+            desc = f" - {h.get('description', '')}" if h.get("description") else ""
+            console.print(f"  {h['id']} [{status}]: {h['command']}{desc}")
+        return
+
+    # Create minimal context for manual run
+    context = {
+        "event": event,
+        "operation": "manual",
+        "branch": "",
+        "base_branch": "",
+        "worktree_path": str(Path.cwd()),
+        "repo_path": str(Path.cwd()),
+    }
+
+    try:
+        run_hooks(event, context)
+    except HookError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
 if __name__ == "__main__":
     app()

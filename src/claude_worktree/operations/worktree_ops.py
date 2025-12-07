@@ -33,6 +33,7 @@ from ..git_utils import (
     set_config,
     unset_config,
 )
+from ..hooks import run_hooks
 from ..shared_files import share_files
 from .ai_tools import launch_ai_tool, resume_worktree
 from .display import get_worktree_status
@@ -200,6 +201,17 @@ def create_worktree(
     console.print(f"  New branch:  [green]{branch_name}[/green]")
     console.print(f"  Path:        [blue]{worktree_path}[/blue]\n")
 
+    # Run pre-create hooks (can abort operation)
+    hook_context = {
+        "branch": branch_name,
+        "base_branch": base_branch,
+        "worktree_path": str(worktree_path),
+        "repo_path": str(repo),
+        "event": "worktree.pre_create",
+        "operation": "new",
+    }
+    run_hooks("worktree.pre_create", hook_context, cwd=repo)
+
     # Create worktree
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
     git_command("fetch", "--all", "--prune", repo=repo)
@@ -230,6 +242,10 @@ def create_worktree(
     if not no_cd:
         os.chdir(worktree_path)
         console.print(f"Changed directory to: {worktree_path}")
+
+    # Run post-create hooks (non-blocking)
+    hook_context["event"] = "worktree.post_create"
+    run_hooks("worktree.post_create", hook_context, cwd=worktree_path)
 
     # Launch AI tool (if configured)
     launch_ai_tool(
@@ -274,6 +290,18 @@ def finish_worktree(
     console.print(f"  Feature:     [green]{feature_branch}[/green]")
     console.print(f"  Base:        [green]{base_branch}[/green]")
     console.print(f"  Repo:        [blue]{repo}[/blue]\n")
+
+    # Run pre-merge hooks (can abort operation) - only if not dry-run
+    hook_context = {
+        "branch": feature_branch,
+        "base_branch": base_branch,
+        "worktree_path": str(cwd),
+        "repo_path": str(repo),
+        "event": "merge.pre",
+        "operation": "merge",
+    }
+    if not dry_run:
+        run_hooks("merge.pre", hook_context, cwd=cwd)
 
     # Dry-run mode: preview operations without executing
     if dry_run:
@@ -469,6 +497,10 @@ def finish_worktree(
 
     console.print("[bold green]* Cleanup complete![/bold green]\n")
 
+    # Run post-merge hooks (non-blocking)
+    hook_context["event"] = "merge.post"
+    run_hooks("merge.post", hook_context, cwd=repo)
+
 
 def delete_worktree(
     target: str | None = None,
@@ -561,6 +593,22 @@ def delete_worktree(
     if is_in_worktree:
         os.chdir(repo)
 
+    # Get base branch for hook context (may not exist for external branches)
+    base_branch = ""
+    if branch_name:
+        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo) or ""
+
+    # Run pre-delete hooks (can abort operation)
+    hook_context = {
+        "branch": branch_name or "",
+        "base_branch": base_branch,
+        "worktree_path": worktree_path,
+        "repo_path": str(repo),
+        "event": "worktree.pre_delete",
+        "operation": "delete",
+    }
+    run_hooks("worktree.pre_delete", hook_context, cwd=repo)
+
     # Remove worktree
     console.print(f"[yellow]Removing worktree: {worktree_path}[/yellow]")
     remove_worktree_safe(worktree_path, repo=repo, force=not no_force)
@@ -586,6 +634,10 @@ def delete_worktree(
                 console.print("[bold green]*[/bold green] Remote branch deleted\n")
             except GitError as e:
                 console.print(f"[yellow]![/yellow] Remote branch deletion failed: {e}\n")
+
+    # Run post-delete hooks (non-blocking)
+    hook_context["event"] = "worktree.post_delete"
+    run_hooks("worktree.post_delete", hook_context, cwd=repo)
 
 
 def _topological_sort_worktrees(
@@ -701,6 +753,19 @@ def sync_worktree(
         # Sync specific worktree by branch name or current worktree
         worktree_path, branch_name, _ = resolve_worktree_target(target)
         worktrees_to_sync = [(branch_name, worktree_path)]
+
+    # Run pre-sync hooks (can abort operation) - use first worktree info for context
+    first_branch, first_path = worktrees_to_sync[0] if worktrees_to_sync else ("", Path.cwd())
+    first_base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(first_branch), repo) or ""
+    hook_context = {
+        "branch": first_branch,
+        "base_branch": first_base_branch,
+        "worktree_path": str(first_path),
+        "repo_path": str(repo),
+        "event": "sync.pre",
+        "operation": "sync",
+    }
+    run_hooks("sync.pre", hook_context, cwd=repo)
 
     # Fetch from all remotes first
     console.print("[yellow]Fetching updates from remote...[/yellow]")
@@ -965,6 +1030,10 @@ def sync_worktree(
                 raise RebaseError(error_msg)
 
     console.print("\n[bold green]* Sync complete![/bold green]\n")
+
+    # Run post-sync hooks (non-blocking)
+    hook_context["event"] = "sync.post"
+    run_hooks("sync.post", hook_context, cwd=repo)
 
 
 def clean_worktrees(

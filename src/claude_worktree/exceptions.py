@@ -35,3 +35,9 @@ class RebaseError(ClaudeWorktreeError):
     """Raised when a rebase operation fails."""
 
     pass
+
+
+class HookError(ClaudeWorktreeError):
+    """Raised when a hook execution fails."""
+
+    pass

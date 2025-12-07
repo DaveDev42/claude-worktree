@@ -8,9 +8,17 @@ from pathlib import Path
 
 from ..config import get_ai_tool_command, get_ai_tool_merge_command, get_ai_tool_resume_command
 from ..console import get_console
+from ..constants import CONFIG_KEY_BASE_BRANCH
 from ..exceptions import GitError, WorktreeNotFoundError
-from ..git_utils import find_worktree_by_branch, get_current_branch, get_repo_root, has_command
+from ..git_utils import (
+    find_worktree_by_branch,
+    get_config,
+    get_current_branch,
+    get_repo_root,
+    has_command,
+)
 from ..helpers import resolve_worktree_target
+from ..hooks import run_hooks
 
 console = get_console()
 
@@ -192,7 +200,21 @@ def resume_worktree(
     from .. import session_manager
 
     # Resolve worktree target to (path, branch, repo)
-    worktree_path, branch_name, _ = resolve_worktree_target(worktree)
+    worktree_path, branch_name, worktree_repo = resolve_worktree_target(worktree)
+
+    # Get base branch for hook context
+    base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), worktree_repo) or ""
+
+    # Run pre-resume hooks (can abort operation)
+    hook_context = {
+        "branch": branch_name,
+        "base_branch": base_branch,
+        "worktree_path": str(worktree_path),
+        "repo_path": str(worktree_repo),
+        "event": "resume.pre",
+        "operation": "resume",
+    }
+    run_hooks("resume.pre", hook_context, cwd=worktree_path)
 
     # Change directory if worktree was specified
     if worktree:
@@ -241,6 +263,10 @@ def resume_worktree(
             tmux_session=tmux_session,
             resume=has_session,  # Only use resume if session exists
         )
+
+        # Run post-resume hooks (non-blocking)
+        hook_context["event"] = "resume.post"
+        run_hooks("resume.post", hook_context, cwd=worktree_path)
 
 
 def shell_worktree(
