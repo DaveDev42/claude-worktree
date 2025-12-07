@@ -19,6 +19,7 @@ from .config import (
     list_presets as list_ai_presets,
 )
 from .console import get_console
+from .cwshare_setup import prompt_cwshare_setup
 from .exceptions import ClaudeWorktreeError
 from .git_utils import get_repo_root, normalize_branch_name, parse_worktrees
 from .operations import (
@@ -205,6 +206,9 @@ def main(
 
     # Prompt for slash command setup on first run
     prompt_slash_command_setup()
+
+    # Prompt for .cwshare setup on first run per repo
+    prompt_cwshare_setup()
 
 
 @app.command(rich_help_panel="Core Workflow")
