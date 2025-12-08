@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "worktree.post_create": [
+      {
+        "id": "hook-31e2a354",
+        "command": "uv sync --extra dev",
+        "enabled": true,
+        "description": ""
+      }
+    ]
+  }
+}
