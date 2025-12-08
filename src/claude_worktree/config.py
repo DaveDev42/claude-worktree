@@ -114,7 +114,8 @@ DEFAULT_CONFIG = {
         "prompted": False,  # Whether user has been prompted to install slash commands
         "installed": False,  # Whether slash commands are installed (user's response)
     },
-    "hooks": {},  # User-defined lifecycle hooks (empty by default)
+    # Note: hooks are stored per-repository in .claude-worktree/hooks.json
+    # not in this global config file
 }
 
 
