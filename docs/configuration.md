@@ -181,37 +181,71 @@ cw config set ai-tool "happy --claude-arg --dangerously-skip-permissions"
 
 ## Launch Options
 
-Control how the AI tool is launched when creating or resuming worktrees.
+Control how the AI tool is launched when creating or resuming worktrees using the `--term/-T` option.
 
-### Background Launch
+### Terminal Launch Methods
 
-```bash
-cw new feature --bg
-cw resume feature --bg
-```
-
-Launches AI tool in background process.
-
-### iTerm Integration (macOS)
+The `--term` option supports multiple terminal multiplexers with short aliases:
 
 ```bash
-# New iTerm window
-cw new feature --iterm
+# iTerm (macOS)
+cw new feature --term i-w           # New window
+cw new feature --term i-t           # New tab
+cw new feature --term i-p-h         # Horizontal pane
+cw new feature --term i-p-v         # Vertical pane
 
-# New iTerm tab
-cw new feature --iterm-tab
+# tmux
+cw new feature --term t             # New session (auto-named: cw-<branch>)
+cw new feature --term t:mywork      # New session named "mywork"
+cw new feature --term t-w           # New window in current session
+cw new feature --term t-p-h         # Horizontal pane
+cw new feature --term t-p-v         # Vertical pane
+
+# Zellij
+cw new feature --term z             # New session (auto-named)
+cw new feature --term z:dev         # New session named "dev"
+cw new feature --term z-t           # New tab in current session
+cw new feature --term z-p-h         # Horizontal pane
+cw new feature --term z-p-v         # Vertical pane
+
+# WezTerm
+cw new feature --term w-w           # New window
+cw new feature --term w-t           # New tab
+cw new feature --term w-p-h         # Horizontal pane
+cw new feature --term w-p-v         # Vertical pane
+
+# Other
+cw new feature --term bg            # Background process
+cw new feature --term fg            # Foreground (default)
 ```
 
-**Requires:** iTerm2 on macOS
+**Alias pattern:**
+- First letter: `i`=iTerm, `t`=tmux, `z`=Zellij, `w`=WezTerm
+- Second letter: `w`=window, `t`=tab, `p`=pane
+- For panes: `h`=horizontal, `v`=vertical
 
-### tmux Integration
+### Default Launch Method
+
+Set a default launch method in config or environment:
 
 ```bash
-cw new feature --tmux my-session
-cw resume feature --tmux my-session
+# Via config
+cw config set launch.method i-t     # Default to iTerm tab
+
+# Via environment variable (overrides config)
+CW_LAUNCH_METHOD=z cw new feature   # Use Zellij for this command
 ```
 
-Creates a new tmux session with the specified name.
+### Session Name Prefix
+
+Customize the auto-generated session name prefix for tmux/Zellij:
+
+```bash
+cw config set launch.session_prefix myproject
+cw new feature --term t             # Creates session: myproject-feature
+```
+
+Default prefix is `cw`.
 
 ### Skip AI Launch
 

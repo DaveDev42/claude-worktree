@@ -18,20 +18,47 @@ cw new fix-bug --base develop
 # Custom path
 cw new hotfix --path /tmp/urgent-fix
 
-# Launch options
-cw new feature --iterm              # Launch in iTerm window (macOS)
-cw new feature --iterm-tab          # Launch in iTerm tab (macOS)
-cw new feature --tmux my-session    # Launch in tmux session
-cw new feature --bg                 # Launch in background
+# Terminal launch options (--term/-T)
+cw new feature --term i-t           # Launch in iTerm tab (macOS)
+cw new feature --term i-w           # Launch in iTerm window (macOS)
+cw new feature --term t             # Launch in new tmux session
+cw new feature --term t:mywork      # Launch in tmux session named "mywork"
+cw new feature --term z             # Launch in new Zellij session
+cw new feature --term w-t           # Launch in WezTerm tab
+cw new feature --term bg            # Launch in background
 ```
 
 **Options:**
 - `--base <branch>` - Base branch to branch from (default: current branch)
 - `--path <path>` - Custom worktree path (default: `../<repo>-<branch>/`)
-- `--iterm` - Launch AI tool in new iTerm window (macOS only)
-- `--iterm-tab` - Launch AI tool in new iTerm tab (macOS only)
-- `--tmux <name>` - Launch AI tool in new tmux session
-- `--bg` - Launch AI tool in background
+- `--term, -T <method>` - Terminal launch method (see table below)
+
+#### Terminal Launch Methods (`--term/-T`)
+
+| Method | Alias | Description | Platform |
+|--------|-------|-------------|----------|
+| `foreground` | `fg` | Run in current terminal (default) | All |
+| `background` | `bg` | Background process | All |
+| `iterm-window` | `i-w` | New iTerm window | macOS |
+| `iterm-tab` | `i-t` | New iTerm tab | macOS |
+| `iterm-pane-h` | `i-p-h` | iTerm horizontal pane | macOS |
+| `iterm-pane-v` | `i-p-v` | iTerm vertical pane | macOS |
+| `tmux` | `t` | New tmux session (auto-named) | All |
+| `tmux:<name>` | `t:<name>` | New tmux session with name | All |
+| `tmux-window` | `t-w` | tmux window in current session | All |
+| `tmux-pane-h` | `t-p-h` | tmux horizontal pane | All |
+| `tmux-pane-v` | `t-p-v` | tmux vertical pane | All |
+| `zellij` | `z` | New Zellij session (auto-named) | All |
+| `zellij:<name>` | `z:<name>` | New Zellij session with name | All |
+| `zellij-tab` | `z-t` | Zellij tab in current session | All |
+| `zellij-pane-h` | `z-p-h` | Zellij horizontal pane | All |
+| `zellij-pane-v` | `z-p-v` | Zellij vertical pane | All |
+| `wezterm-window` | `w-w` | New WezTerm window | All |
+| `wezterm-tab` | `w-t` | New WezTerm tab | All |
+| `wezterm-pane-h` | `w-p-h` | WezTerm horizontal pane | All |
+| `wezterm-pane-v` | `w-p-v` | WezTerm vertical pane | All |
+
+**Alias pattern:** First letter = terminal (i/t/z/w), second = type (w/t/p), for panes: h/v = direction
 
 ### `cw list`
 
@@ -66,12 +93,14 @@ cw resume
 # Resume in specific worktree
 cw resume fix-auth
 
-# Launch options (same as `cw new`)
-cw resume --iterm
-cw resume --iterm-tab
-cw resume --tmux my-session
-cw resume --bg
+# Terminal launch options (same as `cw new`)
+cw resume --term i-t              # Resume in iTerm tab
+cw resume --term t:mywork         # Resume in tmux session "mywork"
+cw resume --term z-p-h            # Resume in Zellij horizontal pane
 ```
+
+**Options:**
+- `--term, -T <method>` - Terminal launch method (see table below)
 
 ### `cw delete <target>`
 
