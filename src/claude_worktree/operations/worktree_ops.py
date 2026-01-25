@@ -48,6 +48,8 @@ def create_worktree(
     base_branch: str | None = None,
     path: Path | None = None,
     no_cd: bool = False,
+    term: str | None = None,
+    # Deprecated parameters (for backward compatibility)
     bg: bool = False,
     iterm: bool = False,
     iterm_tab: bool = False,
@@ -61,10 +63,11 @@ def create_worktree(
         base_branch: Base branch to branch from (defaults to current branch)
         path: Custom path for worktree (defaults to ../<repo>-<branch>)
         no_cd: Don't change directory after creation
-        bg: Launch AI tool in background
-        iterm: Launch AI tool in new iTerm window (macOS only)
-        iterm_tab: Launch AI tool in new iTerm tab (macOS only)
-        tmux_session: Launch AI tool in new tmux session
+        term: Terminal launch method (e.g., "i-t", "t:mysession", "z-p-h")
+        bg: [DEPRECATED] Use term="bg" instead
+        iterm: [DEPRECATED] Use term="iterm-window" or term="i-w" instead
+        iterm_tab: [DEPRECATED] Use term="iterm-tab" or term="i-t" instead
+        tmux_session: [DEPRECATED] Use term="tmux" or term="t:session_name" instead
 
     Returns:
         Path to the created worktree
@@ -114,6 +117,8 @@ def create_worktree(
                     )
                     resume_worktree(
                         worktree=branch_name,
+                        term=term,
+                        # Deprecated parameters passed through
                         bg=bg,
                         iterm=iterm,
                         iterm_tab=iterm_tab,
@@ -249,7 +254,13 @@ def create_worktree(
 
     # Launch AI tool (if configured)
     launch_ai_tool(
-        worktree_path, bg=bg, iterm=iterm, iterm_tab=iterm_tab, tmux_session=tmux_session
+        worktree_path,
+        term=term,
+        # Deprecated parameters passed through
+        bg=bg,
+        iterm=iterm,
+        iterm_tab=iterm_tab,
+        tmux_session=tmux_session,
     )
 
     return worktree_path

@@ -4,11 +4,18 @@ import os
 import shlex
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
-from ..config import get_ai_tool_command, get_ai_tool_merge_command, get_ai_tool_resume_command
+from ..config import (
+    get_ai_tool_command,
+    get_ai_tool_merge_command,
+    get_ai_tool_resume_command,
+    load_config,
+    parse_term_option,
+)
 from ..console import get_console
-from ..constants import CONFIG_KEY_BASE_BRANCH
+from ..constants import CONFIG_KEY_BASE_BRANCH, MAX_SESSION_NAME_LENGTH, LaunchMethod
 from ..exceptions import GitError, WorktreeNotFoundError
 from ..git_utils import (
     find_worktree_by_branch,
@@ -60,27 +67,323 @@ def _run_command_in_shell(
             return subprocess.run(["bash", "-lc", cmd], cwd=str(cwd), check=check)
 
 
+def _generate_session_name(path: Path, branch_name: str | None = None) -> str:
+    """Generate session name from path with length limit.
+
+    Uses the configured session prefix (default: "cw") combined with directory name.
+
+    Limits:
+    - tmux: 255 chars (official limit)
+    - Zellij: ~40-60 chars (Unix socket path must be < 108 bytes)
+    - WezTerm: No limit
+
+    We use 50 chars as a safe default for Zellij compatibility.
+
+    Args:
+        path: Worktree path
+        branch_name: Optional branch name (not used currently, reserved for future)
+
+    Returns:
+        Generated session name, truncated if necessary
+    """
+    config = load_config()
+    prefix = config.get("launch", {}).get("session_prefix", "cw")
+    name = f"{prefix}-{path.name}"
+
+    if len(name) > MAX_SESSION_NAME_LENGTH:
+        name = name[:MAX_SESSION_NAME_LENGTH]
+    return name
+
+
+# =============================================================================
+# iTerm Launchers (macOS only)
+# =============================================================================
+
+
+def _launch_iterm_window(path: Path, command: str, ai_tool_name: str) -> None:
+    """Launch AI tool in new iTerm window."""
+    if sys.platform != "darwin":
+        raise GitError("--term iterm-window only works on macOS")
+
+    script = f"""
+    osascript <<'APPLESCRIPT'
+    tell application "iTerm"
+      activate
+      set newWindow to (create window with default profile)
+      tell current session of newWindow
+        write text "cd {shlex.quote(str(path))} && {command}"
+      end tell
+    end tell
+APPLESCRIPT
+    """
+    subprocess.run(["bash", "-lc", script], check=True)
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm window\n")
+
+
+def _launch_iterm_tab(path: Path, command: str, ai_tool_name: str) -> None:
+    """Launch AI tool in new iTerm tab."""
+    if sys.platform != "darwin":
+        raise GitError("--term iterm-tab only works on macOS")
+
+    script = f"""
+    osascript <<'APPLESCRIPT'
+    tell application "iTerm"
+      activate
+      tell current window
+        create tab with default profile
+        tell current session
+          write text "cd {shlex.quote(str(path))} && {command}"
+        end tell
+      end tell
+    end tell
+APPLESCRIPT
+    """
+    subprocess.run(["bash", "-lc", script], check=True)
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm tab\n")
+
+
+def _launch_iterm_pane(path: Path, command: str, ai_tool_name: str, horizontal: bool = True) -> None:
+    """Launch AI tool in iTerm split pane."""
+    if sys.platform != "darwin":
+        raise GitError("--term iterm-pane-* only works on macOS")
+
+    direction = "horizontally" if horizontal else "vertically"
+    script = f"""
+    osascript <<'APPLESCRIPT'
+    tell application "iTerm"
+      activate
+      tell current session of current window
+        split {direction} with default profile
+      end tell
+      tell last session of current tab of current window
+        write text "cd {shlex.quote(str(path))} && {command}"
+      end tell
+    end tell
+APPLESCRIPT
+    """
+    subprocess.run(["bash", "-lc", script], check=True)
+    pane_type = "horizontal" if horizontal else "vertical"
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in iTerm {pane_type} pane\n")
+
+
+# =============================================================================
+# tmux Launchers
+# =============================================================================
+
+
+def _launch_tmux_session(
+    path: Path, command: str, ai_tool_name: str, session_name: str | None = None
+) -> None:
+    """Launch AI tool in new tmux session."""
+    if not has_command("tmux"):
+        raise GitError("tmux not installed. Install from https://tmux.github.io/")
+
+    if session_name is None:
+        session_name = _generate_session_name(path)
+
+    # Create new session with working directory set
+    # -d: detached, -s: session name, -c: start directory
+    subprocess.run(
+        ["tmux", "new-session", "-d", "-s", session_name, "-c", str(path)],
+        check=True,
+    )
+    # Send the AI command to the session
+    subprocess.run(
+        ["tmux", "send-keys", "-t", session_name, command, "Enter"],
+        check=True,
+    )
+    # Attach to the session
+    subprocess.run(["tmux", "attach-session", "-t", session_name], check=True)
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} ran in tmux session '{session_name}'\n")
+
+
+def _launch_tmux_window(path: Path, command: str, ai_tool_name: str) -> None:
+    """Launch AI tool in new tmux window (within current session)."""
+    if not os.environ.get("TMUX"):
+        raise GitError("--term tmux-window requires running inside a tmux session")
+
+    # -c: start directory for new window
+    subprocess.run(
+        ["tmux", "new-window", "-c", str(path), "bash", "-lc", command],
+        check=True,
+    )
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new tmux window\n")
+
+
+def _launch_tmux_pane(
+    path: Path, command: str, ai_tool_name: str, horizontal: bool = True
+) -> None:
+    """Launch AI tool in tmux split pane."""
+    if not os.environ.get("TMUX"):
+        raise GitError("--term tmux-pane-* requires running inside a tmux session")
+
+    # -h: horizontal split, -v: vertical split, -c: start directory
+    split_flag = "-h" if horizontal else "-v"
+    subprocess.run(
+        ["tmux", "split-window", split_flag, "-c", str(path), "bash", "-lc", command],
+        check=True,
+    )
+    pane_type = "horizontal" if horizontal else "vertical"
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in tmux {pane_type} pane\n")
+
+
+# =============================================================================
+# Zellij Launchers
+# =============================================================================
+
+
+def _launch_zellij_session(
+    path: Path, command: str, ai_tool_name: str, session_name: str | None = None
+) -> None:
+    """Launch AI tool in new Zellij session."""
+    if not has_command("zellij"):
+        raise GitError("zellij not installed. Install from https://zellij.dev/")
+
+    if session_name is None:
+        session_name = _generate_session_name(path)
+
+    # -s: session name, run command directly
+    subprocess.run(
+        ["zellij", "-s", session_name, "--", "bash", "-lc", command],
+        cwd=path,
+        check=True,
+    )
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} ran in Zellij session '{session_name}'\n")
+
+
+def _launch_zellij_tab(path: Path, command: str, ai_tool_name: str) -> None:
+    """Launch AI tool in new Zellij tab."""
+    if not os.environ.get("ZELLIJ"):
+        raise GitError("--term zellij-tab requires running inside a Zellij session")
+
+    subprocess.run(
+        ["zellij", "action", "new-tab", "--cwd", str(path), "--", "bash", "-lc", command],
+        check=True,
+    )
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new Zellij tab\n")
+
+
+def _launch_zellij_pane(
+    path: Path, command: str, ai_tool_name: str, horizontal: bool = True
+) -> None:
+    """Launch AI tool in Zellij split pane."""
+    if not os.environ.get("ZELLIJ"):
+        raise GitError("--term zellij-pane-* requires running inside a Zellij session")
+
+    # right = horizontal split, down = vertical split
+    direction = "right" if horizontal else "down"
+    subprocess.run(
+        ["zellij", "action", "new-pane", "-d", direction, "--cwd", str(path),
+         "--", "bash", "-lc", command],
+        check=True,
+    )
+    pane_type = "horizontal" if horizontal else "vertical"
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in Zellij {pane_type} pane\n")
+
+
+# =============================================================================
+# WezTerm Launchers
+# =============================================================================
+
+
+def _launch_wezterm_window(path: Path, command: str, ai_tool_name: str) -> None:
+    """Launch AI tool in new WezTerm window."""
+    if not has_command("wezterm"):
+        raise GitError("wezterm not installed. Install from https://wezterm.org/")
+
+    subprocess.run(
+        ["wezterm", "cli", "spawn", "--new-window", "--cwd", str(path),
+         "--", "bash", "-lc", command],
+        check=True,
+    )
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new WezTerm window\n")
+
+
+def _launch_wezterm_tab(path: Path, command: str, ai_tool_name: str) -> None:
+    """Launch AI tool in new WezTerm tab."""
+    if not has_command("wezterm"):
+        raise GitError("wezterm not installed. Install from https://wezterm.org/")
+
+    subprocess.run(
+        ["wezterm", "cli", "spawn", "--cwd", str(path), "--", "bash", "-lc", command],
+        check=True,
+    )
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new WezTerm tab\n")
+
+
+def _launch_wezterm_pane(
+    path: Path, command: str, ai_tool_name: str, horizontal: bool = True
+) -> None:
+    """Launch AI tool in WezTerm split pane."""
+    if not has_command("wezterm"):
+        raise GitError("wezterm not installed. Install from https://wezterm.org/")
+
+    # --horizontal: split horizontally (side by side)
+    # --bottom: split vertically (top/bottom)
+    split_flag = "--horizontal" if horizontal else "--bottom"
+    subprocess.run(
+        ["wezterm", "cli", "split-pane", split_flag, "--cwd", str(path),
+         "--", "bash", "-lc", command],
+        check=True,
+    )
+    pane_type = "horizontal" if horizontal else "vertical"
+    console.print(f"[bold green]*[/bold green] {ai_tool_name} running in WezTerm {pane_type} pane\n")
+
+
+# =============================================================================
+# Main Launch Function
+# =============================================================================
+
+
 def launch_ai_tool(
     path: Path,
+    term: str | None = None,
+    resume: bool = False,
+    prompt: str | None = None,
+    # Deprecated parameters (for backward compatibility)
     bg: bool = False,
     iterm: bool = False,
     iterm_tab: bool = False,
     tmux_session: str | None = None,
-    resume: bool = False,
-    prompt: str | None = None,
 ) -> None:
     """
     Launch AI coding assistant in the specified directory.
 
     Args:
         path: Directory to launch AI tool in
-        bg: Launch in background
-        iterm: Launch in new iTerm window (macOS only)
-        iterm_tab: Launch in new iTerm tab (macOS only)
-        tmux_session: Launch in new tmux session
+        term: Terminal launch method (e.g., "i-t", "t:mysession", "z-p-h")
         resume: Use resume command (adds --resume flag)
         prompt: Initial prompt to send to AI tool (for automated tasks)
+        bg: [DEPRECATED] Use term="bg" instead
+        iterm: [DEPRECATED] Use term="iterm-window" or term="i-w" instead
+        iterm_tab: [DEPRECATED] Use term="iterm-tab" or term="i-t" instead
+        tmux_session: [DEPRECATED] Use term="tmux" or term="t:session_name" instead
     """
+    # Handle deprecated parameters
+    if bg:
+        warnings.warn("--bg is deprecated. Use --term bg instead", DeprecationWarning, stacklevel=2)
+        term = "bg"
+    elif iterm:
+        warnings.warn(
+            "--iterm is deprecated. Use --term i-w instead", DeprecationWarning, stacklevel=2
+        )
+        term = "iterm-window"
+    elif iterm_tab:
+        warnings.warn(
+            "--iterm-tab is deprecated. Use --term i-t instead", DeprecationWarning, stacklevel=2
+        )
+        term = "iterm-tab"
+    elif tmux_session:
+        warnings.warn(
+            "--tmux is deprecated. Use --term t or --term t:name instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        term = f"tmux:{tmux_session}"
+
+    # Parse terminal option
+    method, session_name = parse_term_option(term)
+
     # Get configured AI tool command
     # - If prompt is provided (AI merge): use merge command with preset-specific flags
     # - If resume flag: use resume command
@@ -118,66 +421,56 @@ def launch_ai_tool(
 
     cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 
-    if tmux_session:
-        if not has_command("tmux"):
-            raise GitError("tmux not installed. Remove --tmux option or install tmux.")
-        subprocess.run(
-            ["tmux", "new-session", "-ds", tmux_session, "bash", "-lc", cmd],
-            cwd=str(path),
-        )
-        console.print(
-            f"[bold green]*[/bold green] {ai_tool_name} running in tmux session '{tmux_session}'\n"
-        )
-        return
-
-    if iterm_tab:
-        if sys.platform != "darwin":
-            raise GitError("--iterm-tab option only works on macOS")
-        script = f"""
-        osascript <<'APPLESCRIPT'
-        tell application "iTerm"
-          activate
-          tell current window
-            create tab with default profile
-            tell current session
-              write text "cd {shlex.quote(str(path))} && {cmd}"
-            end tell
-          end tell
-        end tell
-APPLESCRIPT
-        """
-        subprocess.run(["bash", "-lc", script], check=True)
-        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm tab\n")
-        return
-
-    if iterm:
-        if sys.platform != "darwin":
-            raise GitError("--iterm option only works on macOS")
-        script = f"""
-        osascript <<'APPLESCRIPT'
-        tell application "iTerm"
-          activate
-          set newWindow to (create window with default profile)
-          tell current session of newWindow
-            write text "cd {shlex.quote(str(path))} && {cmd}"
-          end tell
-        end tell
-APPLESCRIPT
-        """
-        subprocess.run(["bash", "-lc", script], check=True)
-        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new iTerm window\n")
-        return
-
-    if bg:
-        _run_command_in_shell(cmd, path, background=True)
-        console.print(f"[bold green]*[/bold green] {ai_tool_name} running in background\n")
-    else:
-        console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
-        _run_command_in_shell(cmd, path, background=False, check=False)
+    # Dispatch to appropriate launcher
+    match method:
+        case LaunchMethod.FOREGROUND:
+            console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
+            _run_command_in_shell(cmd, path, background=False, check=False)
+        case LaunchMethod.BACKGROUND:
+            _run_command_in_shell(cmd, path, background=True)
+            console.print(f"[bold green]*[/bold green] {ai_tool_name} running in background\n")
+        # iTerm
+        case LaunchMethod.ITERM_WINDOW:
+            _launch_iterm_window(path, cmd, ai_tool_name)
+        case LaunchMethod.ITERM_TAB:
+            _launch_iterm_tab(path, cmd, ai_tool_name)
+        case LaunchMethod.ITERM_PANE_H:
+            _launch_iterm_pane(path, cmd, ai_tool_name, horizontal=True)
+        case LaunchMethod.ITERM_PANE_V:
+            _launch_iterm_pane(path, cmd, ai_tool_name, horizontal=False)
+        # tmux
+        case LaunchMethod.TMUX:
+            _launch_tmux_session(path, cmd, ai_tool_name, session_name)
+        case LaunchMethod.TMUX_WINDOW:
+            _launch_tmux_window(path, cmd, ai_tool_name)
+        case LaunchMethod.TMUX_PANE_H:
+            _launch_tmux_pane(path, cmd, ai_tool_name, horizontal=True)
+        case LaunchMethod.TMUX_PANE_V:
+            _launch_tmux_pane(path, cmd, ai_tool_name, horizontal=False)
+        # Zellij
+        case LaunchMethod.ZELLIJ:
+            _launch_zellij_session(path, cmd, ai_tool_name, session_name)
+        case LaunchMethod.ZELLIJ_TAB:
+            _launch_zellij_tab(path, cmd, ai_tool_name)
+        case LaunchMethod.ZELLIJ_PANE_H:
+            _launch_zellij_pane(path, cmd, ai_tool_name, horizontal=True)
+        case LaunchMethod.ZELLIJ_PANE_V:
+            _launch_zellij_pane(path, cmd, ai_tool_name, horizontal=False)
+        # WezTerm
+        case LaunchMethod.WEZTERM_WINDOW:
+            _launch_wezterm_window(path, cmd, ai_tool_name)
+        case LaunchMethod.WEZTERM_TAB:
+            _launch_wezterm_tab(path, cmd, ai_tool_name)
+        case LaunchMethod.WEZTERM_PANE_H:
+            _launch_wezterm_pane(path, cmd, ai_tool_name, horizontal=True)
+        case LaunchMethod.WEZTERM_PANE_V:
+            _launch_wezterm_pane(path, cmd, ai_tool_name, horizontal=False)
 
 
 def resume_worktree(
     worktree: str | None = None,
+    term: str | None = None,
+    # Deprecated parameters (for backward compatibility)
     bg: bool = False,
     iterm: bool = False,
     iterm_tab: bool = False,
@@ -188,10 +481,11 @@ def resume_worktree(
 
     Args:
         worktree: Branch name of worktree to resume (optional, defaults to current directory)
-        bg: Launch AI tool in background
-        iterm: Launch AI tool in new iTerm window (macOS only)
-        iterm_tab: Launch AI tool in new iTerm tab (macOS only)
-        tmux_session: Launch AI tool in new tmux session
+        term: Terminal launch method (e.g., "i-t", "t:mysession", "z-p-h")
+        bg: [DEPRECATED] Use term="bg" instead
+        iterm: [DEPRECATED] Use term="iterm-window" or term="i-w" instead
+        iterm_tab: [DEPRECATED] Use term="iterm-tab" or term="i-t" instead
+        tmux_session: [DEPRECATED] Use term="tmux" or term="t:session_name" instead
 
     Raises:
         WorktreeNotFoundError: If worktree not found
@@ -257,11 +551,13 @@ def resume_worktree(
             console.print(f"[cyan]Starting {ai_tool_name} in:[/cyan] {worktree_path}\n")
         launch_ai_tool(
             worktree_path,
+            term=term,
+            resume=has_session,  # Only use resume if session exists
+            # Deprecated parameters passed through
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,
             tmux_session=tmux_session,
-            resume=has_session,  # Only use resume if session exists
         )
 
         # Run post-resume hooks (non-blocking)

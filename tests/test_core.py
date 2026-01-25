@@ -682,7 +682,8 @@ def test_launch_ai_tool_with_iterm_tab_non_macos(temp_git_repo: Path, mocker) ->
     mocker.patch("claude_worktree.operations.ai_tools.sys.platform", "linux")
 
     # Should raise GitError on non-macOS
-    with pytest.raises(GitError, match="--iterm-tab option only works on macOS"):
+    # Note: Using deprecated iterm_tab param, but error message comes from new code
+    with pytest.raises(GitError, match="iterm-tab only works on macOS"):
         launch_ai_tool(temp_git_repo, iterm_tab=True)
 
 
