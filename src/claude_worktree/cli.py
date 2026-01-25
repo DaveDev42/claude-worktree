@@ -98,6 +98,24 @@ def complete_preset_names() -> list[str]:
     return sorted(AI_TOOL_PRESETS.keys())
 
 
+def complete_term_options() -> list[str]:
+    """Autocomplete function for --term option."""
+    return [
+        # Full names
+        "foreground", "background",
+        "iterm-window", "iterm-tab", "iterm-pane-h", "iterm-pane-v",
+        "tmux", "tmux-window", "tmux-pane-h", "tmux-pane-v",
+        "zellij", "zellij-tab", "zellij-pane-h", "zellij-pane-v",
+        "wezterm-window", "wezterm-tab", "wezterm-pane-h", "wezterm-pane-v",
+        # Aliases
+        "fg", "bg",
+        "i-w", "i-t", "i-p-h", "i-p-v",
+        "t", "t-w", "t-p-h", "t-p-v",
+        "z", "z-t", "z-p-h", "z-p-v",
+        "w-w", "w-t", "w-p-h", "w-p-v",
+    ]
+
+
 def is_completion_installed() -> bool:
     """Check if shell completion appears to be installed."""
     import os
@@ -235,26 +253,18 @@ def new(
         "--no-cd",
         help="Don't change directory after creation",
     ),
-    bg: bool = typer.Option(
-        False,
-        "--bg",
-        help="Launch AI tool in background",
-    ),
-    iterm: bool = typer.Option(
-        False,
-        "--iterm",
-        help="Launch AI tool in new iTerm window (macOS only)",
-    ),
-    iterm_tab: bool = typer.Option(
-        False,
-        "--iterm-tab",
-        help="Launch AI tool in new iTerm tab (macOS only)",
-    ),
-    tmux: str | None = typer.Option(
+    term: str | None = typer.Option(
         None,
-        "--tmux",
-        help="Launch AI tool in new tmux session with given name",
+        "--term",
+        "-T",
+        help="Terminal: fg, bg, i-w, i-t, i-p-h, i-p-v, t, t-w, t-p-h, t-p-v, z, z-t, z-p-h, z-p-v, w-w, w-t, w-p-h, w-p-v",
+        autocompletion=complete_term_options,
     ),
+    # Hidden deprecated options
+    bg: bool = typer.Option(False, "--bg", hidden=True),
+    iterm: bool = typer.Option(False, "--iterm", hidden=True),
+    iterm_tab: bool = typer.Option(False, "--iterm-tab", hidden=True),
+    tmux: str | None = typer.Option(None, "--tmux", hidden=True),
 ) -> None:
     """
     Create a new worktree with a feature branch.
@@ -263,10 +273,22 @@ def new(
     or at a custom path if specified. Automatically launches your configured
     AI tool in the new worktree (unless set to 'no-op' preset).
 
+    Terminal options (--term/-T):
+        fg, bg             - Foreground/background
+        i-w, i-t           - iTerm window/tab (macOS)
+        i-p-h, i-p-v       - iTerm horizontal/vertical pane (macOS)
+        t, t:name          - tmux session (auto or named)
+        t-w, t-p-h, t-p-v  - tmux window/pane
+        z, z:name          - Zellij session (auto or named)
+        z-t, z-p-h, z-p-v  - Zellij tab/pane
+        w-w, w-t           - WezTerm window/tab
+        w-p-h, w-p-v       - WezTerm pane
+
     Example:
         cw new fix-auth
         cw new feature-api --base develop
-        cw new hotfix-bug --path /tmp/my-hotfix
+        cw new hotfix-bug --term i-t
+        cw new feature-ui --term t:mywork
     """
     try:
         create_worktree(
@@ -274,6 +296,7 @@ def new(
             base_branch=base,
             path=path,
             no_cd=no_cd,
+            term=term,
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,
@@ -410,26 +433,18 @@ def resume(
         help="Worktree branch to resume (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
-    bg: bool = typer.Option(
-        False,
-        "--bg",
-        help="Launch AI tool in background",
-    ),
-    iterm: bool = typer.Option(
-        False,
-        "--iterm",
-        help="Launch AI tool in new iTerm window (macOS only)",
-    ),
-    iterm_tab: bool = typer.Option(
-        False,
-        "--iterm-tab",
-        help="Launch AI tool in new iTerm tab (macOS only)",
-    ),
-    tmux: str | None = typer.Option(
+    term: str | None = typer.Option(
         None,
-        "--tmux",
-        help="Launch AI tool in new tmux session with given name",
+        "--term",
+        "-T",
+        help="Terminal: fg, bg, i-w, i-t, i-p-h, i-p-v, t, t-w, t-p-h, t-p-v, z, z-t, z-p-h, z-p-v, w-w, w-t, w-p-h, w-p-v",
+        autocompletion=complete_term_options,
     ),
+    # Hidden deprecated options
+    bg: bool = typer.Option(False, "--bg", hidden=True),
+    iterm: bool = typer.Option(False, "--iterm", hidden=True),
+    iterm_tab: bool = typer.Option(False, "--iterm-tab", hidden=True),
+    tmux: str | None = typer.Option(None, "--tmux", hidden=True),
 ) -> None:
     """
     Resume AI work in a worktree with context restoration.
@@ -438,14 +453,27 @@ def resume(
     restoring previous session context if available. This is the recommended way
     to continue work on a feature branch.
 
+    Terminal options (--term/-T):
+        fg, bg             - Foreground/background
+        i-w, i-t           - iTerm window/tab (macOS)
+        i-p-h, i-p-v       - iTerm horizontal/vertical pane (macOS)
+        t, t:name          - tmux session (auto or named)
+        t-w, t-p-h, t-p-v  - tmux window/pane
+        z, z:name          - Zellij session (auto or named)
+        z-t, z-p-h, z-p-v  - Zellij tab/pane
+        w-w, w-t           - WezTerm window/tab
+        w-p-h, w-p-v       - WezTerm pane
+
     Example:
-        cw resume                  # Resume in current directory
-        cw resume fix-auth         # Resume in fix-auth worktree
-        cw resume feature-api --iterm  # Resume in new iTerm window
+        cw resume                    # Resume in current directory
+        cw resume fix-auth           # Resume in fix-auth worktree
+        cw resume feature-api --term i-t  # Resume in new iTerm tab
+        cw resume --term t:mywork    # Resume in tmux session 'mywork'
     """
     try:
         resume_worktree(
             worktree=worktree,
+            term=term,
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,

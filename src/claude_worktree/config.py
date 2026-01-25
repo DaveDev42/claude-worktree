@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .constants import LAUNCH_METHOD_ALIASES, MAX_SESSION_NAME_LENGTH, LaunchMethod
 from .exceptions import ClaudeWorktreeError
 
 
@@ -440,3 +441,111 @@ def list_presets() -> str:
         lines.append(f"  {name:20} -> {' '.join(cmd)}")
 
     return "\n".join(lines)
+
+
+# =============================================================================
+# Launch Method Configuration
+# =============================================================================
+
+
+def resolve_launch_alias(value: str) -> str:
+    """Resolve launch method alias to full name.
+
+    Handles both simple aliases and session name syntax:
+    - "t" -> "tmux"
+    - "t:mywork" -> "tmux:mywork"
+    - "z-p-h" -> "zellij-pane-h"
+
+    Args:
+        value: Alias or full name, optionally with session suffix
+
+    Returns:
+        Resolved full name, preserving any session suffix
+    """
+    # Handle session name suffix (e.g., "t:mysession" -> "tmux:mysession")
+    if ":" in value:
+        prefix, suffix = value.split(":", 1)
+        resolved_prefix = LAUNCH_METHOD_ALIASES.get(prefix, prefix)
+        return f"{resolved_prefix}:{suffix}"
+
+    return LAUNCH_METHOD_ALIASES.get(value, value)
+
+
+def parse_term_option(term_value: str | None) -> tuple[LaunchMethod, str | None]:
+    """Parse --term option value.
+
+    Args:
+        term_value: The value passed to --term option
+
+    Returns:
+        Tuple of (LaunchMethod, optional_session_name)
+
+    Raises:
+        ConfigError: If the launch method is invalid or session name is too long
+
+    Examples:
+        "i-t" -> (LaunchMethod.ITERM_TAB, None)
+        "z" -> (LaunchMethod.ZELLIJ, None)
+        "t:mywork" -> (LaunchMethod.TMUX, "mywork")
+        "z:dev" -> (LaunchMethod.ZELLIJ, "dev")
+    """
+    if term_value is None:
+        return get_default_launch_method(), None
+
+    resolved = resolve_launch_alias(term_value)
+
+    # Handle session name for tmux/zellij
+    if ":" in resolved:
+        method_str, session_name = resolved.split(":", 1)
+        try:
+            method = LaunchMethod(method_str)
+            # Only tmux and zellij support session names
+            if method in (LaunchMethod.TMUX, LaunchMethod.ZELLIJ):
+                # Validate session name length
+                if len(session_name) > MAX_SESSION_NAME_LENGTH:
+                    raise ConfigError(
+                        f"Session name too long (max {MAX_SESSION_NAME_LENGTH} chars): {session_name}"
+                    )
+                return method, session_name
+            else:
+                raise ConfigError(f"Session name not supported for {method_str}")
+        except ValueError:
+            raise ConfigError(f"Invalid launch method: {method_str}")
+
+    try:
+        return LaunchMethod(resolved), None
+    except ValueError:
+        raise ConfigError(f"Invalid launch method: {term_value}")
+
+
+def get_default_launch_method() -> LaunchMethod:
+    """Get default launch method from config or environment.
+
+    Priority order:
+    1. Environment variable CW_LAUNCH_METHOD
+    2. Configuration file (launch.method)
+    3. Default (FOREGROUND)
+
+    Returns:
+        Default LaunchMethod
+    """
+    # 1. Environment variable
+    env_val = os.environ.get("CW_LAUNCH_METHOD")
+    if env_val:
+        resolved = resolve_launch_alias(env_val)
+        try:
+            return LaunchMethod(resolved)
+        except ValueError:
+            pass  # Invalid value, fall through to config
+
+    # 2. Config file
+    config = load_config()
+    method = config.get("launch", {}).get("method")
+    if method:
+        resolved = resolve_launch_alias(method)
+        try:
+            return LaunchMethod(resolved)
+        except ValueError:
+            pass  # Invalid value, fall through to default
+
+    return LaunchMethod.FOREGROUND
