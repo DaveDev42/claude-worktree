@@ -104,6 +104,7 @@ That's it! You've just created an isolated workspace with AI assistance, worked 
 | Command | What it does |
 |---------|-------------|
 | `cw new <name>` | Create new feature worktree + launch AI |
+| `cw new <name> --term i-t` | Create worktree, launch AI in iTerm tab |
 | `cw list` | Show all your worktrees |
 | `cw resume [branch]` | Resume AI session in a worktree |
 | `cw pr` | Create GitHub pull request |
