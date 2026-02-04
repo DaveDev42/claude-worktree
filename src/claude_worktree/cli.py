@@ -311,7 +311,7 @@ def new(
 def pr(
     target: str | None = typer.Argument(
         None,
-        help="Worktree branch (optional, defaults to current directory)",
+        help="Worktree branch or directory name (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     no_push: bool = typer.Option(
@@ -328,13 +328,24 @@ def pr(
     body: str | None = typer.Option(
         None,
         "--body",
-        "-b",
         help="Pull request body",
     ),
     draft: bool = typer.Option(
         False,
         "--draft",
         help="Create as draft PR",
+    ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
     ),
 ) -> None:
     """
@@ -346,6 +357,10 @@ def pr(
     3. Creates a pull request using GitHub CLI (gh)
     4. Leaves the worktree intact for further work
 
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
+
     After the PR is merged on GitHub, use 'cw delete <branch>' to clean up.
 
     Requires: GitHub CLI (gh) - https://cli.github.com/
@@ -353,10 +368,17 @@ def pr(
     Example:
         cw pr                           # Create PR from current worktree
         cw pr fix-auth                  # Create PR for fix-auth branch
+        cw pr myproject-fix-auth        # Create PR by worktree directory name
+        cw pr fix-auth --branch         # Force branch lookup
         cw pr --title "Fix auth bug"    # Custom PR title
         cw pr --draft                   # Create draft PR
         cw pr --no-push                 # Don't push (for testing)
     """
+    # Validate mutually exclusive flags
+    if branch and worktree:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         create_pr_worktree(
             target=target,
@@ -364,6 +386,7 @@ def pr(
             title=title,
             body=body,
             draft=draft,
+            lookup_mode="branch" if branch else "worktree" if worktree else None,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -374,7 +397,7 @@ def pr(
 def merge(
     target: str | None = typer.Argument(
         None,
-        help="Worktree branch to merge (optional, defaults to current directory)",
+        help="Worktree branch or directory name to merge (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     push: bool = typer.Option(
@@ -393,6 +416,18 @@ def merge(
         "--dry-run",
         help="Preview merge without executing",
     ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
+    ),
 ) -> None:
     """
     Complete work on a worktree by merging directly to base branch.
@@ -404,22 +439,34 @@ def merge(
     4. Deletes the feature branch
     5. Optionally pushes to remote with --push
 
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
+
     Use this when you want to merge directly without creating a pull request.
     For PR-based workflows, use 'cw pr' instead.
 
     Example:
         cw merge                     # Merge current worktree
         cw merge fix-auth            # Merge fix-auth branch
+        cw merge myproject-fix-auth  # Merge by worktree directory name
+        cw merge fix-auth --branch   # Force branch lookup
         cw merge feature-api --push  # Merge and push to remote
         cw merge -i                  # Interactive mode
         cw merge --dry-run           # Preview merge steps
     """
+    # Validate mutually exclusive flags
+    if branch and worktree:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         merge_worktree(
             target=target,
             push=push,
             interactive=interactive,
             dry_run=dry_run,
+            lookup_mode="branch" if branch else "worktree" if worktree else None,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -430,7 +477,7 @@ def merge(
 def resume(
     worktree: str | None = typer.Argument(
         None,
-        help="Worktree branch to resume (optional, defaults to current directory)",
+        help="Worktree branch or directory name (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     term: str | None = typer.Option(
@@ -439,6 +486,18 @@ def resume(
         "-T",
         help="Terminal: fg, bg, i-w, i-t, i-p-h, i-p-v, t, t-w, t-p-h, t-p-v, z, z-t, z-p-h, z-p-v, w-w, w-t, w-p-h, w-p-v",
         autocompletion=complete_term_options,
+    ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree_flag: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
     ),
     # Hidden deprecated options
     bg: bool = typer.Option(False, "--bg", hidden=True),
@@ -452,6 +511,10 @@ def resume(
     Launches your configured AI tool in the specified worktree or current directory,
     restoring previous session context if available. This is the recommended way
     to continue work on a feature branch.
+
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
 
     Terminal options (--term/-T):
         fg, bg             - Foreground/background
@@ -467,13 +530,21 @@ def resume(
     Example:
         cw resume                    # Resume in current directory
         cw resume fix-auth           # Resume in fix-auth worktree
+        cw resume myproject-fix-auth # Resume by worktree directory name
+        cw resume fix-auth --branch  # Force branch lookup
         cw resume feature-api --term i-t  # Resume in new iTerm tab
         cw resume --term t:mywork    # Resume in tmux session 'mywork'
     """
+    # Validate mutually exclusive flags
+    if branch and worktree_flag:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         resume_worktree(
             worktree=worktree,
             term=term,
+            lookup_mode="branch" if branch else "worktree" if worktree_flag else None,
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,
@@ -630,17 +701,19 @@ def clean(
 def delete(
     target: str | None = typer.Argument(
         None,
-        help="Branch name or worktree path to delete (optional, defaults to current directory)",
+        help="Branch name, worktree directory name, or path to delete (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     keep_branch: bool = typer.Option(
         False,
         "--keep-branch",
+        "-k",
         help="Keep the branch, only remove worktree",
     ),
     delete_remote: bool = typer.Option(
         False,
         "--delete-remote",
+        "-r",
         help="Also delete remote branch on origin",
     ),
     no_force: bool = typer.Option(
@@ -648,27 +721,52 @@ def delete(
         "--no-force",
         help="Don't use --force flag (fails if worktree has changes)",
     ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
+    ),
 ) -> None:
     """
-    Delete a worktree by branch name or path.
+    Delete a worktree by branch name, worktree directory name, or path.
 
     If no target is specified, deletes the current directory's worktree.
     By default, removes both the worktree and the local branch.
     Use --keep-branch to preserve the branch, or --delete-remote
     to also remove the branch from the remote repository.
 
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
+
     Example:
         cw delete                        # Delete current worktree
         cw delete fix-auth               # Delete by branch name
+        cw delete myproject-fix-auth     # Delete by worktree directory name
         cw delete ../myproject-fix-auth  # Delete by path
+        cw delete fix-auth --branch      # Force branch lookup
+        cw delete myproject-fix-auth -w  # Force worktree name lookup
         cw delete old-feature --delete-remote
     """
+    # Validate mutually exclusive flags
+    if branch and worktree:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         delete_worktree(
             target=target,
             keep_branch=keep_branch,
             delete_remote=delete_remote,
             no_force=no_force,
+            lookup_mode="branch" if branch else "worktree" if worktree else None,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -679,7 +777,7 @@ def delete(
 def sync(
     target: str | None = typer.Argument(
         None,
-        help="Branch to sync (optional, defaults to current directory)",
+        help="Branch or worktree directory name to sync (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     all_worktrees: bool = typer.Option(
@@ -697,6 +795,18 @@ def sync(
         "--ai-merge",
         help="Launch AI tool to help resolve conflicts if rebase fails",
     ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
+    ),
 ) -> None:
     """
     Synchronize worktree(s) with base branch changes.
@@ -705,6 +815,10 @@ def sync(
     onto the updated base branch. Useful for long-running feature branches
     that need to stay up-to-date with the base branch.
 
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
+
     If rebase conflicts occur, use --ai-merge to get AI assistance with
     conflict resolution. The AI tool will be launched with context about
     the conflicted files.
@@ -712,15 +826,26 @@ def sync(
     Example:
         cw sync                    # Sync current worktree
         cw sync fix-auth           # Sync specific worktree
+        cw sync myproject-fix-auth # Sync by worktree directory name
+        cw sync fix-auth --branch  # Force branch lookup
         cw sync --all              # Sync all worktrees
         cw sync --fetch-only       # Only fetch, don't rebase
         cw sync --ai-merge         # Get AI help with conflicts
     """
+    # Validate mutually exclusive flags
+    if branch and worktree:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         from .operations import sync_worktree
 
         sync_worktree(
-            target=target, all_worktrees=all_worktrees, fetch_only=fetch_only, ai_merge=ai_merge
+            target=target,
+            all_worktrees=all_worktrees,
+            fetch_only=fetch_only,
+            ai_merge=ai_merge,
+            lookup_mode="branch" if branch else "worktree" if worktree else None,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
@@ -738,7 +863,7 @@ def change_base_cmd(
         None,
         "--target",
         "-t",
-        help="Worktree branch to change (optional, defaults to current directory)",
+        help="Worktree branch or directory name to change (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     interactive: bool = typer.Option(
@@ -752,12 +877,28 @@ def change_base_cmd(
         "--dry-run",
         help="Preview changes without executing",
     ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
+    ),
 ) -> None:
     """
     Change the base branch for a worktree and rebase onto it.
 
     This is useful when you realize after creating a worktree that you should
     have based it on a different branch (e.g., 'master' instead of 'develop').
+
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
 
     The command will:
     1. Fetch latest changes from remote
@@ -770,15 +911,23 @@ def change_base_cmd(
     Example:
         cw change-base master              # Change current worktree to master
         cw change-base develop -t fix-auth # Change fix-auth to develop
+        cw change-base develop -t myproject-fix-auth  # By worktree name
+        cw change-base develop -t fix-auth --branch   # Force branch lookup
         cw change-base main -i             # Interactive rebase
         cw change-base master --dry-run    # Preview changes
     """
+    # Validate mutually exclusive flags
+    if branch and worktree:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         change_base_branch(
             new_base=new_base,
             target=target,
             interactive=interactive,
             dry_run=dry_run,
+            lookup_mode="branch" if branch else "worktree" if worktree else None,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")

@@ -23,11 +23,15 @@ from ..git_utils import (
     branch_exists,
     find_worktree_by_branch,
     find_worktree_by_intended_branch,
+    find_worktree_by_name,
     get_config,
     get_current_branch,
+    get_main_repo_root,
     get_repo_root,
     git_command,
     has_command,
+    is_non_interactive,
+    normalize_branch_name,
     parse_worktrees,
     remove_worktree_safe,
     set_config,
@@ -38,7 +42,12 @@ from ..shared_files import share_files
 from .ai_tools import launch_ai_tool, resume_worktree
 from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
-from .helpers import get_worktree_metadata, resolve_worktree_target
+from .helpers import (
+    _get_branch_for_worktree,
+    _prompt_worktree_disambiguation,
+    get_worktree_metadata,
+    resolve_worktree_target,
+)
 
 console = get_console()
 
@@ -272,16 +281,18 @@ def finish_worktree(
     interactive: bool = False,
     dry_run: bool = False,
     ai_merge: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Finish work on a worktree: rebase, merge, and cleanup.
 
     Args:
-        target: Branch name of worktree to finish (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         push: Push base branch to origin after merge
         interactive: Pause for confirmation before each step
         dry_run: Preview merge without executing
         ai_merge: Launch AI tool to help resolve conflicts if rebase fails
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         GitError: If git operations fail
@@ -291,7 +302,7 @@ def finish_worktree(
         InvalidBranchError: If branch is invalid
     """
     # Resolve worktree target to (path, branch, repo)
-    cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
+    cwd, feature_branch, worktree_repo = resolve_worktree_target(target, lookup_mode)
 
     # Get metadata - base_path is the actual main repository
     base_branch, base_path = get_worktree_metadata(feature_branch, worktree_repo)
@@ -518,46 +529,53 @@ def delete_worktree(
     keep_branch: bool = False,
     delete_remote: bool = False,
     no_force: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
-    Delete a worktree by branch name or path.
+    Delete a worktree by branch name, worktree directory name, or path.
 
     Args:
-        target: Branch name or worktree path (optional, defaults to current directory)
+        target: Branch name, worktree directory name, or path
+            (optional, defaults to current directory)
         keep_branch: Keep the branch, only remove worktree
         delete_remote: Also delete remote branch
         no_force: Don't use --force flag
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         WorktreeNotFoundError: If worktree not found
         GitError: If git operations fail
     """
-    repo = get_repo_root()
+    # Get main repo root (works correctly even from inside a worktree)
+    main_repo = get_main_repo_root()
 
     # If target is None, use current directory
     if target is None:
         target = str(Path.cwd())
 
-    # Determine if target is path or branch
+    # Variables to hold resolved values
+    worktree_path: Path
+    branch_name: str | None = None
+
+    # 1. Check if it's a filesystem path
     target_path = Path(target)
     if target_path.exists():
         # Target is a path
-        worktree_path = str(target_path.resolve())
+        worktree_path = target_path.resolve()
         # Find branch for this worktree
-        branch_name: str | None = None
-        for br, path in parse_worktrees(repo):
+        for br, path in parse_worktrees(main_repo):
             # Use samefile() for cross-platform path comparison
             try:
-                if Path(worktree_path).samefile(path):
+                if worktree_path.samefile(path):
                     if br != "(detached)":
                         # Normalize branch name: remove refs/heads/ prefix
-                        branch_name = br[11:] if br.startswith("refs/heads/") else br
+                        branch_name = normalize_branch_name(br)
                     break
             except (OSError, ValueError):
                 # Fallback to resolved path comparison if samefile() fails
-                if path.resolve() == Path(worktree_path):
+                if path.resolve() == worktree_path:
                     if br != "(detached)":
-                        branch_name = br[11:] if br.startswith("refs/heads/") else br
+                        branch_name = normalize_branch_name(br)
                     break
         if branch_name is None and not keep_branch:
             console.print(
@@ -565,75 +583,121 @@ def delete_worktree(
                 "Branch deletion will be skipped.\n"
             )
     else:
-        # Target is a branch name - find by intended branch (metadata)
-        branch_name = target
-        # Use find_worktree_by_intended_branch for robust lookup
-        worktree_path_result = find_worktree_by_intended_branch(repo, branch_name)
-        if not worktree_path_result:
+        # 2. Lookup based on mode
+        branch_match: Path | None = None
+        worktree_match: Path | None = None
+
+        if lookup_mode == "branch":
+            branch_match = find_worktree_by_intended_branch(main_repo, target)
+            if not branch_match:
+                raise WorktreeNotFoundError(f"No worktree found for branch '{target}'")
+        elif lookup_mode == "worktree":
+            worktree_match = find_worktree_by_name(main_repo, target)
+            if not worktree_match:
+                raise WorktreeNotFoundError(f"No worktree found with name '{target}'")
+        else:
+            # Try both
+            branch_match = find_worktree_by_intended_branch(main_repo, target)
+            worktree_match = find_worktree_by_name(main_repo, target)
+
+        # 3. Resolve the match
+        if branch_match and worktree_match:
+            try:
+                same_worktree = branch_match.samefile(worktree_match)
+            except (OSError, ValueError):
+                same_worktree = branch_match.resolve() == worktree_match.resolve()
+
+            if same_worktree:
+                # Same worktree - no ambiguity
+                worktree_path = branch_match
+                branch_name = target
+            else:
+                # Ambiguous - ask user (or fail in non-interactive mode)
+                if is_non_interactive():
+                    raise WorktreeNotFoundError(
+                        f"Ambiguous target '{target}' matches both a branch and a worktree name.\n"
+                        f"  Branch '{target}' → {branch_match}\n"
+                        f"  Worktree '{worktree_match.name}' → {worktree_match}\n"
+                        "Use --branch (-b) or --worktree (-w) flag to specify which one."
+                    )
+                choice = _prompt_worktree_disambiguation(target, branch_match, worktree_match, "delete")
+                if choice == "branch":
+                    worktree_path = branch_match
+                    branch_name = target
+                else:
+                    worktree_path = worktree_match
+                    branch_name = _get_branch_for_worktree(main_repo, worktree_match)
+        elif branch_match:
+            worktree_path = branch_match
+            branch_name = target
+        elif worktree_match:
+            worktree_path = worktree_match
+            branch_name = _get_branch_for_worktree(main_repo, worktree_match)
+        else:
             raise WorktreeNotFoundError(
-                f"No worktree found for branch '{branch_name}'. Try specifying the path directly."
+                f"No worktree found for '{target}'. "
+                "Try: full path, branch name (--branch), or worktree name (--worktree)."
             )
-        worktree_path = str(worktree_path_result)
+
         # Normalize branch_name to simple name without refs/heads/
-        if branch_name.startswith("refs/heads/"):
+        if branch_name and branch_name.startswith("refs/heads/"):
             branch_name = branch_name[11:]
 
-    # Get main repo path from metadata if available (more reliable than get_repo_root when in worktree)
+    # Get main repo path from metadata if available (may be more reliable)
     if branch_name:
-        base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo)
+        base_path_str = get_config(CONFIG_KEY_BASE_PATH.format(branch_name), main_repo)
         if base_path_str:
-            repo = Path(base_path_str)
+            main_repo = Path(base_path_str)
 
     # Safety check: don't delete main repository
     try:
-        if Path(worktree_path).samefile(repo):
+        if worktree_path.samefile(main_repo):
             raise GitError("Cannot delete main repository worktree")
     except (OSError, ValueError):
         # Fallback if samefile() fails
-        if Path(worktree_path).resolve() == repo.resolve():
+        if worktree_path.resolve() == main_repo.resolve():
             raise GitError("Cannot delete main repository worktree")
 
     # Windows workaround: change to main repo directory before deleting if we're in the worktree
     cwd = Path.cwd().resolve()
-    worktree_to_delete = Path(worktree_path).resolve()
     try:
-        is_in_worktree = cwd.samefile(worktree_to_delete)
+        is_in_worktree = cwd.samefile(worktree_path)
     except (OSError, ValueError):
-        is_in_worktree = cwd == worktree_to_delete
+        is_in_worktree = cwd == worktree_path
 
     if is_in_worktree:
-        os.chdir(repo)
+        os.chdir(main_repo)
 
     # Get base branch for hook context (may not exist for external branches)
     base_branch = ""
     if branch_name:
-        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo) or ""
+        base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), main_repo) or ""
 
     # Run pre-delete hooks (can abort operation)
     hook_context = {
         "branch": branch_name or "",
         "base_branch": base_branch,
-        "worktree_path": worktree_path,
-        "repo_path": str(repo),
+        "worktree_path": str(worktree_path),
+        "repo_path": str(main_repo),
         "event": "worktree.pre_delete",
         "operation": "delete",
     }
-    run_hooks("worktree.pre_delete", hook_context, cwd=repo)
+    run_hooks("worktree.pre_delete", hook_context, cwd=main_repo)
 
     # Remove worktree
     console.print(f"[yellow]Removing worktree: {worktree_path}[/yellow]")
-    remove_worktree_safe(worktree_path, repo=repo, force=not no_force)
+    remove_worktree_safe(str(worktree_path), repo=main_repo, force=not no_force)
     console.print("[bold green]*[/bold green] Worktree removed\n")
 
     # Delete branch if requested
     if branch_name and not keep_branch:
         console.print(f"[yellow]Deleting local branch: {branch_name}[/yellow]")
-        git_command("branch", "-D", branch_name, repo=repo)
+        git_command("branch", "-D", branch_name, repo=main_repo)
 
         # Remove metadata
-        unset_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo=repo)
-        unset_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo=repo)
-        unset_config(CONFIG_KEY_INTENDED_BRANCH.format(branch_name), repo=repo)
+        unset_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo=main_repo)
+        unset_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo=main_repo)
+        unset_config(CONFIG_KEY_INTENDED_BRANCH.format(branch_name), repo=main_repo)
 
         console.print("[bold green]*[/bold green] Local branch and metadata removed\n")
 
@@ -641,14 +705,14 @@ def delete_worktree(
         if delete_remote:
             console.print(f"[yellow]Deleting remote branch: origin/{branch_name}[/yellow]")
             try:
-                git_command("push", "origin", f":{branch_name}", repo=repo)
+                git_command("push", "origin", f":{branch_name}", repo=main_repo)
                 console.print("[bold green]*[/bold green] Remote branch deleted\n")
             except GitError as e:
                 console.print(f"[yellow]![/yellow] Remote branch deletion failed: {e}\n")
 
     # Run post-delete hooks (non-blocking)
     hook_context["event"] = "worktree.post_delete"
-    run_hooks("worktree.post_delete", hook_context, cwd=repo)
+    run_hooks("worktree.post_delete", hook_context, cwd=main_repo)
 
 
 def _topological_sort_worktrees(
@@ -722,15 +786,17 @@ def sync_worktree(
     all_worktrees: bool = False,
     fetch_only: bool = False,
     ai_merge: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Synchronize worktree(s) with base branch changes.
 
     Args:
-        target: Branch name of worktree to sync (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         all_worktrees: Sync all worktrees
         fetch_only: Only fetch updates without rebasing
         ai_merge: Launch AI tool to help resolve conflicts if rebase fails
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         WorktreeNotFoundError: If worktree not found
@@ -762,7 +828,7 @@ def sync_worktree(
         worktrees_to_sync = _topological_sort_worktrees(worktrees_to_sync, repo)
     elif target or not all_worktrees:
         # Sync specific worktree by branch name or current worktree
-        worktree_path, branch_name, _ = resolve_worktree_target(target)
+        worktree_path, branch_name, _ = resolve_worktree_target(target, lookup_mode)
         worktrees_to_sync = [(branch_name, worktree_path)]
 
     # Run pre-sync hooks (can abort operation) - use first worktree info for context

@@ -1,11 +1,11 @@
 """Constants and default values for claude-worktree."""
 
 import re
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class LaunchMethod(str, Enum):
+class LaunchMethod(StrEnum):
     """Terminal launch methods for AI tool execution."""
 
     FOREGROUND = "foreground"
