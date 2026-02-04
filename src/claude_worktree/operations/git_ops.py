@@ -8,8 +8,8 @@ from ..config import get_ai_tool_command
 from ..console import get_console
 from ..exceptions import GitError, RebaseError
 from ..git_utils import git_command, has_command
-from ..helpers import get_worktree_metadata, resolve_worktree_target
 from ..hooks import run_hooks
+from .helpers import get_worktree_metadata, resolve_worktree_target
 
 console = get_console()
 
@@ -161,16 +161,18 @@ def create_pr_worktree(
     title: str | None = None,
     body: str | None = None,
     draft: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Create a GitHub Pull Request for the worktree without merging or cleaning up.
 
     Args:
-        target: Branch name of worktree (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         push: Push to remote before creating PR (default: True)
         title: PR title (optional, will use default from gh)
         body: PR body (optional, will use default from gh)
         draft: Create as draft PR
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         GitError: If git operations fail
@@ -186,7 +188,7 @@ def create_pr_worktree(
         )
 
     # Resolve worktree target to (path, branch, repo)
-    cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
+    cwd, feature_branch, worktree_repo = resolve_worktree_target(target, lookup_mode)
 
     # Get metadata - base_path is the actual main repository
     base_branch, base_path = get_worktree_metadata(feature_branch, worktree_repo)
@@ -326,6 +328,7 @@ def merge_worktree(
     push: bool = False,
     interactive: bool = False,
     dry_run: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Complete work on a worktree: rebase, merge to base branch, and cleanup.
@@ -334,10 +337,11 @@ def merge_worktree(
     to the base branch without creating a pull request.
 
     Args:
-        target: Branch name of worktree to finish (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         push: Push base branch to origin after merge
         interactive: Pause for confirmation before each step
         dry_run: Preview merge without executing
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         GitError: If git operations fail
@@ -351,7 +355,7 @@ def merge_worktree(
 
     # This is essentially the same as the old finish_worktree function
     # Just call finish_worktree with the same arguments
-    finish_worktree(target=target, push=push, interactive=interactive, dry_run=dry_run)
+    finish_worktree(target=target, push=push, interactive=interactive, dry_run=dry_run, lookup_mode=lookup_mode)
 
 
 def _is_branch_merged_via_gh(branch_name: str, base_branch: str, repo: Path) -> bool | None:

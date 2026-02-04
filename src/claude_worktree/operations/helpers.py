@@ -2,26 +2,147 @@
 
 from pathlib import Path
 
+from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH
 from ..exceptions import GitError, InvalidBranchError, WorktreeNotFoundError
 from ..git_utils import (
     find_worktree_by_intended_branch,
+    find_worktree_by_name,
     get_config,
     get_current_branch,
+    get_main_repo_root,
     get_repo_root,
-    normalize_branch_name,
+    is_non_interactive,
+    parse_worktrees,
 )
 
 
-def resolve_worktree_target(target: str | None) -> tuple[Path, str, Path]:
-    """
-    Resolve worktree target (branch name or None) to (worktree_path, branch_name, worktree_repo).
-
-    This is a helper function that encapsulates the common pattern used across multiple
-    commands to locate and identify a worktree based on a branch name or current directory.
+def _prompt_worktree_disambiguation(
+    target: str,
+    branch_path: Path,
+    worktree_path: Path,
+    action: str | None = None,
+) -> str:
+    """Prompt user to choose between branch and worktree name match.
 
     Args:
-        target: Branch name or None (uses current directory if None)
+        target: The target string that matched both
+        branch_path: Path to worktree found via branch name lookup
+        worktree_path: Path to worktree found via directory name lookup
+        action: Optional action verb for the prompt (e.g., "delete", "resume")
+
+    Returns:
+        "branch" or "worktree" depending on user choice
+    """
+    console = get_console()
+    console.print(f"\n[yellow]Multiple matches found for '{target}':[/yellow]")
+    console.print(f"  [1] Branch '{target}' → {branch_path}")
+    console.print(f"  [2] Worktree '{worktree_path.name}' → {worktree_path}")
+    console.print()
+
+    prompt = f"Which one do you want to {action}? [1/2]: " if action else "Which one? [1/2]: "
+    while True:
+        choice = console.input(prompt).strip()
+        if choice == "1":
+            return "branch"
+        elif choice == "2":
+            return "worktree"
+        console.print("[red]Please enter 1 or 2[/red]")
+
+
+def _get_branch_for_worktree(repo: Path, worktree_path: Path) -> str | None:
+    """Get the intended branch name for a worktree path.
+
+    Args:
+        repo: Repository path
+        worktree_path: Path to the worktree
+
+    Returns:
+        Branch name (without refs/heads/ prefix) or None if detached
+    """
+    for branch, path in parse_worktrees(repo):
+        try:
+            if path.samefile(worktree_path):
+                if branch.startswith("refs/heads/"):
+                    return branch[11:]
+                return branch if branch != "(detached)" else None
+        except (OSError, ValueError):
+            if path.resolve() == worktree_path.resolve():
+                if branch.startswith("refs/heads/"):
+                    return branch[11:]
+                return branch if branch != "(detached)" else None
+    return None
+
+
+def _resolve_dual_match(
+    target: str,
+    branch_match: Path | None,
+    worktree_match: Path | None,
+    main_repo: Path,
+) -> tuple[Path, str]:
+    """Resolve dual match with disambiguation if needed.
+
+    Args:
+        target: Original target string
+        branch_match: Path found via branch lookup (or None)
+        worktree_match: Path found via worktree name lookup (or None)
+        main_repo: Main repository path
+
+    Returns:
+        tuple[Path, str]: (worktree_path, branch_name)
+
+    Raises:
+        WorktreeNotFoundError: If no match found or ambiguous in non-interactive mode
+    """
+    if branch_match and worktree_match:
+        try:
+            same_worktree = branch_match.samefile(worktree_match)
+        except (OSError, ValueError):
+            same_worktree = branch_match.resolve() == worktree_match.resolve()
+
+        if same_worktree:
+            return branch_match, target
+        else:
+            if is_non_interactive():
+                raise WorktreeNotFoundError(
+                    f"Ambiguous target '{target}' matches both a branch and a worktree name.\n"
+                    f"  Branch '{target}' → {branch_match}\n"
+                    f"  Worktree '{worktree_match.name}' → {worktree_match}\n"
+                    "Use --branch (-b) or --worktree (-w) flag to specify which one."
+                )
+            choice = _prompt_worktree_disambiguation(target, branch_match, worktree_match)
+            if choice == "branch":
+                return branch_match, target
+            else:
+                branch_name = _get_branch_for_worktree(main_repo, worktree_match)
+                return worktree_match, branch_name or target
+    elif branch_match:
+        return branch_match, target
+    elif worktree_match:
+        branch_name = _get_branch_for_worktree(main_repo, worktree_match)
+        return worktree_match, branch_name or target
+    else:
+        raise WorktreeNotFoundError(
+            f"No worktree found for '{target}'. "
+            "Try: full path, branch name (--branch), or worktree name (--worktree)."
+        )
+
+
+def resolve_worktree_target(
+    target: str | None,
+    lookup_mode: str | None = None,
+) -> tuple[Path, str, Path]:
+    """
+    Resolve worktree target to (worktree_path, branch_name, worktree_repo).
+
+    Supports:
+    - Branch name lookup (via metadata/intended branch)
+    - Worktree directory name lookup
+    - Disambiguation when both match different worktrees
+
+    Args:
+        target: Branch name, worktree directory name, or None (uses current directory)
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Returns:
         tuple[Path, str, Path]: (worktree_path, branch_name, worktree_repo)
@@ -30,34 +151,46 @@ def resolve_worktree_target(target: str | None) -> tuple[Path, str, Path]:
             - worktree_repo: Git repository root of the worktree
 
     Raises:
-        WorktreeNotFoundError: If worktree not found for specified branch
+        WorktreeNotFoundError: If worktree not found for specified target
         InvalidBranchError: If current branch cannot be determined
         GitError: If not in a git repository
     """
-    if target:
-        # Target specified - find worktree by intended branch name (metadata)
-        # This handles cases where user checked out a different branch inside the worktree
-        repo = get_repo_root()
-        worktree_path_result = find_worktree_by_intended_branch(repo, target)
-        if not worktree_path_result:
-            raise WorktreeNotFoundError(
-                f"No worktree found for '{target}'. Use 'cw list' to see available worktrees."
-            )
-        worktree_path = worktree_path_result
-        # Normalize branch name: remove refs/heads/ prefix if present
-        branch_name = normalize_branch_name(target)
-        # Get repo root from the worktree we found
-        worktree_repo = get_repo_root(worktree_path)
-    else:
-        # No target specified - use current directory
+    if target is None:
+        # No target - use current directory (existing behavior)
         worktree_path = Path.cwd()
         try:
             branch_name = get_current_branch(worktree_path)
         except InvalidBranchError:
             raise InvalidBranchError("Cannot determine current branch")
-        # Get repo root from current directory
         worktree_repo = get_repo_root()
+        return worktree_path, branch_name, worktree_repo
 
+    # Get main repo for lookups
+    main_repo = get_main_repo_root()
+
+    # Dual lookup based on mode
+    branch_match: Path | None = None
+    worktree_match: Path | None = None
+
+    if lookup_mode == "branch":
+        branch_match = find_worktree_by_intended_branch(main_repo, target)
+        if not branch_match:
+            raise WorktreeNotFoundError(f"No worktree found for branch '{target}'")
+    elif lookup_mode == "worktree":
+        worktree_match = find_worktree_by_name(main_repo, target)
+        if not worktree_match:
+            raise WorktreeNotFoundError(f"No worktree found with name '{target}'")
+    else:
+        # Try both
+        branch_match = find_worktree_by_intended_branch(main_repo, target)
+        worktree_match = find_worktree_by_name(main_repo, target)
+
+    # Resolve with disambiguation if needed
+    worktree_path, branch_name = _resolve_dual_match(
+        target, branch_match, worktree_match, main_repo
+    )
+
+    worktree_repo = get_repo_root(worktree_path)
     return worktree_path, branch_name, worktree_repo
 
 

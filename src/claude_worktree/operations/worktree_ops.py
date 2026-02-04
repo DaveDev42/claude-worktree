@@ -42,7 +42,12 @@ from ..shared_files import share_files
 from .ai_tools import launch_ai_tool, resume_worktree
 from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
-from .helpers import get_worktree_metadata, resolve_worktree_target
+from .helpers import (
+    _get_branch_for_worktree,
+    _prompt_worktree_disambiguation,
+    get_worktree_metadata,
+    resolve_worktree_target,
+)
 
 console = get_console()
 
@@ -276,16 +281,18 @@ def finish_worktree(
     interactive: bool = False,
     dry_run: bool = False,
     ai_merge: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Finish work on a worktree: rebase, merge, and cleanup.
 
     Args:
-        target: Branch name of worktree to finish (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         push: Push base branch to origin after merge
         interactive: Pause for confirmation before each step
         dry_run: Preview merge without executing
         ai_merge: Launch AI tool to help resolve conflicts if rebase fails
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         GitError: If git operations fail
@@ -295,7 +302,7 @@ def finish_worktree(
         InvalidBranchError: If branch is invalid
     """
     # Resolve worktree target to (path, branch, repo)
-    cwd, feature_branch, worktree_repo = resolve_worktree_target(target)
+    cwd, feature_branch, worktree_repo = resolve_worktree_target(target, lookup_mode)
 
     # Get metadata - base_path is the actual main repository
     base_branch, base_path = get_worktree_metadata(feature_branch, worktree_repo)
@@ -517,59 +524,6 @@ def finish_worktree(
     run_hooks("merge.post", hook_context, cwd=repo)
 
 
-def _prompt_worktree_disambiguation(
-    target: str,
-    branch_path: Path,
-    worktree_path: Path,
-) -> str:
-    """Prompt user to choose between branch and worktree name match.
-
-    Args:
-        target: The target string that matched both
-        branch_path: Path to worktree found via branch name lookup
-        worktree_path: Path to worktree found via directory name lookup
-
-    Returns:
-        "branch" or "worktree" depending on user choice
-    """
-    console.print(f"\n[yellow]Multiple matches found for '{target}':[/yellow]")
-    console.print(f"  [1] Branch '{target}' → {branch_path}")
-    console.print(f"  [2] Worktree '{worktree_path.name}' → {worktree_path}")
-    console.print()
-
-    while True:
-        choice = console.input("Which one do you want to delete? [1/2]: ").strip()
-        if choice == "1":
-            return "branch"
-        elif choice == "2":
-            return "worktree"
-        console.print("[red]Please enter 1 or 2[/red]")
-
-
-def _get_branch_for_worktree(repo: Path, worktree_path: Path) -> str | None:
-    """Get the current branch name for a worktree path.
-
-    Args:
-        repo: Repository path
-        worktree_path: Path to the worktree
-
-    Returns:
-        Branch name (without refs/heads/ prefix) or None if detached
-    """
-    for branch, path in parse_worktrees(repo):
-        try:
-            if path.samefile(worktree_path):
-                if branch.startswith("refs/heads/"):
-                    return branch[11:]
-                return branch if branch != "(detached)" else None
-        except (OSError, ValueError):
-            if path.resolve() == worktree_path.resolve():
-                if branch.startswith("refs/heads/"):
-                    return branch[11:]
-                return branch if branch != "(detached)" else None
-    return None
-
-
 def delete_worktree(
     target: str | None = None,
     keep_branch: bool = False,
@@ -666,7 +620,7 @@ def delete_worktree(
                         f"  Worktree '{worktree_match.name}' → {worktree_match}\n"
                         "Use --branch (-b) or --worktree (-w) flag to specify which one."
                     )
-                choice = _prompt_worktree_disambiguation(target, branch_match, worktree_match)
+                choice = _prompt_worktree_disambiguation(target, branch_match, worktree_match, "delete")
                 if choice == "branch":
                     worktree_path = branch_match
                     branch_name = target
@@ -832,15 +786,17 @@ def sync_worktree(
     all_worktrees: bool = False,
     fetch_only: bool = False,
     ai_merge: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Synchronize worktree(s) with base branch changes.
 
     Args:
-        target: Branch name of worktree to sync (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         all_worktrees: Sync all worktrees
         fetch_only: Only fetch updates without rebasing
         ai_merge: Launch AI tool to help resolve conflicts if rebase fails
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         WorktreeNotFoundError: If worktree not found
@@ -872,7 +828,7 @@ def sync_worktree(
         worktrees_to_sync = _topological_sort_worktrees(worktrees_to_sync, repo)
     elif target or not all_worktrees:
         # Sync specific worktree by branch name or current worktree
-        worktree_path, branch_name, _ = resolve_worktree_target(target)
+        worktree_path, branch_name, _ = resolve_worktree_target(target, lookup_mode)
         worktrees_to_sync = [(branch_name, worktree_path)]
 
     # Run pre-sync hooks (can abort operation) - use first worktree info for context

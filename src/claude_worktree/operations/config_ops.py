@@ -25,15 +25,17 @@ def change_base_branch(
     target: str | None = None,
     interactive: bool = False,
     dry_run: bool = False,
+    lookup_mode: str | None = None,
 ) -> None:
     """
     Change the base branch for a worktree and rebase onto it.
 
     Args:
         new_base: New base branch name
-        target: Branch name of worktree (optional, defaults to current directory)
+        target: Branch name or worktree directory name (optional, defaults to current directory)
         interactive: Use interactive rebase
         dry_run: Preview changes without executing
+        lookup_mode: "branch", "worktree", or None (try both)
 
     Raises:
         WorktreeNotFoundError: If worktree not found
@@ -44,7 +46,7 @@ def change_base_branch(
     from .helpers import resolve_worktree_target
 
     # Resolve worktree target to (path, branch, repo)
-    worktree_path, feature_branch, repo = resolve_worktree_target(target)
+    worktree_path, feature_branch, repo = resolve_worktree_target(target, lookup_mode)
 
     # Get current base branch metadata
     current_base = get_config(CONFIG_KEY_BASE_BRANCH.format(feature_branch), repo)

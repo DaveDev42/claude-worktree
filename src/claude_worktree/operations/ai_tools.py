@@ -24,8 +24,8 @@ from ..git_utils import (
     get_repo_root,
     has_command,
 )
-from ..helpers import resolve_worktree_target
 from ..hooks import run_hooks
+from .helpers import resolve_worktree_target
 
 console = get_console()
 
@@ -470,6 +470,7 @@ def launch_ai_tool(
 def resume_worktree(
     worktree: str | None = None,
     term: str | None = None,
+    lookup_mode: str | None = None,
     # Deprecated parameters (for backward compatibility)
     bg: bool = False,
     iterm: bool = False,
@@ -480,8 +481,9 @@ def resume_worktree(
     Resume AI work in a worktree with context restoration.
 
     Args:
-        worktree: Branch name of worktree to resume (optional, defaults to current directory)
+        worktree: Branch name or worktree directory name (optional, defaults to current directory)
         term: Terminal launch method (e.g., "i-t", "t:mysession", "z-p-h")
+        lookup_mode: "branch", "worktree", or None (try both)
         bg: [DEPRECATED] Use term="bg" instead
         iterm: [DEPRECATED] Use term="iterm-window" or term="i-w" instead
         iterm_tab: [DEPRECATED] Use term="iterm-tab" or term="i-t" instead
@@ -494,7 +496,7 @@ def resume_worktree(
     from .. import session_manager
 
     # Resolve worktree target to (path, branch, repo)
-    worktree_path, branch_name, worktree_repo = resolve_worktree_target(worktree)
+    worktree_path, branch_name, worktree_repo = resolve_worktree_target(worktree, lookup_mode)
 
     # Get base branch for hook context
     base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), worktree_repo) or ""
