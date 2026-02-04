@@ -1442,3 +1442,238 @@ def test_delete_worktree_current_directory_main_repo_error(
     # Try to delete without specifying target (current directory = main repo)
     with pytest.raises(GitError, match="Cannot delete main repository"):
         delete_worktree(target=None)
+
+
+def test_delete_worktree_by_worktree_name(temp_git_repo: Path, disable_claude) -> None:
+    """Test deleting worktree by directory name instead of branch name."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="feature-test",
+        no_cd=True,
+    )
+
+    assert worktree_path.exists()
+
+    # Delete by worktree directory name (e.g., 'test_repo-feature-test')
+    worktree_dir_name = worktree_path.name
+    delete_worktree(target=worktree_dir_name, keep_branch=False)
+
+    # Verify worktree was removed
+    assert not worktree_path.exists()
+
+    # Verify branch was deleted
+    result = subprocess.run(
+        ["git", "branch", "--list", "feature-test"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "feature-test" not in result.stdout
+
+
+def test_delete_worktree_with_branch_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test deleting worktree with --branch flag forces branch lookup."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="branch-flag-test",
+        no_cd=True,
+    )
+
+    assert worktree_path.exists()
+
+    # Delete with --branch flag
+    delete_worktree(target="branch-flag-test", keep_branch=False, lookup_mode="branch")
+
+    # Verify worktree was removed
+    assert not worktree_path.exists()
+
+    # Verify branch was deleted
+    result = subprocess.run(
+        ["git", "branch", "--list", "branch-flag-test"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "branch-flag-test" not in result.stdout
+
+
+def test_delete_worktree_with_worktree_flag(temp_git_repo: Path, disable_claude) -> None:
+    """Test deleting worktree with --worktree flag forces worktree name lookup."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="wt-flag-test",
+        no_cd=True,
+    )
+
+    assert worktree_path.exists()
+
+    # Delete with --worktree flag using directory name
+    worktree_dir_name = worktree_path.name
+    delete_worktree(target=worktree_dir_name, keep_branch=False, lookup_mode="worktree")
+
+    # Verify worktree was removed
+    assert not worktree_path.exists()
+
+
+def test_delete_worktree_branch_flag_not_found(temp_git_repo: Path, disable_claude) -> None:
+    """Test error when using --branch flag with nonexistent branch."""
+    # Create worktree
+    create_worktree(
+        branch_name="exists",
+        no_cd=True,
+    )
+
+    # Try to delete nonexistent branch with --branch flag
+    with pytest.raises(WorktreeNotFoundError, match="No worktree found for branch"):
+        delete_worktree(target="nonexistent", lookup_mode="branch")
+
+
+def test_delete_worktree_worktree_flag_not_found(temp_git_repo: Path, disable_claude) -> None:
+    """Test error when using --worktree flag with nonexistent worktree name."""
+    # Create worktree
+    create_worktree(
+        branch_name="exists",
+        no_cd=True,
+    )
+
+    # Try to delete nonexistent worktree name with --worktree flag
+    with pytest.raises(WorktreeNotFoundError, match="No worktree found with name"):
+        delete_worktree(target="nonexistent-worktree", lookup_mode="worktree")
+
+
+def test_delete_worktree_from_inside_with_different_branch(
+    temp_git_repo: Path, disable_claude, monkeypatch
+) -> None:
+    """Test deleting worktree when user has checked out a different branch inside."""
+    # Create worktree with branch "original-branch"
+    worktree_path = create_worktree(
+        branch_name="original-branch",
+        no_cd=True,
+    )
+
+    assert worktree_path.exists()
+
+    # Create a new branch inside the worktree and check it out
+    subprocess.run(
+        ["git", "checkout", "-b", "different-branch"],
+        cwd=worktree_path,
+        check=True,
+        capture_output=True,
+    )
+
+    # Change to the worktree directory
+    monkeypatch.chdir(worktree_path)
+
+    # Delete by original branch name - this should work because of intended branch metadata
+    delete_worktree(target="original-branch", keep_branch=False)
+
+    # Verify worktree was removed
+    assert not worktree_path.exists()
+
+    # Verify original branch was deleted
+    result = subprocess.run(
+        ["git", "branch", "--list", "original-branch"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "original-branch" not in result.stdout
+
+
+def test_delete_worktree_ambiguous_non_interactive(
+    temp_git_repo: Path, disable_claude, monkeypatch
+) -> None:
+    """Test error when target is ambiguous in non-interactive mode."""
+    # Create first worktree with branch name that could match a directory
+    create_worktree(
+        branch_name="ambiguous",
+        no_cd=True,
+    )
+
+    # Create second worktree with directory name 'ambiguous'
+    worktree2_path = temp_git_repo.parent / "ambiguous"
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree2_path), "-b", "other-branch", "main"],
+        cwd=temp_git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Set up non-interactive environment
+    monkeypatch.setenv("CI", "true")
+
+    # Try to delete 'ambiguous' - should fail with ambiguous error
+    with pytest.raises(WorktreeNotFoundError, match="Ambiguous target"):
+        delete_worktree(target="ambiguous")
+
+    # Clean up
+    subprocess.run(
+        ["git", "worktree", "remove", "--force", str(worktree2_path)],
+        cwd=temp_git_repo,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "other-branch"],
+        cwd=temp_git_repo,
+        capture_output=True,
+    )
+
+
+def test_delete_worktree_same_branch_and_worktree_name(
+    temp_git_repo: Path, disable_claude
+) -> None:
+    """Test delete works when branch and worktree name match the same worktree."""
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="matching",
+        no_cd=True,
+    )
+
+    assert worktree_path.exists()
+
+    # Both "matching" (branch) and worktree_path.name should resolve to same worktree
+    # This should NOT be ambiguous - should just work
+    delete_worktree(target="matching", keep_branch=False)
+
+    # Verify worktree was removed
+    assert not worktree_path.exists()
+
+
+def test_get_main_repo_root_from_worktree(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
+    """Test get_main_repo_root returns main repo when called from worktree."""
+    from claude_worktree.git_utils import get_main_repo_root
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="test-main-repo",
+        no_cd=True,
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # get_main_repo_root should return the main repo, not the worktree
+    main_repo = get_main_repo_root()
+    assert main_repo.samefile(temp_git_repo)
+
+
+def test_find_worktree_by_name(temp_git_repo: Path, disable_claude) -> None:
+    """Test find_worktree_by_name finds worktree by directory name."""
+    from claude_worktree.git_utils import find_worktree_by_name
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="name-lookup",
+        no_cd=True,
+    )
+
+    worktree_dir_name = worktree_path.name
+
+    # Find by directory name
+    found = find_worktree_by_name(temp_git_repo, worktree_dir_name)
+    assert found is not None
+    assert found.samefile(worktree_path)
+
+    # Should not find nonexistent name
+    not_found = find_worktree_by_name(temp_git_repo, "nonexistent-name")
+    assert not_found is None

@@ -189,6 +189,28 @@ def normalize_branch_name(branch: str) -> str:
     return branch
 
 
+def get_main_repo_root(repo: Path | None = None) -> Path:
+    """
+    Get main repository path, even when called from a worktree.
+
+    Uses git worktree list - first entry is always the main repo.
+
+    Args:
+        repo: Optional path to start from (defaults to current directory)
+
+    Returns:
+        Path to main repository root
+
+    Raises:
+        GitError: If not in a git repository
+    """
+    current_root = get_repo_root(repo)
+    worktrees = parse_worktrees(current_root)
+    if worktrees:
+        return worktrees[0][1]
+    return current_root
+
+
 def parse_worktrees(repo: Path) -> list[tuple[str, Path]]:
     """
     Parse git worktree list output.
@@ -234,6 +256,23 @@ def find_worktree_by_branch(repo: Path, branch: str) -> Path | None:
     """
     for br, path in parse_worktrees(repo):
         if br == branch:
+            return path
+    return None
+
+
+def find_worktree_by_name(repo: Path, worktree_name: str) -> Path | None:
+    """
+    Find worktree by directory name (e.g., 'repo-fix-auth').
+
+    Args:
+        repo: Repository path
+        worktree_name: Directory name to search for
+
+    Returns:
+        Worktree path or None if not found
+    """
+    for _, path in parse_worktrees(repo):
+        if path.name == worktree_name:
             return path
     return None
 

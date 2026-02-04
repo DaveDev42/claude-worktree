@@ -630,17 +630,19 @@ def clean(
 def delete(
     target: str | None = typer.Argument(
         None,
-        help="Branch name or worktree path to delete (optional, defaults to current directory)",
+        help="Branch name, worktree directory name, or path to delete (optional, defaults to current directory)",
         autocompletion=complete_worktree_branches,
     ),
     keep_branch: bool = typer.Option(
         False,
         "--keep-branch",
+        "-k",
         help="Keep the branch, only remove worktree",
     ),
     delete_remote: bool = typer.Option(
         False,
         "--delete-remote",
+        "-r",
         help="Also delete remote branch on origin",
     ),
     no_force: bool = typer.Option(
@@ -648,27 +650,52 @@ def delete(
         "--no-force",
         help="Don't use --force flag (fails if worktree has changes)",
     ),
+    branch: bool = typer.Option(
+        False,
+        "--branch",
+        "-b",
+        help="Force lookup by branch name (skip worktree name check)",
+    ),
+    worktree: bool = typer.Option(
+        False,
+        "--worktree",
+        "-w",
+        help="Force lookup by worktree directory name (skip branch check)",
+    ),
 ) -> None:
     """
-    Delete a worktree by branch name or path.
+    Delete a worktree by branch name, worktree directory name, or path.
 
     If no target is specified, deletes the current directory's worktree.
     By default, removes both the worktree and the local branch.
     Use --keep-branch to preserve the branch, or --delete-remote
     to also remove the branch from the remote repository.
 
+    When target matches both a branch name and a worktree directory name,
+    you'll be prompted to choose. Use --branch or --worktree flags to
+    skip the prompt and force a specific lookup method.
+
     Example:
         cw delete                        # Delete current worktree
         cw delete fix-auth               # Delete by branch name
+        cw delete myproject-fix-auth     # Delete by worktree directory name
         cw delete ../myproject-fix-auth  # Delete by path
+        cw delete fix-auth --branch      # Force branch lookup
+        cw delete myproject-fix-auth -w  # Force worktree name lookup
         cw delete old-feature --delete-remote
     """
+    # Validate mutually exclusive flags
+    if branch and worktree:
+        console.print("[bold red]Error:[/bold red] Cannot use both --branch and --worktree")
+        raise typer.Exit(code=1)
+
     try:
         delete_worktree(
             target=target,
             keep_branch=keep_branch,
             delete_remote=delete_remote,
             no_force=no_force,
+            lookup_mode="branch" if branch else "worktree" if worktree else None,
         )
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
