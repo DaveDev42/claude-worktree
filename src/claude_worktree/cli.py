@@ -63,17 +63,24 @@ def version_callback(value: bool) -> None:
 
 
 def complete_worktree_branches() -> list[str]:
-    """Autocomplete function for worktree branch names."""
+    """Autocomplete function for worktree branch and directory names."""
     try:
         repo = get_repo_root()
         worktrees = parse_worktrees(repo)
-        # Return branch names without refs/heads/ prefix
-        branches = []
-        for branch, _ in worktrees:
+        completions: list[str] = []
+        seen: set[str] = set()
+        for branch, path in worktrees:
+            # Add branch name
             normalized = normalize_branch_name(branch)
-            if normalized and normalized != "(detached)":
-                branches.append(normalized)
-        return branches
+            if normalized and normalized != "(detached)" and normalized not in seen:
+                completions.append(normalized)
+                seen.add(normalized)
+            # Add worktree directory name
+            dir_name = path.name
+            if dir_name not in seen:
+                completions.append(dir_name)
+                seen.add(dir_name)
+        return completions
     except Exception:
         return []
 
