@@ -165,6 +165,114 @@ def test_remote_branch_exists_with_remote(temp_git_repo: Path, tmp_path: Path) -
     assert remote_branch_exists("remote-only-branch", temp_git_repo)
 
 
+def test_remote_branch_exists_with_slashes(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test remote_branch_exists with branch names containing slashes."""
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create and push branch with slashes
+    subprocess.run(
+        ["git", "branch", "feature/auth"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "feature/auth"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "feature/auth"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    assert remote_branch_exists("feature/auth", temp_git_repo)
+    assert not remote_branch_exists("feature", temp_git_repo)  # prefix should not match
+
+
+def test_remote_branch_exists_custom_remote(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test remote_branch_exists with a non-default remote name."""
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "upstream_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "upstream", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "upstream"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Should find on upstream, not on origin
+    assert remote_branch_exists("main", temp_git_repo, remote="upstream")
+    assert not remote_branch_exists("main", temp_git_repo, remote="origin")
+
+
+def test_remote_branch_exists_stale_ref(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test remote_branch_exists with stale remote tracking ref (not yet pruned)."""
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create and push a branch
+    subprocess.run(
+        ["git", "branch", "stale-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "stale-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "stale-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Verify it exists
+    assert remote_branch_exists("stale-branch", temp_git_repo)
+
+    # Delete from remote directly (simulate another user deleting)
+    subprocess.run(
+        ["git", "branch", "-D", "stale-branch"],
+        cwd=remote_path, check=True, capture_output=True,
+    )
+
+    # Without prune, stale ref should still return True (based on local tracking ref)
+    assert remote_branch_exists("stale-branch", temp_git_repo)
+
+    # After prune, should return False
+    subprocess.run(
+        ["git", "fetch", "--prune", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    assert not remote_branch_exists("stale-branch", temp_git_repo)
+
+
 def test_parse_worktrees(temp_git_repo: Path) -> None:
     """Test parsing worktree list."""
     worktrees = parse_worktrees(temp_git_repo)

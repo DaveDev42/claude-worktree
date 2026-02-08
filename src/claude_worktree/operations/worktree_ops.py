@@ -230,6 +230,7 @@ def create_worktree(
             is_remote_only = True
 
     # Determine base branch (skip for remote-only branches unless explicitly specified)
+    user_provided_base = base_branch is not None
     if is_remote_only and base_branch is None:
         # For remote-only branches, use the remote branch as the starting point
         # Set base_branch to current branch for metadata purposes
@@ -245,8 +246,9 @@ def create_worktree(
                 "Cannot determine base branch. Specify with --base or checkout a branch first."
             )
 
-    # Verify base branch exists (skip for remote-only since we use origin/<branch>)
-    if not is_remote_only and not branch_exists(base_branch, repo):
+    # Verify base branch exists
+    # Skip for remote-only when base was auto-assigned, but always validate user-provided base
+    if (not is_remote_only or user_provided_base) and not branch_exists(base_branch, repo):
         raise InvalidBranchError(f"Base branch '{base_branch}' not found")
 
     # Determine worktree path

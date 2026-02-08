@@ -1738,3 +1738,307 @@ def test_create_worktree_from_remote_only_branch(
         text=True,
     )
     assert worktree_path.as_posix() in result.stdout
+
+
+def test_create_worktree_from_remote_only_branch_stores_metadata(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test that metadata is correctly stored for remote-only branch worktrees."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "meta-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "meta-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "meta-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    worktree_path = create_worktree(branch_name="meta-test", no_cd=True)
+    assert worktree_path.exists()
+
+    # Verify metadata is stored
+    from claude_worktree.git_utils import get_config
+
+    base_branch = get_config("branch.meta-test.worktreeBase", temp_git_repo)
+    base_path = get_config("worktree.meta-test.basePath", temp_git_repo)
+    intended = get_config("worktree.meta-test.intendedBranch", temp_git_repo)
+
+    assert base_branch == "main"  # Current branch as base for metadata
+    assert base_path == str(temp_git_repo)
+    assert intended == "meta-test"
+
+
+def test_create_worktree_local_branch_takes_precedence_over_remote(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test that when a branch exists both locally and remotely, local path is taken."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create branch that exists both locally and remotely
+    subprocess.run(
+        ["git", "branch", "both-local-remote"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "both-local-remote"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Branch exists locally AND remotely - should take local branch path
+    from claude_worktree.git_utils import branch_exists, remote_branch_exists
+
+    assert branch_exists("both-local-remote", temp_git_repo)
+    assert remote_branch_exists("both-local-remote", temp_git_repo)
+
+    # Non-interactive: should proceed with "existing local branch" path (no prompt)
+    worktree_path = create_worktree(branch_name="both-local-remote", no_cd=True)
+    assert worktree_path.exists()
+
+
+def test_create_worktree_from_remote_with_explicit_base(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test creating worktree from remote-only branch with explicit --base flag."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create develop branch locally (for --base)
+    subprocess.run(
+        ["git", "branch", "develop"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create remote-only branch
+    subprocess.run(
+        ["git", "branch", "remote-with-base"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-with-base"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-with-base"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create worktree with explicit --base
+    worktree_path = create_worktree(
+        branch_name="remote-with-base",
+        base_branch="develop",
+        no_cd=True,
+    )
+    assert worktree_path.exists()
+
+    # Verify metadata stores "develop" as base, not "main"
+    from claude_worktree.git_utils import get_config
+
+    base_branch = get_config("branch.remote-with-base.worktreeBase", temp_git_repo)
+    assert base_branch == "develop"
+
+
+def test_create_worktree_from_remote_with_invalid_base(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test that --base validation works for remote-only branches with invalid base."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create remote-only branch
+    subprocess.run(
+        ["git", "branch", "remote-invalid-base"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-invalid-base"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-invalid-base"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Should raise InvalidBranchError because --base is explicitly provided and invalid
+    with pytest.raises(InvalidBranchError, match="not found"):
+        create_worktree(
+            branch_name="remote-invalid-base",
+            base_branch="nonexistent-base",
+            no_cd=True,
+        )
+
+
+def test_create_worktree_from_remote_with_custom_path(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test creating worktree from remote-only branch with custom --path."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create remote-only branch
+    subprocess.run(
+        ["git", "branch", "remote-custom-path"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-custom-path"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-custom-path"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    custom_path = temp_git_repo.parent / "my-custom-remote-worktree"
+    worktree_path = create_worktree(
+        branch_name="remote-custom-path",
+        path=custom_path,
+        no_cd=True,
+    )
+
+    assert worktree_path == custom_path
+    assert custom_path.exists()
+    assert (custom_path / "README.md").exists()
+
+
+def test_create_worktree_remote_has_different_content(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test that worktree from remote-only branch has the remote's content."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create branch with unique content and push to remote
+    subprocess.run(
+        ["git", "checkout", "-b", "content-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    (temp_git_repo / "remote-file.txt").write_text("remote content")
+    subprocess.run(["git", "add", "."], cwd=temp_git_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Add remote file"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "content-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Switch back to main and delete local branch
+    subprocess.run(
+        ["git", "checkout", "main"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "content-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # The file should NOT exist on main
+    assert not (temp_git_repo / "remote-file.txt").exists()
+
+    # Create worktree from remote-only branch
+    worktree_path = create_worktree(branch_name="content-branch", no_cd=True)
+
+    # Worktree should have the remote branch's content
+    assert (worktree_path / "remote-file.txt").exists()
+    assert (worktree_path / "remote-file.txt").read_text() == "remote content"
+
+
+def test_delete_worktree_created_from_remote(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test that a worktree created from a remote-only branch can be deleted properly."""
+    # Set up remote
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "delete-remote-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "delete-remote-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "delete-remote-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    worktree_path = create_worktree(branch_name="delete-remote-test", no_cd=True)
+    assert worktree_path.exists()
+
+    # Delete it
+    delete_worktree(target="delete-remote-test", keep_branch=False)
+
+    assert not worktree_path.exists()
+
+    # Verify branch was deleted
+    from claude_worktree.git_utils import branch_exists
+
+    assert not branch_exists("delete-remote-test", temp_git_repo)
