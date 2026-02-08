@@ -474,3 +474,286 @@ def test_cd_command_suggests_shell_setup(temp_git_repo: Path, disable_claude, mo
 
     # Clean up
     runner.invoke(app, ["delete", "setup-test"])
+
+
+# Branch completion tests
+
+
+def test_complete_all_branches(temp_git_repo: Path) -> None:
+    """Test complete_all_branches returns local branches."""
+    from claude_worktree.cli import complete_all_branches
+
+    branches = complete_all_branches()
+    assert "main" in branches
+
+
+def test_complete_all_branches_includes_remote(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test complete_all_branches includes remote branches with origin/ stripped."""
+    from claude_worktree.cli import complete_all_branches
+
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+
+    # Add the bare repo as a remote and push a remote-only branch
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    branches = complete_all_branches()
+    # Should contain both local "main" and remote "remote-feature" (without origin/ prefix)
+    assert "main" in branches
+    assert "remote-feature" in branches
+    # Should NOT contain "origin/remote-feature"
+    assert "origin/remote-feature" not in branches
+
+
+def test_complete_new_branch_names_excludes_worktrees(
+    temp_git_repo: Path, disable_claude
+) -> None:
+    """Test complete_new_branch_names excludes branches that have worktrees."""
+    from claude_worktree.cli import complete_new_branch_names
+
+    # Create a branch and worktree
+    subprocess.run(
+        ["git", "branch", "available-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create worktree for another branch
+    runner.invoke(app, ["new", "worktree-branch", "--no-cd"])
+
+    names = complete_new_branch_names()
+
+    # "available-branch" should be in the list (no worktree)
+    assert "available-branch" in names
+
+    # "worktree-branch" should NOT be in the list (has a worktree)
+    assert "worktree-branch" not in names
+
+    # "main" should NOT be in the list (current branch + has worktree)
+    assert "main" not in names
+
+
+def test_complete_all_branches_not_in_repo(tmp_path: Path, monkeypatch) -> None:
+    """Test complete_all_branches returns empty list when not in a git repo."""
+    from claude_worktree.cli import complete_all_branches
+
+    non_repo = tmp_path / "not_a_repo"
+    non_repo.mkdir()
+    monkeypatch.chdir(non_repo)
+
+    branches = complete_all_branches()
+    assert branches == []
+
+
+def test_complete_new_branch_names_not_in_repo(tmp_path: Path, monkeypatch) -> None:
+    """Test complete_new_branch_names returns empty list when not in a git repo."""
+    from claude_worktree.cli import complete_new_branch_names
+
+    non_repo = tmp_path / "not_a_repo"
+    non_repo.mkdir()
+    monkeypatch.chdir(non_repo)
+
+    names = complete_new_branch_names()
+    assert names == []
+
+
+def test_get_all_branch_names_filters_head(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test _get_all_branch_names filters HEAD entries from remote."""
+    from claude_worktree.cli import _get_all_branch_names
+
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    branches = _get_all_branch_names()
+
+    # HEAD should be filtered out (origin/HEAD -> HEAD)
+    assert "HEAD" not in branches
+    # origin/HEAD should not appear as-is
+    assert "origin/HEAD" not in branches
+    # But main should be present
+    assert "main" in branches
+
+
+def test_get_all_branch_names_with_slashes(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test _get_all_branch_names strips origin/ from branches with slashes."""
+    from claude_worktree.cli import _get_all_branch_names
+
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create and push branch with slashes
+    subprocess.run(
+        ["git", "branch", "feature/auth/login"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "feature/auth/login"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "feature/auth/login"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    branches = _get_all_branch_names()
+
+    # Should contain "feature/auth/login" not "origin/feature/auth/login"
+    assert "feature/auth/login" in branches
+    assert "origin/feature/auth/login" not in branches
+
+
+def test_get_all_branch_names_deduplicates(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test _get_all_branch_names deduplicates branches that exist locally and remotely."""
+    from claude_worktree.cli import _get_all_branch_names
+
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    branches = _get_all_branch_names()
+
+    # "main" exists both locally and as origin/main - should appear only once
+    assert branches.count("main") == 1
+
+
+def test_complete_new_branch_names_includes_remote(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test complete_new_branch_names includes remote-only branches."""
+    from claude_worktree.cli import complete_new_branch_names
+
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Push a branch to remote only
+    subprocess.run(
+        ["git", "branch", "remote-only"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-only"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-only"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    names = complete_new_branch_names()
+
+    # Remote-only branch should be available for completion
+    assert "remote-only" in names
+
+    # Current branch (main) should still be excluded
+    assert "main" not in names
+
+
+def test_new_command_with_remote_branch(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test cw new end-to-end with a remote-only branch via CLI."""
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create a remote-only branch
+    subprocess.run(
+        ["git", "branch", "remote-cli-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-cli-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-cli-test"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    result = runner.invoke(app, ["new", "remote-cli-test", "--no-cd"])
+
+    assert result.exit_code == 0
+    assert "Remote branch found" in result.stdout or "tracking remote branch" in result.stdout
+
+    # Verify worktree was created
+    expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-remote-cli-test"
+    assert expected_path.exists()
+
+    # Clean up
+    runner.invoke(app, ["delete", "remote-cli-test"])

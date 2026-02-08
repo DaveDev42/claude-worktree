@@ -33,6 +33,7 @@ from ..git_utils import (
     is_non_interactive,
     normalize_branch_name,
     parse_worktrees,
+    remote_branch_exists,
     remove_worktree_safe,
     set_config,
     unset_config,
@@ -155,10 +156,11 @@ def create_worktree(
     # Check if branch exists without worktree
     # (But skip this check if we already found an existing worktree above)
     branch_already_exists = False
+    is_remote_only = False
     if branch_exists(branch_name, repo) and not existing_worktree:
         console.print(
             f"\n[bold yellow]! Branch already exists[/bold yellow]\n"
-            f"Branch '[cyan]{branch_name}[/cyan]' already exists but has no worktree.\n"
+            f"Branch '[cyan]{branch_name}[/cyan]' already exists locally but has no worktree.\n"
         )
 
         # Only prompt if stdin is a TTY
@@ -191,8 +193,52 @@ def create_worktree(
             )
             branch_already_exists = True
 
-    # Determine base branch
-    if base_branch is None:
+    # Check if branch exists on remote but not locally
+    elif not existing_worktree and not branch_exists(branch_name, repo) and remote_branch_exists(branch_name, repo):
+        console.print(
+            f"\n[bold yellow]! Remote branch found[/bold yellow]\n"
+            f"Branch '[cyan]{branch_name}[/cyan]' exists on remote (origin) but not locally.\n"
+        )
+
+        # Only prompt if stdin is a TTY
+        if sys.stdin.isatty():
+            try:
+                response = typer.confirm(
+                    "Create worktree tracking this remote branch?", default=True
+                )
+                if response:
+                    console.print(
+                        f"\n[dim]Creating worktree tracking remote branch '[cyan]{branch_name}[/cyan]'...[/dim]\n"
+                    )
+                    branch_already_exists = True
+                    is_remote_only = True
+                else:
+                    console.print(
+                        f"\n[yellow]Tip:[/yellow] To create a new branch instead:\n"
+                        f"  [cyan]cw new {branch_name}-v2[/cyan]\n"
+                    )
+                    raise typer.Abort()
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n[yellow]Operation cancelled[/yellow]")
+                raise typer.Abort()
+        else:
+            # Non-interactive mode - proceed to create worktree tracking remote branch
+            console.print(
+                f"[dim]Creating worktree tracking remote branch '[cyan]{branch_name}[/cyan]'...[/dim]\n"
+            )
+            branch_already_exists = True
+            is_remote_only = True
+
+    # Determine base branch (skip for remote-only branches unless explicitly specified)
+    user_provided_base = base_branch is not None
+    if is_remote_only and base_branch is None:
+        # For remote-only branches, use the remote branch as the starting point
+        # Set base_branch to current branch for metadata purposes
+        try:
+            base_branch = get_current_branch(repo)
+        except InvalidBranchError:
+            base_branch = "main"  # Fallback for metadata
+    elif base_branch is None:
         try:
             base_branch = get_current_branch(repo)
         except InvalidBranchError:
@@ -201,7 +247,8 @@ def create_worktree(
             )
 
     # Verify base branch exists
-    if not branch_exists(base_branch, repo):
+    # Skip for remote-only when base was auto-assigned, but always validate user-provided base
+    if (not is_remote_only or user_provided_base) and not branch_exists(base_branch, repo):
         raise InvalidBranchError(f"Base branch '{base_branch}' not found")
 
     # Determine worktree path
@@ -230,10 +277,18 @@ def create_worktree(
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
     git_command("fetch", "--all", "--prune", repo=repo)
 
-    # If branch already exists, create worktree without -b flag
-    if branch_already_exists:
+    # Create worktree based on branch source
+    if is_remote_only:
+        # Remote-only: create local tracking branch from remote
+        git_command(
+            "worktree", "add", "-b", branch_name, str(worktree_path),
+            f"origin/{branch_name}", repo=repo,
+        )
+    elif branch_already_exists:
+        # Local branch exists: create worktree without -b flag
         git_command("worktree", "add", str(worktree_path), branch_name, repo=repo)
     else:
+        # New branch: create from base
         git_command(
             "worktree", "add", "-b", branch_name, str(worktree_path), base_branch, repo=repo
         )

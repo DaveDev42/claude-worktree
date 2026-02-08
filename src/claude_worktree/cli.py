@@ -85,15 +85,69 @@ def complete_worktree_branches() -> list[str]:
         return []
 
 
+def _get_all_branch_names() -> list[str]:
+    """Get deduplicated list of local + remote branch names.
+
+    Runs `git branch -a --format=%(refname:short)`, strips `origin/` prefix
+    from remote branches, excludes HEAD entries, and deduplicates.
+    """
+    from .git_utils import git_command
+
+    repo = get_repo_root()
+    result = git_command(
+        "branch", "-a", "--format=%(refname:short)", repo=repo, capture=True
+    )
+    seen: set[str] = set()
+    branches: list[str] = []
+    for line in result.stdout.strip().splitlines():
+        name = line.strip()
+        # Skip HEAD pointers
+        if not name or name == "HEAD" or name.endswith("/HEAD"):
+            continue
+        # Strip remote prefix
+        if name.startswith("origin/"):
+            name = name[len("origin/"):]
+        if name and name not in seen:
+            seen.add(name)
+            branches.append(name)
+    return branches
+
+
 def complete_all_branches() -> list[str]:
-    """Autocomplete function for all git branches."""
+    """Autocomplete function for all git branches (local + remote)."""
     try:
-        from .git_utils import git_command
+        return _get_all_branch_names()
+    except Exception:
+        return []
+
+
+def complete_new_branch_names() -> list[str]:
+    """Autocomplete function for branch names available to `cw new`.
+
+    Returns local + remote branches, excluding branches that already
+    have worktrees and excluding the current branch.
+    """
+    try:
+        from .git_utils import get_current_branch
 
         repo = get_repo_root()
-        result = git_command("branch", "--format=%(refname:short)", repo=repo, capture=True)
-        branches = result.stdout.strip().splitlines()
-        return branches
+        all_branches = _get_all_branch_names()
+
+        # Gather branches that already have worktrees
+        worktree_branches: set[str] = set()
+        for branch, _ in parse_worktrees(repo):
+            normalized = normalize_branch_name(branch)
+            if normalized and normalized != "(detached)":
+                worktree_branches.add(normalized)
+
+        # Exclude current branch
+        try:
+            current = get_current_branch(repo)
+            worktree_branches.add(current)
+        except Exception:
+            pass
+
+        return [b for b in all_branches if b not in worktree_branches]
     except Exception:
         return []
 
@@ -239,7 +293,9 @@ def main(
 @app.command(rich_help_panel="Core Workflow")
 def new(
     branch_name: str = typer.Argument(
-        ..., help="Name for the new branch (e.g., 'fix-auth', 'feature-api')"
+        ...,
+        help="Name for the new branch (e.g., 'fix-auth', 'feature-api')",
+        autocompletion=complete_new_branch_names,
     ),
     base: str | None = typer.Option(
         None,
