@@ -474,3 +474,82 @@ def test_cd_command_suggests_shell_setup(temp_git_repo: Path, disable_claude, mo
 
     # Clean up
     runner.invoke(app, ["delete", "setup-test"])
+
+
+# Branch completion tests
+
+
+def test_complete_all_branches(temp_git_repo: Path) -> None:
+    """Test complete_all_branches returns local branches."""
+    from claude_worktree.cli import complete_all_branches
+
+    branches = complete_all_branches()
+    assert "main" in branches
+
+
+def test_complete_all_branches_includes_remote(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test complete_all_branches includes remote branches with origin/ stripped."""
+    from claude_worktree.cli import complete_all_branches
+
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+
+    # Add the bare repo as a remote and push a remote-only branch
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    branches = complete_all_branches()
+    # Should contain both local "main" and remote "remote-feature" (without origin/ prefix)
+    assert "main" in branches
+    assert "remote-feature" in branches
+    # Should NOT contain "origin/remote-feature"
+    assert "origin/remote-feature" not in branches
+
+
+def test_complete_new_branch_names_excludes_worktrees(
+    temp_git_repo: Path, disable_claude
+) -> None:
+    """Test complete_new_branch_names excludes branches that have worktrees."""
+    from claude_worktree.cli import complete_new_branch_names
+
+    # Create a branch and worktree
+    subprocess.run(
+        ["git", "branch", "available-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create worktree for another branch
+    runner.invoke(app, ["new", "worktree-branch", "--no-cd"])
+
+    names = complete_new_branch_names()
+
+    # "available-branch" should be in the list (no worktree)
+    assert "available-branch" in names
+
+    # "worktree-branch" should NOT be in the list (has a worktree)
+    assert "worktree-branch" not in names
+
+    # "main" should NOT be in the list (current branch + has worktree)
+    assert "main" not in names

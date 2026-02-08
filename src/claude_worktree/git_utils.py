@@ -128,6 +128,27 @@ def branch_exists(branch: str, repo: Path | None = None) -> bool:
     return result.returncode == 0
 
 
+def remote_branch_exists(
+    branch: str, repo: Path | None = None, remote: str = "origin"
+) -> bool:
+    """
+    Check if a branch exists on a remote.
+
+    Args:
+        branch: Branch name (without remote prefix)
+        repo: Repository path
+        remote: Remote name (default: "origin")
+
+    Returns:
+        True if the branch exists on the remote, False otherwise
+    """
+    result = git_command(
+        "rev-parse", "--verify", f"{remote}/{branch}",
+        repo=repo, check=False, capture=True,
+    )
+    return result.returncode == 0
+
+
 def get_config(key: str, repo: Path | None = None) -> str | None:
     """
     Get a git config value.

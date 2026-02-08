@@ -1677,3 +1677,64 @@ def test_find_worktree_by_name(temp_git_repo: Path, disable_claude) -> None:
     # Should not find nonexistent name
     not_found = find_worktree_by_name(temp_git_repo, "nonexistent-name")
     assert not_found is None
+
+
+def test_create_worktree_from_remote_only_branch(
+    temp_git_repo: Path, disable_claude, tmp_path: Path
+) -> None:
+    """Test creating worktree from a remote-only branch (non-interactive mode)."""
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+        check=True, capture_output=True,
+    )
+
+    # Add the bare repo as a remote
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Create a branch, push it to remote, and delete locally
+    subprocess.run(
+        ["git", "branch", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "branch", "-D", "remote-feature"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Verify: branch doesn't exist locally, but does on remote
+    from claude_worktree.git_utils import branch_exists, remote_branch_exists
+
+    assert not branch_exists("remote-feature", temp_git_repo)
+    assert remote_branch_exists("remote-feature", temp_git_repo)
+
+    # Create worktree from the remote-only branch (non-interactive mode)
+    worktree_path = create_worktree(
+        branch_name="remote-feature",
+        no_cd=True,
+    )
+
+    # Verify worktree was created
+    expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-remote-feature"
+    assert worktree_path == expected_path
+    assert worktree_path.exists()
+
+    # Verify local branch now exists (tracking the remote)
+    assert branch_exists("remote-feature", temp_git_repo)
+
+    # Verify worktree is registered
+    result = subprocess.run(
+        ["git", "worktree", "list"],
+        cwd=temp_git_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert worktree_path.as_posix() in result.stdout

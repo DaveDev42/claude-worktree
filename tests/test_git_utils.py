@@ -15,6 +15,7 @@ from claude_worktree.git_utils import (
     has_command,
     normalize_branch_name,
     parse_worktrees,
+    remote_branch_exists,
     set_config,
     unset_config,
 )
@@ -108,6 +109,60 @@ def test_branch_exists(temp_git_repo: Path) -> None:
         capture_output=True,
     )
     assert branch_exists("test-branch", temp_git_repo)
+
+
+def test_remote_branch_exists(temp_git_repo: Path) -> None:
+    """Test checking if a remote branch exists."""
+    # No remote configured - should return False
+    assert not remote_branch_exists("main", temp_git_repo)
+    assert not remote_branch_exists("nonexistent-branch", temp_git_repo)
+
+
+def test_remote_branch_exists_with_remote(temp_git_repo: Path, tmp_path: Path) -> None:
+    """Test remote_branch_exists with an actual remote repository."""
+    # Create a bare "remote" repository
+    remote_path = tmp_path / "remote_repo.git"
+    subprocess.run(["git", "clone", "--bare", str(temp_git_repo), str(remote_path)],
+                    check=True, capture_output=True)
+
+    # Add the bare repo as a remote
+    subprocess.run(
+        ["git", "remote", "add", "origin", str(remote_path)],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Now origin/main should exist
+    assert remote_branch_exists("main", temp_git_repo)
+
+    # Non-existent branch should not exist
+    assert not remote_branch_exists("nonexistent-branch", temp_git_repo)
+
+    # Create a branch on remote only
+    subprocess.run(
+        ["git", "branch", "remote-only-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "push", "origin", "remote-only-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    # Delete local branch
+    subprocess.run(
+        ["git", "branch", "-D", "remote-only-branch"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        cwd=temp_git_repo, check=True, capture_output=True,
+    )
+
+    # Should exist on remote but not locally
+    assert not branch_exists("remote-only-branch", temp_git_repo)
+    assert remote_branch_exists("remote-only-branch", temp_git_repo)
 
 
 def test_parse_worktrees(temp_git_repo: Path) -> None:
