@@ -259,8 +259,9 @@ def prompt_completion_setup() -> None:
         console.print("\n[dim]You can always set this up later with: cw shell-setup[/dim]\n")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -269,13 +270,29 @@ def main(
         callback=version_callback,
         is_eager=True,
     ),
+    global_mode: bool = typer.Option(
+        False,
+        "--global",
+        "-g",
+        help="Operate across all registered repositories",
+    ),
 ) -> None:
     """Claude Code × git worktree helper CLI."""
     import sys
 
+    ctx.ensure_object(dict)
+    ctx.obj["global_mode"] = global_mode
+
     # Skip callbacks for internal commands that output machine-readable content
     if len(sys.argv) > 1 and sys.argv[1] in ["_shell-function", "_path"]:
         return
+
+    # If -g is used without a subcommand, show global list
+    if global_mode and ctx.invoked_subcommand is None:
+        from .operations import global_list_worktrees
+
+        global_list_worktrees()
+        raise typer.Exit()
 
     # Check for updates on first run of the day
     check_for_updates(auto=True)
@@ -678,14 +695,21 @@ def shell(
 
 
 @app.command(name="list", rich_help_panel="Worktree Management")
-def list_cmd() -> None:
+def list_cmd(ctx: typer.Context) -> None:
     """
     List all worktrees in the current repository.
+
+    With -g/--global flag, lists worktrees across all registered repositories.
 
     Shows all worktrees with their branch names, status, and paths.
     """
     try:
-        list_worktrees()
+        if ctx.obj.get("global_mode"):
+            from .operations import global_list_worktrees
+
+            global_list_worktrees()
+        else:
+            list_worktrees()
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -755,6 +779,54 @@ def clean(
             interactive=interactive,
             dry_run=dry_run,
         )
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(rich_help_panel="Global Management")
+def scan(
+    directory: Path | None = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        help="Directory to scan (default: home directory)",
+        exists=True,
+    ),
+) -> None:
+    """
+    Scan filesystem for repositories with worktrees and register them.
+
+    Discovers git repositories that have worktrees and adds them to the
+    global registry. Use `cw -g list` to view registered worktrees.
+
+    Example:
+        cw scan                     # Scan home directory
+        cw scan --dir ~/Projects    # Scan specific directory
+    """
+    try:
+        from .operations import global_scan
+
+        global_scan(base_dir=directory)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(rich_help_panel="Global Management")
+def prune() -> None:
+    """
+    Remove stale entries from the global repository registry.
+
+    Removes repositories that no longer exist on disk from the registry.
+
+    Example:
+        cw prune
+    """
+    try:
+        from .operations import global_prune
+
+        global_prune()
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)

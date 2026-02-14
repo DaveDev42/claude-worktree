@@ -1,6 +1,5 @@
 """Operations package - organized worktree operations."""
 
-# Worktree lifecycle operations
 # AI tool integration
 from .ai_tools import launch_ai_tool, resume_worktree, shell_worktree
 
@@ -25,6 +24,9 @@ from .display import (
 
 # Git operations (PR/merge)
 from .git_ops import create_pr_worktree, merge_worktree
+
+# Global management
+from .global_ops import global_list_worktrees, global_prune, global_scan
 
 # Stash operations
 from .stash_ops import stash_apply, stash_list, stash_save
@@ -72,4 +74,8 @@ __all__ = [
     "diff_worktrees",
     # Diagnostics
     "doctor",
+    # Global management
+    "global_list_worktrees",
+    "global_scan",
+    "global_prune",
 ]

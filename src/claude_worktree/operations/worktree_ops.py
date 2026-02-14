@@ -298,6 +298,14 @@ def create_worktree(
     set_config(CONFIG_KEY_BASE_PATH.format(branch_name), str(repo), repo=repo)
     set_config(CONFIG_KEY_INTENDED_BRANCH.format(branch_name), branch_name, repo=repo)
 
+    # Register repository in global registry for `cw -g` commands
+    try:
+        from ..registry import register_repo
+
+        register_repo(repo)
+    except Exception:
+        pass  # Non-fatal: global registry is optional
+
     console.print("[bold green]*[/bold green] Worktree created successfully\n")
 
     # Copy shared files if .cwshare exists
@@ -578,6 +586,14 @@ def finish_worktree(
     hook_context["event"] = "merge.post"
     run_hooks("merge.post", hook_context, cwd=repo)
 
+    # Update global registry last_seen
+    try:
+        from ..registry import update_last_seen
+
+        update_last_seen(repo)
+    except Exception:
+        pass  # Non-fatal: global registry is optional
+
 
 def delete_worktree(
     target: str | None = None,
@@ -768,6 +784,14 @@ def delete_worktree(
     # Run post-delete hooks (non-blocking)
     hook_context["event"] = "worktree.post_delete"
     run_hooks("worktree.post_delete", hook_context, cwd=main_repo)
+
+    # Update global registry last_seen
+    try:
+        from ..registry import update_last_seen
+
+        update_last_seen(main_repo)
+    except Exception:
+        pass  # Non-fatal: global registry is optional
 
 
 def _topological_sort_worktrees(
