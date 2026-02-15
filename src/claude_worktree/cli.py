@@ -101,17 +101,27 @@ def _is_global_completion(ctx: typer.Context) -> bool:
     """Detect whether global mode is active for tab completion.
 
     Checks ctx.obj first (set by the callback), then falls back to
-    inspecting sys.argv for -g/--global flags since ctx.obj may not
-    be populated during completion.
+    inspecting sys.argv and _TYPER_COMPLETE_ARGS for -g/--global flags
+    since ctx.obj may not be populated during completion.
     """
+    import os
     import sys
 
     # Try ctx.obj first (may be set by the main callback)
     if ctx.obj and ctx.obj.get("global_mode"):
         return True
 
-    # Fallback: check sys.argv (completion may bypass the callback)
-    return "-g" in sys.argv or "--global" in sys.argv
+    # Check sys.argv (normal invocation)
+    if "-g" in sys.argv or "--global" in sys.argv:
+        return True
+
+    # During Typer completion, args are in _TYPER_COMPLETE_ARGS, not sys.argv
+    complete_args = os.environ.get("_TYPER_COMPLETE_ARGS", "")
+    if complete_args:
+        args = complete_args.split()
+        return "-g" in args or "--global" in args
+
+    return False
 
 
 def _complete_local_worktree_branches() -> list[str]:
