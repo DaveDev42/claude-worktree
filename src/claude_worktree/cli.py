@@ -50,7 +50,7 @@ from .update import check_for_updates
 # Commands that support -g/--global mode
 _GLOBAL_COMMANDS: set[str] = {
     "list", "delete", "pr", "merge", "resume",
-    "sync", "change-base", "scan", "prune", "backup", "cd",
+    "sync", "change-base", "scan", "prune", "backup",
 }
 
 
@@ -1296,136 +1296,6 @@ def upgrade() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command(rich_help_panel="Configuration")
-def cd(
-    ctx: typer.Context,
-    branch: str | None = typer.Argument(
-        None,
-        help="Branch name or repo:branch to navigate to (omit for interactive selection)",
-        autocompletion=complete_worktree_branches,
-    ),
-    print_only: bool = typer.Option(
-        False,
-        "--print",
-        "-p",
-        help="Print path only (for scripting)",
-    ),
-) -> None:
-    """
-    Print the path to a worktree's directory and optionally setup cw-cd shell function.
-
-    Without arguments, shows an interactive worktree selector.
-    Supports 'repo:branch' notation (auto-enables global mode).
-
-    Example:
-        cw cd                   # Interactive worktree selector
-        cw cd fix-auth          # Print path and offer shell-setup if not installed
-        cw cd myrepo:fix-auth   # Global lookup by repo:branch
-        cw cd fix-auth --print  # Print path only (no prompts)
-        cw -g cd                # Interactive global selector
-    """
-    import os
-
-    from .git_utils import find_worktree_by_branch, get_repo_root, is_non_interactive
-    from .operations.helpers import parse_repo_branch_target
-
-    global_mode = ctx.obj.get("global_mode", False) if ctx.obj else False
-
-    # No argument — interactive mode
-    if branch is None:
-        _interactive_path_selection(global_mode)
-        return
-
-    # repo:branch auto-detection
-    repo_prefix, branch_name = parse_repo_branch_target(branch)
-    if repo_prefix is not None:
-        global_mode = True
-
-    try:
-        if global_mode:
-            # Global resolution (supports repo:branch)
-            from .operations.helpers import _resolve_global_target
-
-            matches = _resolve_global_target(branch)
-            if not matches:
-                console.print(
-                    f"[bold red]Error:[/bold red] No worktree found for '{branch}' "
-                    "in any registered repository"
-                )
-                raise typer.Exit(code=1)
-
-            if len(matches) == 1:
-                wt_path, _bname, _repo = matches[0]
-                print(wt_path)
-                return
-
-            # Multiple matches
-            console.print(f"[bold red]Error:[/bold red] Multiple worktrees found for '{branch}':")
-            for wt_path, _bname, repo in matches:
-                console.print(f"  {repo.name}:{_bname}  ({wt_path})")
-            console.print("[dim]Use 'repo:branch' notation to disambiguate.[/dim]")
-            raise typer.Exit(code=1)
-
-        # Local mode
-        repo = get_repo_root()
-        normalized = normalize_branch_name(branch)
-        found_path = find_worktree_by_branch(repo, branch)
-        if not found_path:
-            found_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
-
-        if not found_path:
-            console.print(f"[bold red]Error:[/bold red] No worktree found for branch '{branch}'")
-            raise typer.Exit(code=1)
-
-        # Check if cw-cd shell function is installed (only if not in print-only mode and interactive)
-        if not print_only and not is_non_interactive():
-            shell_env = os.environ.get("SHELL", "")
-            cw_cd_installed = False
-
-            if "bash" in shell_env:
-                bashrc = Path.home() / ".bashrc"
-                if bashrc.exists() and "cw _shell-function" in bashrc.read_text():
-                    cw_cd_installed = True
-            elif "zsh" in shell_env:
-                zshrc = Path.home() / ".zshrc"
-                if zshrc.exists() and "cw _shell-function" in zshrc.read_text():
-                    cw_cd_installed = True
-            elif "fish" in shell_env:
-                config_fish = Path.home() / ".config" / "fish" / "config.fish"
-                if config_fish.exists() and "cw _shell-function" in config_fish.read_text():
-                    cw_cd_installed = True
-
-            if not cw_cd_installed:
-                console.print(f"[bold cyan]Worktree path:[/bold cyan] {found_path}\n")
-                console.print(
-                    "[dim]Tip: Install the cw-cd shell function for easier navigation![/dim]"
-                )
-                console.print(
-                    f"[dim]   With cw-cd installed, you can just type: [cyan]cw-cd {branch}[/cyan][/dim]\n"
-                )
-
-                try:
-                    response = typer.confirm("Run shell-setup now?", default=False)
-                    if response:
-                        console.print("")
-                        shell_setup()
-                        console.print("")
-                    else:
-                        console.print(
-                            "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
-                        )
-                except (KeyboardInterrupt, EOFError):
-                    console.print(
-                        "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
-                    )
-
-        print(found_path)
-
-    except ClaudeWorktreeError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
 def _interactive_path_selection(global_mode: bool) -> None:
     """Display interactive worktree selector, output selected path to stdout.
 
@@ -1439,9 +1309,7 @@ def _interactive_path_selection(global_mode: bool) -> None:
     """
     import sys
 
-    if not sys.stderr.isatty():
-        print("Error: Interactive mode requires a terminal (TTY)", file=sys.stderr)
-        raise typer.Exit(code=1)
+    from .tui import arrow_select
 
     entries: list[tuple[str, str]] = []  # (display_label, path)
 
@@ -1456,10 +1324,12 @@ def _interactive_path_selection(global_mode: bool) -> None:
             except Exception:
                 continue
             for branch, path in worktrees:
-                if path.resolve() == repo_path.resolve():
-                    continue
                 normalized = normalize_branch_name(branch)
-                if normalized and normalized != "(detached)":
+                if path.resolve() == repo_path.resolve():
+                    # Root worktree — add as first entry per repo
+                    label = f"{name} (root)"
+                    entries.insert(0, (label, str(path)))
+                elif normalized and normalized != "(detached)":
                     entries.append((f"{name}:{normalized}", str(path)))
     else:
         try:
@@ -1469,44 +1339,31 @@ def _interactive_path_selection(global_mode: bool) -> None:
             raise typer.Exit(code=1)
         worktrees = parse_worktrees(repo)
         for branch, path in worktrees:
-            if path.resolve() == repo.resolve():
-                continue
             normalized = normalize_branch_name(branch)
-            if normalized and normalized != "(detached)":
+            if path.resolve() == repo.resolve():
+                # Root worktree — add as first entry
+                root_label = normalized or "main"
+                entries.insert(0, (f"{root_label} (root)", str(path)))
+            elif normalized and normalized != "(detached)":
                 entries.append((normalized, str(path)))
 
     if not entries:
         print("No worktrees found.", file=sys.stderr)
         raise typer.Exit(code=1)
 
-    # Display numbered list on stderr
-    print("", file=sys.stderr)
-    for i, (label, wt_path) in enumerate(entries, 1):
-        print(f"  [{i}] {label} → {wt_path}", file=sys.stderr)
-    print("", file=sys.stderr)
+    # Single entry — select automatically without TUI
+    if len(entries) == 1:
+        print(entries[0][1])
+        return
 
-    # Prompt for selection (prompt on stderr so stdout stays clean for path)
-    try:
-        sys.stderr.write(f"Select worktree [1-{len(entries)}]: ")
-        sys.stderr.flush()
-        choice = sys.stdin.readline().strip()
-        if not choice:
-            raise EOFError
-    except (KeyboardInterrupt, EOFError):
-        print("", file=sys.stderr)
+    if not sys.stderr.isatty():
+        print("Error: Interactive mode requires a terminal (TTY)", file=sys.stderr)
         raise typer.Exit(code=1)
 
-    try:
-        idx = int(choice) - 1
-        if 0 <= idx < len(entries):
-            # Output selected path to stdout
-            print(entries[idx][1])
-            return
-    except ValueError:
-        pass
-
-    print(f"Error: Invalid selection '{choice}'", file=sys.stderr)
-    raise typer.Exit(code=1)
+    result = arrow_select(entries, title="Select worktree:")
+    if result is None:
+        raise typer.Exit(code=1)
+    print(result)
 
 
 @app.command(name="_path", hidden=True)

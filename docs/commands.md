@@ -559,15 +559,7 @@ Automatically detects installation method (uv or pip) and upgrades appropriately
 
 ## Navigation
 
-### `cw cd <branch>`
-
-Print the path to a worktree (for scripting).
-
-```bash
-cd $(cw cd fix-auth)
-```
-
-**Better alternative:** Use the `cw-cd` shell function instead:
+Use the `cw-cd` shell function for worktree navigation:
 
 ```bash
 # Install shell function (add to shell config)
@@ -575,7 +567,8 @@ source <(cw _shell-function bash)   # bash/zsh
 cw _shell-function fish | source    # fish
 
 # Then use:
-cw-cd fix-auth                      # Directly navigate
+cw-cd fix-auth                      # Navigate to worktree
+cw-cd                               # Interactive arrow-key selector
 ```
 
 ### `cw _shell-function <shell>`
