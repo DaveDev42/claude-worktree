@@ -1384,11 +1384,13 @@ def cd(
 
 @app.command(name="_path", hidden=True)
 def worktree_path(
-    branch: str = typer.Argument(
-        ...,
+    branch: str | None = typer.Argument(
+        None,
         help="Branch name to get worktree path for",
         autocompletion=complete_worktree_branches,
     ),
+    global_mode: bool = typer.Option(False, "--global", "-g", help="Search all registered repositories"),
+    list_branches: bool = typer.Option(False, "--list-branches", help="List branch names (for tab completion)"),
 ) -> None:
     """
     [Internal] Get worktree path for a branch.
@@ -1398,25 +1400,73 @@ def worktree_path(
 
     Example:
         cw _path fix-auth
+        cw _path -g fix-auth
+        cw _path --list-branches
+        cw _path --list-branches -g
     """
     import sys
 
+    # --list-branches mode: output branch names for tab completion
+    if list_branches:
+        try:
+            if global_mode:
+                branches = _complete_global_worktree_branches()
+            else:
+                branches = _complete_local_worktree_branches()
+            for b in branches:
+                print(b)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            raise typer.Exit(code=1)
+        return
+
+    # Normal mode: resolve branch to path
+    if not branch:
+        print("Error: branch argument is required (unless --list-branches is used)", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    if global_mode:
+        # Search all registered repositories
+        from .operations.helpers import _resolve_global_target
+
+        try:
+            matches = _resolve_global_target(branch)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            raise typer.Exit(code=1)
+
+        if not matches:
+            print(f"Error: No worktree found for branch '{branch}' in any registered repository", file=sys.stderr)
+            raise typer.Exit(code=1)
+
+        if len(matches) == 1:
+            wt_path, _branch_name, _repo = matches[0]
+            print(wt_path)
+            return
+
+        # Multiple matches — disambiguation needed
+        print(f"Error: Multiple worktrees found for '{branch}':", file=sys.stderr)
+        for wt_path, _branch_name, repo in matches:
+            print(f"  {wt_path}  (repo: {repo.name})", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    # Local mode (existing behavior)
     from .git_utils import find_worktree_by_branch, get_repo_root
 
     try:
         repo = get_repo_root()
         # Try to find worktree by branch name
         normalized = normalize_branch_name(branch)
-        worktree_path = find_worktree_by_branch(repo, branch)
-        if not worktree_path:
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
+        local_path = find_worktree_by_branch(repo, branch)
+        if not local_path:
+            local_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
 
-        if not worktree_path:
+        if not local_path:
             print(f"Error: No worktree found for branch '{branch}'", file=sys.stderr)
             raise typer.Exit(code=1)
 
         # Output only the path (for shell function consumption)
-        print(worktree_path)
+        print(local_path)
     except ClaudeWorktreeError as e:
         print(f"Error: {e}", file=sys.stderr)
         raise typer.Exit(code=1)

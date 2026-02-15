@@ -4,15 +4,28 @@
 
 # Navigate to a worktree by branch name
 # If no argument is provided, navigate to the base (main) worktree
+# Use -g to search across all registered repositories
 function cw-cd {
     param(
         [Parameter(Mandatory=$false, Position=0)]
-        [string]$Branch
+        [string]$Branch,
+        [Alias('global')]
+        [switch]$g
     )
 
     $worktreePath = $null
 
-    if (-not $Branch) {
+    if ($g) {
+        # Global mode: delegate to cw _path -g
+        if (-not $Branch) {
+            Write-Error "Error: Branch name is required with -g/--global"
+            return
+        }
+        $worktreePath = cw _path -g $Branch
+        if ($LASTEXITCODE -ne 0) {
+            return
+        }
+    } elseif (-not $Branch) {
         # No argument - navigate to base (main) worktree
         $worktreePath = git worktree list --porcelain 2>&1 |
             Where-Object { $_ -is [string] } |
@@ -51,12 +64,20 @@ function cw-cd {
 Register-ArgumentCompleter -CommandName cw-cd -ParameterName Branch -ScriptBlock {
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
 
-    # Get list of worktree branches from git
-    $branches = git worktree list --porcelain 2>&1 |
-        Where-Object { $_ -is [string] } |
-        Select-String -Pattern '^branch ' |
-        ForEach-Object { $_ -replace '^branch refs/heads/', '' } |
-        Sort-Object -Unique
+    $branches = $null
+    if ($fakeBoundParameters.ContainsKey('g')) {
+        # Global mode: get branches from all registered repos
+        $branches = cw _path --list-branches -g 2>&1 |
+            Where-Object { $_ -is [string] -and $_.Trim() } |
+            Sort-Object -Unique
+    } else {
+        # Local mode: get branches from git
+        $branches = git worktree list --porcelain 2>&1 |
+            Where-Object { $_ -is [string] } |
+            Select-String -Pattern '^branch ' |
+            ForEach-Object { $_ -replace '^branch refs/heads/', '' } |
+            Sort-Object -Unique
+    }
 
     # Filter branches that match the current word
     $branches | Where-Object { $_ -like "$wordToComplete*" } |
