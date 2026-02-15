@@ -62,27 +62,76 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def complete_worktree_branches() -> list[str]:
-    """Autocomplete function for worktree branch and directory names."""
+def complete_worktree_branches(ctx: typer.Context) -> list[str]:
+    """Autocomplete function for worktree branch and directory names.
+
+    In global mode (-g/--global), returns branches from all registered
+    repositories. Otherwise returns branches from the local repository.
+    """
     try:
-        repo = get_repo_root()
-        worktrees = parse_worktrees(repo)
-        completions: list[str] = []
-        seen: set[str] = set()
+        if _is_global_completion(ctx):
+            return _complete_global_worktree_branches()
+        return _complete_local_worktree_branches()
+    except Exception:
+        return []
+
+
+def _is_global_completion(ctx: typer.Context) -> bool:
+    """Detect whether global mode is active for tab completion.
+
+    Checks ctx.obj first (set by the callback), then falls back to
+    inspecting sys.argv for -g/--global flags since ctx.obj may not
+    be populated during completion.
+    """
+    import sys
+
+    # Try ctx.obj first (may be set by the main callback)
+    if ctx.obj and ctx.obj.get("global_mode"):
+        return True
+
+    # Fallback: check sys.argv (completion may bypass the callback)
+    return "-g" in sys.argv or "--global" in sys.argv
+
+
+def _complete_local_worktree_branches() -> list[str]:
+    """Return branch and directory names from the local repository."""
+    repo = get_repo_root()
+    worktrees = parse_worktrees(repo)
+    completions: list[str] = []
+    seen: set[str] = set()
+    for branch, path in worktrees:
+        normalized = normalize_branch_name(branch)
+        if normalized and normalized != "(detached)" and normalized not in seen:
+            completions.append(normalized)
+            seen.add(normalized)
+        dir_name = path.name
+        if dir_name not in seen:
+            completions.append(dir_name)
+            seen.add(dir_name)
+    return completions
+
+
+def _complete_global_worktree_branches() -> list[str]:
+    """Return branch names from all registered repositories."""
+    from .registry import get_all_registered_repos
+
+    completions: list[str] = []
+    seen: set[str] = set()
+    for _name, repo_path in get_all_registered_repos():
+        if not repo_path.exists():
+            continue
+        try:
+            worktrees = parse_worktrees(repo_path)
+        except Exception:
+            continue
         for branch, path in worktrees:
-            # Add branch name
+            if path.resolve() == repo_path.resolve():
+                continue
             normalized = normalize_branch_name(branch)
             if normalized and normalized != "(detached)" and normalized not in seen:
                 completions.append(normalized)
                 seen.add(normalized)
-            # Add worktree directory name
-            dir_name = path.name
-            if dir_name not in seen:
-                completions.append(dir_name)
-                seen.add(dir_name)
-        return completions
-    except Exception:
-        return []
+    return completions
 
 
 def _get_all_branch_names() -> list[str]:
@@ -282,6 +331,11 @@ def main(
 
     ctx.ensure_object(dict)
     ctx.obj["global_mode"] = global_mode
+
+    # Set ContextVar so resolve_worktree_target() and delete_worktree() can detect global mode
+    from .operations.helpers import set_global_mode
+
+    set_global_mode(global_mode)
 
     # Skip callbacks for internal commands that output machine-readable content
     if len(sys.argv) > 1 and sys.argv[1] in ["_shell-function", "_path"]:

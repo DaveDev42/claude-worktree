@@ -44,9 +44,12 @@ from .ai_tools import launch_ai_tool, resume_worktree
 from .display import get_worktree_status
 from .git_ops import _is_branch_merged_via_gh
 from .helpers import (
+    _disambiguate_global_matches,
     _get_branch_for_worktree,
     _prompt_worktree_disambiguation,
+    _resolve_global_target,
     get_worktree_metadata,
+    is_global_mode,
     resolve_worktree_target,
 )
 
@@ -617,102 +620,139 @@ def delete_worktree(
         WorktreeNotFoundError: If worktree not found
         GitError: If git operations fail
     """
-    # Get main repo root (works correctly even from inside a worktree)
-    main_repo = get_main_repo_root()
-
-    # If target is None, use current directory
-    if target is None:
-        target = str(Path.cwd())
-
     # Variables to hold resolved values
     worktree_path: Path
     branch_name: str | None = None
+    main_repo: Path
 
-    # 1. Check if it's a filesystem path
-    target_path = Path(target)
-    if target_path.exists():
-        # Target is a path
-        worktree_path = target_path.resolve()
-        # Find branch for this worktree
-        for br, path in parse_worktrees(main_repo):
-            # Use samefile() for cross-platform path comparison
-            try:
-                if worktree_path.samefile(path):
-                    if br != "(detached)":
-                        # Normalize branch name: remove refs/heads/ prefix
-                        branch_name = normalize_branch_name(br)
-                    break
-            except (OSError, ValueError):
-                # Fallback to resolved path comparison if samefile() fails
-                if path.resolve() == worktree_path:
-                    if br != "(detached)":
-                        branch_name = normalize_branch_name(br)
-                    break
-        if branch_name is None and not keep_branch:
-            console.print(
-                "[yellow]![/yellow] Worktree is detached or branch not found. "
-                "Branch deletion will be skipped.\n"
+    # Global mode: search all registered repositories
+    if is_global_mode():
+        if target is None:
+            raise WorktreeNotFoundError(
+                "Global mode requires an explicit target for delete."
             )
-    else:
-        # 2. Lookup based on mode
-        branch_match: Path | None = None
-        worktree_match: Path | None = None
 
-        if lookup_mode == "branch":
-            branch_match = find_worktree_by_intended_branch(main_repo, target)
-            if not branch_match:
-                raise WorktreeNotFoundError(f"No worktree found for branch '{target}'")
-        elif lookup_mode == "worktree":
-            worktree_match = find_worktree_by_name(main_repo, target)
-            if not worktree_match:
-                raise WorktreeNotFoundError(f"No worktree found with name '{target}'")
+        target_path = Path(target)
+        if target_path.exists():
+            # Path-based target — resolve within that path's repo
+            worktree_path = target_path.resolve()
+            main_repo = get_main_repo_root(worktree_path)
+            for br, path in parse_worktrees(main_repo):
+                try:
+                    if worktree_path.samefile(path):
+                        if br != "(detached)":
+                            branch_name = normalize_branch_name(br)
+                        break
+                except (OSError, ValueError):
+                    if path.resolve() == worktree_path:
+                        if br != "(detached)":
+                            branch_name = normalize_branch_name(br)
+                        break
         else:
-            # Try both
-            branch_match = find_worktree_by_intended_branch(main_repo, target)
-            worktree_match = find_worktree_by_name(main_repo, target)
+            # Name-based target — search all registered repos
+            matches = _resolve_global_target(target, lookup_mode)
+            if not matches:
+                raise WorktreeNotFoundError(
+                    f"'{target}' not found in any registered repository. "
+                    "Run 'cw scan' to register repos."
+                )
+            worktree_path, branch_name_resolved, main_repo = (
+                _disambiguate_global_matches(target, matches)
+            )
+            branch_name = branch_name_resolved
+    else:
+        # Get main repo root (works correctly even from inside a worktree)
+        main_repo = get_main_repo_root()
 
-        # 3. Resolve the match
-        if branch_match and worktree_match:
-            try:
-                same_worktree = branch_match.samefile(worktree_match)
-            except (OSError, ValueError):
-                same_worktree = branch_match.resolve() == worktree_match.resolve()
+        # If target is None, use current directory
+        if target is None:
+            target = str(Path.cwd())
 
-            if same_worktree:
-                # Same worktree - no ambiguity
-                worktree_path = branch_match
-                branch_name = target
+        # 1. Check if it's a filesystem path
+        target_path = Path(target)
+        if target_path.exists():
+            # Target is a path
+            worktree_path = target_path.resolve()
+            # Find branch for this worktree
+            for br, path in parse_worktrees(main_repo):
+                # Use samefile() for cross-platform path comparison
+                try:
+                    if worktree_path.samefile(path):
+                        if br != "(detached)":
+                            # Normalize branch name: remove refs/heads/ prefix
+                            branch_name = normalize_branch_name(br)
+                        break
+                except (OSError, ValueError):
+                    # Fallback to resolved path comparison if samefile() fails
+                    if path.resolve() == worktree_path:
+                        if br != "(detached)":
+                            branch_name = normalize_branch_name(br)
+                        break
+            if branch_name is None and not keep_branch:
+                console.print(
+                    "[yellow]![/yellow] Worktree is detached or branch not found. "
+                    "Branch deletion will be skipped.\n"
+                )
+        else:
+            # 2. Lookup based on mode
+            branch_match: Path | None = None
+            worktree_match: Path | None = None
+
+            if lookup_mode == "branch":
+                branch_match = find_worktree_by_intended_branch(main_repo, target)
+                if not branch_match:
+                    raise WorktreeNotFoundError(f"No worktree found for branch '{target}'")
+            elif lookup_mode == "worktree":
+                worktree_match = find_worktree_by_name(main_repo, target)
+                if not worktree_match:
+                    raise WorktreeNotFoundError(f"No worktree found with name '{target}'")
             else:
-                # Ambiguous - ask user (or fail in non-interactive mode)
-                if is_non_interactive():
-                    raise WorktreeNotFoundError(
-                        f"Ambiguous target '{target}' matches both a branch and a worktree name.\n"
-                        f"  Branch '{target}' → {branch_match}\n"
-                        f"  Worktree '{worktree_match.name}' → {worktree_match}\n"
-                        "Use --branch (-b) or --worktree (-w) flag to specify which one."
-                    )
-                choice = _prompt_worktree_disambiguation(target, branch_match, worktree_match, "delete")
-                if choice == "branch":
+                # Try both
+                branch_match = find_worktree_by_intended_branch(main_repo, target)
+                worktree_match = find_worktree_by_name(main_repo, target)
+
+            # 3. Resolve the match
+            if branch_match and worktree_match:
+                try:
+                    same_worktree = branch_match.samefile(worktree_match)
+                except (OSError, ValueError):
+                    same_worktree = branch_match.resolve() == worktree_match.resolve()
+
+                if same_worktree:
+                    # Same worktree - no ambiguity
                     worktree_path = branch_match
                     branch_name = target
                 else:
-                    worktree_path = worktree_match
-                    branch_name = _get_branch_for_worktree(main_repo, worktree_match)
-        elif branch_match:
-            worktree_path = branch_match
-            branch_name = target
-        elif worktree_match:
-            worktree_path = worktree_match
-            branch_name = _get_branch_for_worktree(main_repo, worktree_match)
-        else:
-            raise WorktreeNotFoundError(
-                f"No worktree found for '{target}'. "
-                "Try: full path, branch name (--branch), or worktree name (--worktree)."
-            )
+                    # Ambiguous - ask user (or fail in non-interactive mode)
+                    if is_non_interactive():
+                        raise WorktreeNotFoundError(
+                            f"Ambiguous target '{target}' matches both a branch and a worktree name.\n"
+                            f"  Branch '{target}' → {branch_match}\n"
+                            f"  Worktree '{worktree_match.name}' → {worktree_match}\n"
+                            "Use --branch (-b) or --worktree (-w) flag to specify which one."
+                        )
+                    choice = _prompt_worktree_disambiguation(target, branch_match, worktree_match, "delete")
+                    if choice == "branch":
+                        worktree_path = branch_match
+                        branch_name = target
+                    else:
+                        worktree_path = worktree_match
+                        branch_name = _get_branch_for_worktree(main_repo, worktree_match)
+            elif branch_match:
+                worktree_path = branch_match
+                branch_name = target
+            elif worktree_match:
+                worktree_path = worktree_match
+                branch_name = _get_branch_for_worktree(main_repo, worktree_match)
+            else:
+                raise WorktreeNotFoundError(
+                    f"No worktree found for '{target}'. "
+                    "Try: full path, branch name (--branch), or worktree name (--worktree)."
+                )
 
-        # Normalize branch_name to simple name without refs/heads/
-        if branch_name and branch_name.startswith("refs/heads/"):
-            branch_name = branch_name[11:]
+            # Normalize branch_name to simple name without refs/heads/
+            if branch_name and branch_name.startswith("refs/heads/"):
+                branch_name = branch_name[11:]
 
     # Get main repo path from metadata if available (may be more reliable)
     if branch_name:

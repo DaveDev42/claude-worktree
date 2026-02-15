@@ -6,14 +6,15 @@ Business logic for cross-repository worktree commands (`cw -g`).
 from pathlib import Path
 
 from ..console import get_console
-from ..git_utils import normalize_branch_name, parse_worktrees
+from ..constants import CONFIG_KEY_INTENDED_BRANCH
+from ..git_utils import get_config, normalize_branch_name, parse_worktrees
 from ..registry import (
     get_all_registered_repos,
     prune_registry,
     register_repo,
     scan_for_repos,
 )
-from .display import format_age, get_worktree_status
+from .display import STATUS_COLORS, format_age, get_worktree_status
 
 console = get_console()
 
@@ -59,7 +60,7 @@ def global_list_worktrees() -> None:
             continue
 
         # Filter to feature worktrees only
-        feature_worktrees: list[tuple[str, Path, str]] = []
+        feature_worktrees: list[tuple[str, str, Path, str]] = []
         for branch, path in worktrees:
             if path.resolve() == repo_path.resolve():
                 continue
@@ -68,7 +69,13 @@ def global_list_worktrees() -> None:
 
             branch_name = normalize_branch_name(branch)
             status = get_worktree_status(str(path), repo_path)
-            feature_worktrees.append((branch_name, path, status))
+
+            # Check intended branch for mismatch detection
+            intended = get_config(
+                CONFIG_KEY_INTENDED_BRANCH.format(branch_name), repo_path
+            )
+            display_name = intended if intended else branch_name
+            feature_worktrees.append((display_name, branch_name, path, status))
 
             # Update status counts
             status_counts[status] = status_counts.get(status, 0) + 1
@@ -84,20 +91,20 @@ def global_list_worktrees() -> None:
             f"[bold]{name}[/bold] [dim]({repo_path})[/dim]"
         )
 
-        # Status color mapping
-        status_colors = {
-            "active": "bold green",
-            "clean": "green",
-            "modified": "yellow",
-            "stale": "red",
-        }
+        import os
+        import time
 
-        for branch_name, path, status in sorted(feature_worktrees, key=lambda x: x[0]):
-            color = status_colors.get(status, "white")
+        for display_name, branch_name, path, status in sorted(
+            feature_worktrees, key=lambda x: x[0]
+        ):
+            color = STATUS_COLORS.get(status, "white")
+
+            # Mismatch indicator
+            mismatch = ""
+            if display_name != branch_name:
+                mismatch = " (⚠️)"
 
             # Get age
-            import time
-
             age_str = ""
             try:
                 if path.exists():
@@ -107,8 +114,15 @@ def global_list_worktrees() -> None:
             except OSError:
                 pass
 
+            # Relative path
+            try:
+                rel_path = os.path.relpath(str(path), repo_path)
+            except ValueError:
+                rel_path = str(path)
+
             console.print(
-                f"  [{color}]{status:<10}[/{color}] {branch_name}{age_str}"
+                f"  [{color}]{status:<10}[/{color}] "
+                f"{display_name}{mismatch}{age_str} [dim]{rel_path}[/dim]"
             )
 
         console.print()
@@ -121,14 +135,10 @@ def global_list_worktrees() -> None:
         )
 
         parts: list[str] = []
-        for status_name, color in [
-            ("clean", "green"),
-            ("modified", "yellow"),
-            ("active", "bold green"),
-            ("stale", "red"),
-        ]:
+        for status_name in ("clean", "modified", "active", "stale"):
             count = status_counts.get(status_name, 0)
             if count > 0:
+                color = STATUS_COLORS.get(status_name, "white")
                 parts.append(f"[{color}]{count} {status_name}[/{color}]")
 
         if parts:
