@@ -109,6 +109,13 @@ fi
 
 # Tab completion for zsh
 if [ -n "$ZSH_VERSION" ]; then
+    # Register Typer completion for cw CLI inline
+    # (eliminates need for ~/.zfunc/_cw file and FPATH setup)
+    _cw_completion() {
+        eval $(env _TYPER_COMPLETE_ARGS="${words[1,$CURRENT]}" _CW_COMPLETE=complete_zsh cw)
+    }
+    compdef _cw_completion cw
+
     _cw_cd_zsh() {
         local has_global=0
         local i
@@ -126,13 +133,13 @@ if [ -n "$ZSH_VERSION" ]; then
             return
         fi
 
-        local branches
+        local -a branches
         if [ $has_global -eq 1 ]; then
-            branches=($(cw _path --list-branches -g 2>/dev/null))
+            branches=(${(f)"$(cw _path --list-branches -g 2>/dev/null)"})
         else
-            branches=($(git worktree list --porcelain 2>/dev/null | grep "^branch " | sed 's/^branch refs\/heads\///' | sort -u))
+            branches=(${(f)"$(git worktree list --porcelain 2>/dev/null | grep '^branch ' | sed 's/^branch refs\/heads\///' | sort -u)"})
         fi
-        _describe 'worktree branches' branches
+        compadd -a branches
     }
     compdef _cw_cd_zsh cw-cd
 fi

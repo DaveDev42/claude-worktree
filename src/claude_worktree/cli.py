@@ -1568,11 +1568,8 @@ def shell_setup() -> None:
     console.print(f"\nThis will add the following to [cyan]{profile_path}[/cyan]:")
 
     if shell_name == "zsh":
-        # zsh: Show tab completion first, then shell functions
-        console.print("\n  [dim]# Tab completion support[/dim]")
-        console.print("  [dim]FPATH=$HOME/.zfunc:$FPATH[/dim]")
-        console.print("  [dim]autoload -Uz compinit && compinit[/dim]")
-        console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
+        # zsh: shell function includes inline Typer completion
+        console.print("\n  [dim]# cw-cd function + tab completion for cw commands[/dim]")
         console.print(f"  [dim]{shell_function_line}[/dim]")
     elif shell_name == "bash":
         # bash: Show shell functions first, then tab completion
@@ -1603,32 +1600,11 @@ def shell_setup() -> None:
         # Create parent directories if needed
         profile_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # For zsh, also create completion directory and file
-        if shell_name == "zsh":
-            zfunc_dir = Path.home() / ".zfunc"
-            zfunc_dir.mkdir(exist_ok=True)
-
-            # Create completion file
-            completion_file = zfunc_dir / "_cw"
-            completion_content = """#compdef cw
-
-_cw_completion() {
-  eval $(env _TYPER_COMPLETE_ARGS="${words[1,$CURRENT]}" _CW_COMPLETE=complete_zsh cw)
-}
-
-compdef _cw_completion cw"""
-            completion_file.write_text(completion_content)
-            console.print(f"[dim]Created completion file: {completion_file}[/dim]")
-
         # Append to profile file
         with profile_path.open("a") as f:
             if shell_name == "zsh":
-                # For zsh: Add FPATH and compinit FIRST, then shell functions
-                # (compdef in shell functions requires compinit to be loaded)
-                f.write("\n# claude-worktree tab completion\n")
-                f.write("FPATH=$HOME/.zfunc:$FPATH\n")
-                f.write("autoload -Uz compinit && compinit\n")
-                f.write("\n# claude-worktree shell integration\n")
+                # For zsh: shell function includes inline Typer completion
+                f.write("\n# claude-worktree shell integration (cw-cd + tab completion)\n")
                 f.write(f"{shell_function_line}\n")
             elif shell_name == "bash":
                 # For bash: Shell functions first, then completion
