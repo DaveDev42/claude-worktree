@@ -1,6 +1,7 @@
 """Display and information operations for claude-worktree."""
 
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -18,6 +19,23 @@ from ..git_utils import (
 )
 
 console = get_console()
+
+# Shared status → Rich color mapping (used by list, tree, global_ops)
+STATUS_COLORS: dict[str, str] = {
+    "active": "bold green",
+    "clean": "green",
+    "modified": "yellow",
+    "stale": "red",
+}
+
+
+# Minimum terminal width for table layout (below this → compact layout)
+_MIN_TABLE_WIDTH = 100
+
+
+def _get_terminal_width() -> int:
+    """Return current terminal width."""
+    return shutil.get_terminal_size((80, 24)).columns
 
 
 def get_worktree_status(path: str, repo: Path) -> str:
@@ -62,11 +80,21 @@ def list_worktrees() -> None:
     console.print(f"\n[bold cyan]Worktrees for repository:[/bold cyan] {repo}\n")
 
     # Collect worktree data for display
-    worktree_data: list[tuple[str, str, str, str]] = []
+    worktree_data: list[tuple[str, str, str, str, str]] = []
     for branch, path in worktrees:
         current_branch = normalize_branch_name(branch)
         status = get_worktree_status(str(path), repo)
         rel_path = os.path.relpath(str(path), repo)
+
+        # Compute age
+        age_str = ""
+        try:
+            if path.exists():
+                mtime = path.stat().st_mtime
+                age_days = (time.time() - mtime) / (24 * 3600)
+                age_str = format_age(age_days)
+        except OSError:
+            pass
 
         # Find intended branch (worktree identifier)
         intended_branch = get_config(CONFIG_KEY_INTENDED_BRANCH.format(current_branch), repo)
@@ -99,33 +127,56 @@ def list_worktrees() -> None:
 
         # Use intended branch as worktree identifier, fallback to current branch
         worktree_id = intended_branch if intended_branch else current_branch
-        worktree_data.append((worktree_id, current_branch, status, rel_path))
+        worktree_data.append((worktree_id, current_branch, status, age_str, rel_path))
 
-    # Calculate column widths
-    max_worktree_len = max((len(wt) for wt, _, _, _ in worktree_data), default=20)
-    max_branch_len = max((len(br) for _, br, _, _ in worktree_data), default=20)
+    # Choose layout based on terminal width
+    term_width = _get_terminal_width()
+    if term_width >= _MIN_TABLE_WIDTH:
+        _print_worktree_table(worktree_data)
+    else:
+        _print_worktree_compact(worktree_data)
+
+    # Summary footer
+    # Count feature worktrees (exclude main repo entry)
+    feature_count = len(worktree_data) - 1 if len(worktree_data) > 1 else 0
+    if feature_count > 0:
+        status_counts: dict[str, int] = {}
+        for _, _, status, _, _ in worktree_data:
+            status_counts[status] = status_counts.get(status, 0) + 1
+
+        summary_parts: list[str] = []
+        for status_name in ("clean", "modified", "active", "stale"):
+            count = status_counts.get(status_name, 0)
+            if count > 0:
+                color = STATUS_COLORS.get(status_name, "white")
+                summary_parts.append(f"[{color}]{count} {status_name}[/{color}]")
+
+        summary = f"\n{feature_count} feature worktree(s)"
+        if summary_parts:
+            summary += f" — {', '.join(summary_parts)}"
+        console.print(summary)
+
+    console.print()
+
+
+def _print_worktree_table(
+    worktree_data: list[tuple[str, str, str, str, str]],
+) -> None:
+    """Print worktree data as a wide table."""
+    max_worktree_len = max((len(wt) for wt, _, _, _, _ in worktree_data), default=20)
+    max_branch_len = max((len(br) for _, br, _, _, _ in worktree_data), default=20)
     worktree_col_width = min(max(max_worktree_len + 2, 20), 35)
     branch_col_width = min(max(max_branch_len + 2, 20), 35)
 
-    # Print header
     console.print(
-        f"{'WORKTREE':<{worktree_col_width}} {'CURRENT BRANCH':<{branch_col_width}} {'STATUS':<10} PATH"
+        f"{'WORKTREE':<{worktree_col_width}} {'CURRENT BRANCH':<{branch_col_width}} "
+        f"{'STATUS':<10} {'AGE':<12} PATH"
     )
-    console.print("-" * (worktree_col_width + branch_col_width + 60))
+    console.print("─" * (worktree_col_width + branch_col_width + 72))
 
-    # Status color mapping
-    status_colors = {
-        "active": "bold green",
-        "clean": "green",
-        "modified": "yellow",
-        "stale": "red",
-    }
+    for worktree_id, current_branch, status, age_str, rel_path in worktree_data:
+        color = STATUS_COLORS.get(status, "white")
 
-    # Print worktrees
-    for worktree_id, current_branch, status, rel_path in worktree_data:
-        color = status_colors.get(status, "white")
-
-        # Highlight branch mismatch
         if worktree_id != current_branch:
             branch_display = f"[yellow]{current_branch} (⚠️)[/yellow]"
         else:
@@ -133,10 +184,25 @@ def list_worktrees() -> None:
 
         console.print(
             f"{worktree_id:<{worktree_col_width}} {branch_display:<{branch_col_width}} "
-            f"[{color}]{status:<10}[/{color}] {rel_path}"
+            f"[{color}]{status:<10}[/{color}] {age_str:<12} {rel_path}"
         )
 
-    console.print()
+
+def _print_worktree_compact(
+    worktree_data: list[tuple[str, str, str, str, str]],
+) -> None:
+    """Print worktree data in compact format for narrow terminals."""
+    for worktree_id, current_branch, status, age_str, rel_path in worktree_data:
+        color = STATUS_COLORS.get(status, "white")
+        age_part = f"  {age_str}" if age_str else ""
+
+        console.print(f"  [bold]{worktree_id}[/bold]  [{color}]{status}[/{color}]{age_part}")
+
+        details: list[str] = []
+        if worktree_id != current_branch:
+            details.append(f"branch: [yellow]{current_branch} (⚠️)[/yellow]")
+        details.append(f"path: {rel_path}")
+        console.print(f"    {' · '.join(details)}")
 
 
 def show_status() -> None:
@@ -205,14 +271,6 @@ def show_tree() -> None:
         "stale": "x",  # directory missing
     }
 
-    # Status colors
-    status_colors = {
-        "active": "bold green",
-        "clean": "green",
-        "modified": "yellow",
-        "stale": "red",
-    }
-
     # Sort by branch name for consistent display
     feature_worktrees.sort(key=lambda x: x[0])
 
@@ -223,7 +281,7 @@ def show_tree() -> None:
 
         # Status icon and color
         icon = status_icons.get(status, "○")
-        color = status_colors.get(status, "white")
+        color = STATUS_COLORS.get(status, "white")
 
         # Highlight current worktree
         if is_current:
@@ -246,10 +304,10 @@ def show_tree() -> None:
 
     # Legend
     console.print("\n[bold]Legend:[/bold]")
-    console.print(f"  [{status_colors['active']}]●[/{status_colors['active']}] active (current)")
-    console.print(f"  [{status_colors['clean']}]○[/{status_colors['clean']}] clean")
-    console.print(f"  [{status_colors['modified']}]◉[/{status_colors['modified']}] modified")
-    console.print(f"  [{status_colors['stale']}]x[/{status_colors['stale']}] stale")
+    console.print(f"  [{STATUS_COLORS['active']}]●[/{STATUS_COLORS['active']}] active (current)")
+    console.print(f"  [{STATUS_COLORS['clean']}]○[/{STATUS_COLORS['clean']}] clean")
+    console.print(f"  [{STATUS_COLORS['modified']}]◉[/{STATUS_COLORS['modified']}] modified")
+    console.print(f"  [{STATUS_COLORS['stale']}]x[/{STATUS_COLORS['stale']}] stale")
     console.print("  [bold green]★[/bold green] currently active worktree\n")
 
 
@@ -362,12 +420,7 @@ def show_stats() -> None:
             status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "x"}.get(
                 status, "○"
             )
-            status_color = {
-                "clean": "green",
-                "modified": "yellow",
-                "active": "bold green",
-                "stale": "red",
-            }.get(status, "white")
+            status_color = STATUS_COLORS.get(status, "white")
             age_str = format_age(age_days)
             console.print(
                 f"  [{status_color}]{status_icon}[/{status_color}] {branch_name:<30} {age_str}"
@@ -382,12 +435,7 @@ def show_stats() -> None:
             status_icon = {"clean": "○", "modified": "◉", "active": "●", "stale": "x"}.get(
                 status, "○"
             )
-            status_color = {
-                "clean": "green",
-                "modified": "yellow",
-                "active": "bold green",
-                "stale": "red",
-            }.get(status, "white")
+            status_color = STATUS_COLORS.get(status, "white")
             console.print(
                 f"  [{status_color}]{status_icon}[/{status_color}] {branch_name:<30} {commit_count} commits"
             )

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import click
 import typer
 
 from . import __version__
@@ -46,11 +47,31 @@ from .slash_command_setup import (
 )
 from .update import check_for_updates
 
+# Commands that support -g/--global mode
+_GLOBAL_COMMANDS: set[str] = {
+    "list", "delete", "pr", "merge", "resume",
+    "sync", "change-base", "scan", "prune", "backup",
+}
+
+
+class _GlobalFilterGroup(typer.core.TyperGroup):
+    """Custom group that filters help output to global-capable commands when -g is active."""
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        import sys
+
+        commands = super().list_commands(ctx)
+        if "-g" in sys.argv or "--global" in sys.argv:
+            commands = [c for c in commands if c in _GLOBAL_COMMANDS]
+        return commands
+
+
 app = typer.Typer(
     name="cw",
     help="Claude Code × git worktree helper CLI",
     no_args_is_help=True,
     add_completion=True,
+    cls=_GlobalFilterGroup,
 )
 console = get_console()
 
@@ -62,27 +83,76 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
-def complete_worktree_branches() -> list[str]:
-    """Autocomplete function for worktree branch and directory names."""
+def complete_worktree_branches(ctx: typer.Context) -> list[str]:
+    """Autocomplete function for worktree branch and directory names.
+
+    In global mode (-g/--global), returns branches from all registered
+    repositories. Otherwise returns branches from the local repository.
+    """
     try:
-        repo = get_repo_root()
-        worktrees = parse_worktrees(repo)
-        completions: list[str] = []
-        seen: set[str] = set()
+        if _is_global_completion(ctx):
+            return _complete_global_worktree_branches()
+        return _complete_local_worktree_branches()
+    except Exception:
+        return []
+
+
+def _is_global_completion(ctx: typer.Context) -> bool:
+    """Detect whether global mode is active for tab completion.
+
+    Checks ctx.obj first (set by the callback), then falls back to
+    inspecting sys.argv for -g/--global flags since ctx.obj may not
+    be populated during completion.
+    """
+    import sys
+
+    # Try ctx.obj first (may be set by the main callback)
+    if ctx.obj and ctx.obj.get("global_mode"):
+        return True
+
+    # Fallback: check sys.argv (completion may bypass the callback)
+    return "-g" in sys.argv or "--global" in sys.argv
+
+
+def _complete_local_worktree_branches() -> list[str]:
+    """Return branch and directory names from the local repository."""
+    repo = get_repo_root()
+    worktrees = parse_worktrees(repo)
+    completions: list[str] = []
+    seen: set[str] = set()
+    for branch, path in worktrees:
+        normalized = normalize_branch_name(branch)
+        if normalized and normalized != "(detached)" and normalized not in seen:
+            completions.append(normalized)
+            seen.add(normalized)
+        dir_name = path.name
+        if dir_name not in seen:
+            completions.append(dir_name)
+            seen.add(dir_name)
+    return completions
+
+
+def _complete_global_worktree_branches() -> list[str]:
+    """Return branch names from all registered repositories."""
+    from .registry import get_all_registered_repos
+
+    completions: list[str] = []
+    seen: set[str] = set()
+    for _name, repo_path in get_all_registered_repos():
+        if not repo_path.exists():
+            continue
+        try:
+            worktrees = parse_worktrees(repo_path)
+        except Exception:
+            continue
         for branch, path in worktrees:
-            # Add branch name
+            if path.resolve() == repo_path.resolve():
+                continue
             normalized = normalize_branch_name(branch)
             if normalized and normalized != "(detached)" and normalized not in seen:
                 completions.append(normalized)
                 seen.add(normalized)
-            # Add worktree directory name
-            dir_name = path.name
-            if dir_name not in seen:
-                completions.append(dir_name)
-                seen.add(dir_name)
-        return completions
-    except Exception:
-        return []
+    return completions
 
 
 def _get_all_branch_names() -> list[str]:
@@ -259,8 +329,9 @@ def prompt_completion_setup() -> None:
         console.print("\n[dim]You can always set this up later with: cw shell-setup[/dim]\n")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     version: bool | None = typer.Option(
         None,
         "--version",
@@ -269,13 +340,34 @@ def main(
         callback=version_callback,
         is_eager=True,
     ),
+    global_mode: bool = typer.Option(
+        False,
+        "--global",
+        "-g",
+        help="Operate across all registered repositories",
+    ),
 ) -> None:
     """Claude Code × git worktree helper CLI."""
     import sys
 
+    ctx.ensure_object(dict)
+    ctx.obj["global_mode"] = global_mode
+
+    # Set ContextVar so resolve_worktree_target() and delete_worktree() can detect global mode
+    from .operations.helpers import set_global_mode
+
+    set_global_mode(global_mode)
+
     # Skip callbacks for internal commands that output machine-readable content
     if len(sys.argv) > 1 and sys.argv[1] in ["_shell-function", "_path"]:
         return
+
+    # If -g is used without a subcommand, show global list
+    if global_mode and ctx.invoked_subcommand is None:
+        from .operations import global_list_worktrees
+
+        global_list_worktrees()
+        raise typer.Exit()
 
     # Check for updates on first run of the day
     check_for_updates(auto=True)
@@ -678,14 +770,21 @@ def shell(
 
 
 @app.command(name="list", rich_help_panel="Worktree Management")
-def list_cmd() -> None:
+def list_cmd(ctx: typer.Context) -> None:
     """
     List all worktrees in the current repository.
+
+    With -g/--global flag, lists worktrees across all registered repositories.
 
     Shows all worktrees with their branch names, status, and paths.
     """
     try:
-        list_worktrees()
+        if ctx.obj.get("global_mode"):
+            from .operations import global_list_worktrees
+
+            global_list_worktrees()
+        else:
+            list_worktrees()
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -755,6 +854,54 @@ def clean(
             interactive=interactive,
             dry_run=dry_run,
         )
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(rich_help_panel="Global Management")
+def scan(
+    directory: Path | None = typer.Option(
+        None,
+        "--dir",
+        "-d",
+        help="Directory to scan (default: home directory)",
+        exists=True,
+    ),
+) -> None:
+    """
+    Scan filesystem for repositories with worktrees and register them.
+
+    Discovers git repositories that have worktrees and adds them to the
+    global registry. Use `cw -g list` to view registered worktrees.
+
+    Example:
+        cw scan                     # Scan home directory
+        cw scan --dir ~/Projects    # Scan specific directory
+    """
+    try:
+        from .operations import global_scan
+
+        global_scan(base_dir=directory)
+    except ClaudeWorktreeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
+
+@app.command(rich_help_panel="Global Management")
+def prune() -> None:
+    """
+    Remove stale entries from the global repository registry.
+
+    Removes repositories that no longer exist on disk from the registry.
+
+    Example:
+        cw prune
+    """
+    try:
+        from .operations import global_prune
+
+        global_prune()
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
@@ -1237,11 +1384,13 @@ def cd(
 
 @app.command(name="_path", hidden=True)
 def worktree_path(
-    branch: str = typer.Argument(
-        ...,
+    branch: str | None = typer.Argument(
+        None,
         help="Branch name to get worktree path for",
         autocompletion=complete_worktree_branches,
     ),
+    global_mode: bool = typer.Option(False, "--global", "-g", help="Search all registered repositories"),
+    list_branches: bool = typer.Option(False, "--list-branches", help="List branch names (for tab completion)"),
 ) -> None:
     """
     [Internal] Get worktree path for a branch.
@@ -1251,25 +1400,73 @@ def worktree_path(
 
     Example:
         cw _path fix-auth
+        cw _path -g fix-auth
+        cw _path --list-branches
+        cw _path --list-branches -g
     """
     import sys
 
+    # --list-branches mode: output branch names for tab completion
+    if list_branches:
+        try:
+            if global_mode:
+                branches = _complete_global_worktree_branches()
+            else:
+                branches = _complete_local_worktree_branches()
+            for b in branches:
+                print(b)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            raise typer.Exit(code=1)
+        return
+
+    # Normal mode: resolve branch to path
+    if not branch:
+        print("Error: branch argument is required (unless --list-branches is used)", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    if global_mode:
+        # Search all registered repositories
+        from .operations.helpers import _resolve_global_target
+
+        try:
+            matches = _resolve_global_target(branch)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            raise typer.Exit(code=1)
+
+        if not matches:
+            print(f"Error: No worktree found for branch '{branch}' in any registered repository", file=sys.stderr)
+            raise typer.Exit(code=1)
+
+        if len(matches) == 1:
+            wt_path, _branch_name, _repo = matches[0]
+            print(wt_path)
+            return
+
+        # Multiple matches — disambiguation needed
+        print(f"Error: Multiple worktrees found for '{branch}':", file=sys.stderr)
+        for wt_path, _branch_name, repo in matches:
+            print(f"  {wt_path}  (repo: {repo.name})", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    # Local mode (existing behavior)
     from .git_utils import find_worktree_by_branch, get_repo_root
 
     try:
         repo = get_repo_root()
         # Try to find worktree by branch name
         normalized = normalize_branch_name(branch)
-        worktree_path = find_worktree_by_branch(repo, branch)
-        if not worktree_path:
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
+        local_path = find_worktree_by_branch(repo, branch)
+        if not local_path:
+            local_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
 
-        if not worktree_path:
+        if not local_path:
             print(f"Error: No worktree found for branch '{branch}'", file=sys.stderr)
             raise typer.Exit(code=1)
 
         # Output only the path (for shell function consumption)
-        print(worktree_path)
+        print(local_path)
     except ClaudeWorktreeError as e:
         print(f"Error: {e}", file=sys.stderr)
         raise typer.Exit(code=1)
