@@ -1,6 +1,7 @@
 """Display and information operations for claude-worktree."""
 
 import os
+import shutil
 import time
 from pathlib import Path
 
@@ -26,6 +27,15 @@ STATUS_COLORS: dict[str, str] = {
     "modified": "yellow",
     "stale": "red",
 }
+
+
+# Minimum terminal width for table layout (below this → compact layout)
+_MIN_TABLE_WIDTH = 100
+
+
+def _get_terminal_width() -> int:
+    """Return current terminal width."""
+    return shutil.get_terminal_size((80, 24)).columns
 
 
 def get_worktree_status(path: str, repo: Path) -> str:
@@ -119,33 +129,12 @@ def list_worktrees() -> None:
         worktree_id = intended_branch if intended_branch else current_branch
         worktree_data.append((worktree_id, current_branch, status, age_str, rel_path))
 
-    # Calculate column widths
-    max_worktree_len = max((len(wt) for wt, _, _, _, _ in worktree_data), default=20)
-    max_branch_len = max((len(br) for _, br, _, _, _ in worktree_data), default=20)
-    worktree_col_width = min(max(max_worktree_len + 2, 20), 35)
-    branch_col_width = min(max(max_branch_len + 2, 20), 35)
-
-    # Print header
-    console.print(
-        f"{'WORKTREE':<{worktree_col_width}} {'CURRENT BRANCH':<{branch_col_width}} "
-        f"{'STATUS':<10} {'AGE':<12} PATH"
-    )
-    console.print("─" * (worktree_col_width + branch_col_width + 72))
-
-    # Print worktrees
-    for worktree_id, current_branch, status, age_str, rel_path in worktree_data:
-        color = STATUS_COLORS.get(status, "white")
-
-        # Highlight branch mismatch
-        if worktree_id != current_branch:
-            branch_display = f"[yellow]{current_branch} (⚠️)[/yellow]"
-        else:
-            branch_display = current_branch
-
-        console.print(
-            f"{worktree_id:<{worktree_col_width}} {branch_display:<{branch_col_width}} "
-            f"[{color}]{status:<10}[/{color}] {age_str:<12} {rel_path}"
-        )
+    # Choose layout based on terminal width
+    term_width = _get_terminal_width()
+    if term_width >= _MIN_TABLE_WIDTH:
+        _print_worktree_table(worktree_data)
+    else:
+        _print_worktree_compact(worktree_data)
 
     # Summary footer
     # Count feature worktrees (exclude main repo entry)
@@ -153,10 +142,7 @@ def list_worktrees() -> None:
     if feature_count > 0:
         status_counts: dict[str, int] = {}
         for _, _, status, _, _ in worktree_data:
-            if status != "active":  # "active" is just CWD detection, still counts
-                status_counts[status] = status_counts.get(status, 0) + 1
-            else:
-                status_counts["active"] = status_counts.get("active", 0) + 1
+            status_counts[status] = status_counts.get(status, 0) + 1
 
         summary_parts: list[str] = []
         for status_name in ("clean", "modified", "active", "stale"):
@@ -171,6 +157,52 @@ def list_worktrees() -> None:
         console.print(summary)
 
     console.print()
+
+
+def _print_worktree_table(
+    worktree_data: list[tuple[str, str, str, str, str]],
+) -> None:
+    """Print worktree data as a wide table."""
+    max_worktree_len = max((len(wt) for wt, _, _, _, _ in worktree_data), default=20)
+    max_branch_len = max((len(br) for _, br, _, _, _ in worktree_data), default=20)
+    worktree_col_width = min(max(max_worktree_len + 2, 20), 35)
+    branch_col_width = min(max(max_branch_len + 2, 20), 35)
+
+    console.print(
+        f"{'WORKTREE':<{worktree_col_width}} {'CURRENT BRANCH':<{branch_col_width}} "
+        f"{'STATUS':<10} {'AGE':<12} PATH"
+    )
+    console.print("─" * (worktree_col_width + branch_col_width + 72))
+
+    for worktree_id, current_branch, status, age_str, rel_path in worktree_data:
+        color = STATUS_COLORS.get(status, "white")
+
+        if worktree_id != current_branch:
+            branch_display = f"[yellow]{current_branch} (⚠️)[/yellow]"
+        else:
+            branch_display = current_branch
+
+        console.print(
+            f"{worktree_id:<{worktree_col_width}} {branch_display:<{branch_col_width}} "
+            f"[{color}]{status:<10}[/{color}] {age_str:<12} {rel_path}"
+        )
+
+
+def _print_worktree_compact(
+    worktree_data: list[tuple[str, str, str, str, str]],
+) -> None:
+    """Print worktree data in compact format for narrow terminals."""
+    for worktree_id, current_branch, status, age_str, rel_path in worktree_data:
+        color = STATUS_COLORS.get(status, "white")
+        age_part = f"  {age_str}" if age_str else ""
+
+        console.print(f"  [bold]{worktree_id}[/bold]  [{color}]{status}[/{color}]{age_part}")
+
+        details: list[str] = []
+        if worktree_id != current_branch:
+            details.append(f"branch: [yellow]{current_branch} (⚠️)[/yellow]")
+        details.append(f"path: {rel_path}")
+        console.print(f"    {' · '.join(details)}")
 
 
 def show_status() -> None:
