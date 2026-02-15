@@ -21,6 +21,24 @@ from ..git_utils import (
 _global_mode: ContextVar[bool] = ContextVar("_global_mode", default=False)
 
 
+def parse_repo_branch_target(target: str) -> tuple[str | None, str]:
+    """Parse 'repo:branch' notation.
+
+    Git branch names cannot contain ':', so it's a safe separator.
+
+    Args:
+        target: Target string, possibly in 'repo:branch' format.
+
+    Returns:
+        (repo_name, branch) if target contains ':', otherwise (None, target).
+    """
+    if ":" in target:
+        repo_name, _, branch = target.partition(":")
+        if repo_name and branch:
+            return repo_name, branch
+    return None, target
+
+
 def set_global_mode(enabled: bool) -> None:
     """Set the global mode flag via ContextVar."""
     _global_mode.set(enabled)
@@ -148,8 +166,10 @@ def _resolve_global_target(
 ) -> list[tuple[Path, str, Path]]:
     """Search all registered repositories for a worktree matching target.
 
+    Supports 'repo:branch' notation to filter by repository name.
+
     Args:
-        target: Branch name or worktree directory name to search for.
+        target: Branch name, worktree directory name, or 'repo:branch' to search for.
         lookup_mode: "branch", "worktree", or None (try both).
 
     Returns:
@@ -157,9 +177,12 @@ def _resolve_global_target(
     """
     from ..registry import get_all_registered_repos
 
+    repo_name, branch_target = parse_repo_branch_target(target)
     matches: list[tuple[Path, str, Path]] = []
 
-    for _name, repo_path in get_all_registered_repos():
+    for name, repo_path in get_all_registered_repos():
+        if repo_name is not None and name != repo_name:
+            continue
         if not repo_path.exists():
             continue
 
@@ -168,12 +191,12 @@ def _resolve_global_target(
             worktree_match: Path | None = None
 
             if lookup_mode == "branch":
-                branch_match = find_worktree_by_intended_branch(repo_path, target)
+                branch_match = find_worktree_by_intended_branch(repo_path, branch_target)
             elif lookup_mode == "worktree":
-                worktree_match = find_worktree_by_name(repo_path, target)
+                worktree_match = find_worktree_by_name(repo_path, branch_target)
             else:
-                branch_match = find_worktree_by_intended_branch(repo_path, target)
-                worktree_match = find_worktree_by_name(repo_path, target)
+                branch_match = find_worktree_by_intended_branch(repo_path, branch_target)
+                worktree_match = find_worktree_by_name(repo_path, branch_target)
 
             if branch_match and worktree_match:
                 try:
@@ -181,17 +204,21 @@ def _resolve_global_target(
                 except (OSError, ValueError):
                     same = branch_match.resolve() == worktree_match.resolve()
                 if same:
-                    matches.append((branch_match, target, repo_path))
+                    matches.append((branch_match, branch_target, repo_path))
                 else:
                     # Both match different worktrees in same repo — add both
-                    matches.append((branch_match, target, repo_path))
+                    matches.append((branch_match, branch_target, repo_path))
                     wt_branch = _get_branch_for_worktree(repo_path, worktree_match)
-                    matches.append((worktree_match, wt_branch or target, repo_path))
+                    matches.append(
+                        (worktree_match, wt_branch or branch_target, repo_path)
+                    )
             elif branch_match:
-                matches.append((branch_match, target, repo_path))
+                matches.append((branch_match, branch_target, repo_path))
             elif worktree_match:
                 wt_branch = _get_branch_for_worktree(repo_path, worktree_match)
-                matches.append((worktree_match, wt_branch or target, repo_path))
+                matches.append(
+                    (worktree_match, wt_branch or branch_target, repo_path)
+                )
         except Exception:
             # Skip repos that error during lookup
             continue
@@ -221,14 +248,15 @@ def _disambiguate_global_matches(
     if is_non_interactive():
         lines = [f"Ambiguous target '{target}' found in multiple repositories:"]
         for i, (wt_path, branch, repo) in enumerate(matches, 1):
-            lines.append(f"  [{i}] {branch} → {wt_path}  (repo: {repo.name})")
-        lines.append("Run interactively or specify a full path.")
+            lines.append(f"  [{i}] {repo.name}:{branch} → {wt_path}")
+        lines.append("Use 'repo:branch' notation to specify directly.")
         raise WorktreeNotFoundError("\n".join(lines))
 
     console = get_console()
     console.print(f"\n[yellow]Multiple matches found for '{target}':[/yellow]")
     for i, (wt_path, branch, repo) in enumerate(matches, 1):
-        console.print(f"  [{i}] {branch} → {wt_path}  [dim](repo: {repo.name})[/dim]")
+        console.print(f"  [{i}] {repo.name}:{branch} → {wt_path}")
+    console.print("[dim]Tip: Use 'repo:branch' notation to specify directly.[/dim]")
     console.print()
 
     while True:

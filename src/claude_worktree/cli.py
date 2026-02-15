@@ -50,7 +50,7 @@ from .update import check_for_updates
 # Commands that support -g/--global mode
 _GLOBAL_COMMANDS: set[str] = {
     "list", "delete", "pr", "merge", "resume",
-    "sync", "change-base", "scan", "prune", "backup",
+    "sync", "change-base", "scan", "prune", "backup", "cd",
 }
 
 
@@ -143,12 +143,11 @@ def _complete_local_worktree_branches() -> list[str]:
 
 
 def _complete_global_worktree_branches() -> list[str]:
-    """Return branch names from all registered repositories."""
+    """Return repo:branch names from all registered repositories."""
     from .registry import get_all_registered_repos
 
     completions: list[str] = []
-    seen: set[str] = set()
-    for _name, repo_path in get_all_registered_repos():
+    for name, repo_path in get_all_registered_repos():
         if not repo_path.exists():
             continue
         try:
@@ -159,9 +158,8 @@ def _complete_global_worktree_branches() -> list[str]:
             if path.resolve() == repo_path.resolve():
                 continue
             normalized = normalize_branch_name(branch)
-            if normalized and normalized != "(detached)" and normalized not in seen:
-                completions.append(normalized)
-                seen.add(normalized)
+            if normalized and normalized != "(detached)":
+                completions.append(f"{name}:{normalized}")
     return completions
 
 
@@ -1300,9 +1298,10 @@ def upgrade() -> None:
 
 @app.command(rich_help_panel="Configuration")
 def cd(
-    branch: str = typer.Argument(
-        ...,
-        help="Branch name to navigate to",
+    ctx: typer.Context,
+    branch: str | None = typer.Argument(
+        None,
+        help="Branch name or repo:branch to navigate to (omit for interactive selection)",
         autocompletion=complete_worktree_branches,
     ),
     print_only: bool = typer.Option(
@@ -1315,33 +1314,71 @@ def cd(
     """
     Print the path to a worktree's directory and optionally setup cw-cd shell function.
 
-    This command always prints the worktree path to stdout for use in scripts (e.g., cd $(cw cd fix-auth)).
-    If the cw-cd shell function is not installed and not in --print mode, prompts to run shell-setup.
+    Without arguments, shows an interactive worktree selector.
+    Supports 'repo:branch' notation (auto-enables global mode).
 
     Example:
+        cw cd                   # Interactive worktree selector
         cw cd fix-auth          # Print path and offer shell-setup if not installed
+        cw cd myrepo:fix-auth   # Global lookup by repo:branch
         cw cd fix-auth --print  # Print path only (no prompts)
-        cd $(cw cd fix-auth)    # Use in scripts
+        cw -g cd                # Interactive global selector
     """
     import os
 
     from .git_utils import find_worktree_by_branch, get_repo_root, is_non_interactive
+    from .operations.helpers import parse_repo_branch_target
+
+    global_mode = ctx.obj.get("global_mode", False) if ctx.obj else False
+
+    # No argument — interactive mode
+    if branch is None:
+        _interactive_path_selection(global_mode)
+        return
+
+    # repo:branch auto-detection
+    repo_prefix, branch_name = parse_repo_branch_target(branch)
+    if repo_prefix is not None:
+        global_mode = True
 
     try:
-        repo = get_repo_root()
-        # Try to find worktree by branch name
-        normalized = normalize_branch_name(branch)
-        worktree_path = find_worktree_by_branch(repo, branch)
-        if not worktree_path:
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
+        if global_mode:
+            # Global resolution (supports repo:branch)
+            from .operations.helpers import _resolve_global_target
 
-        if not worktree_path:
+            matches = _resolve_global_target(branch)
+            if not matches:
+                console.print(
+                    f"[bold red]Error:[/bold red] No worktree found for '{branch}' "
+                    "in any registered repository"
+                )
+                raise typer.Exit(code=1)
+
+            if len(matches) == 1:
+                wt_path, _bname, _repo = matches[0]
+                print(wt_path)
+                return
+
+            # Multiple matches
+            console.print(f"[bold red]Error:[/bold red] Multiple worktrees found for '{branch}':")
+            for wt_path, _bname, repo in matches:
+                console.print(f"  {repo.name}:{_bname}  ({wt_path})")
+            console.print("[dim]Use 'repo:branch' notation to disambiguate.[/dim]")
+            raise typer.Exit(code=1)
+
+        # Local mode
+        repo = get_repo_root()
+        normalized = normalize_branch_name(branch)
+        found_path = find_worktree_by_branch(repo, branch)
+        if not found_path:
+            found_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
+
+        if not found_path:
             console.print(f"[bold red]Error:[/bold red] No worktree found for branch '{branch}'")
             raise typer.Exit(code=1)
 
         # Check if cw-cd shell function is installed (only if not in print-only mode and interactive)
         if not print_only and not is_non_interactive():
-            # Check shell config files for cw-cd installation
             shell_env = os.environ.get("SHELL", "")
             cw_cd_installed = False
 
@@ -1358,11 +1395,10 @@ def cd(
                 if config_fish.exists() and "cw _shell-function" in config_fish.read_text():
                     cw_cd_installed = True
 
-            # If not installed, offer to run shell-setup
             if not cw_cd_installed:
-                console.print(f"[bold cyan]Worktree path:[/bold cyan] {worktree_path}\n")
+                console.print(f"[bold cyan]Worktree path:[/bold cyan] {found_path}\n")
                 console.print(
-                    "[dim]💡 Tip: Install the cw-cd shell function for easier navigation![/dim]"
+                    "[dim]Tip: Install the cw-cd shell function for easier navigation![/dim]"
                 )
                 console.print(
                     f"[dim]   With cw-cd installed, you can just type: [cyan]cw-cd {branch}[/cyan][/dim]\n"
@@ -1375,7 +1411,6 @@ def cd(
                         shell_setup()
                         console.print("")
                     else:
-                        # User declined
                         console.print(
                             "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
                         )
@@ -1384,12 +1419,94 @@ def cd(
                         "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
                     )
 
-        # Always print path to stdout (for scripting)
-        print(worktree_path)
+        print(found_path)
 
     except ClaudeWorktreeError as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
         raise typer.Exit(code=1)
+
+
+def _interactive_path_selection(global_mode: bool) -> None:
+    """Display interactive worktree selector, output selected path to stdout.
+
+    All UI output goes to stderr so stdout remains clean for the path.
+
+    Args:
+        global_mode: If True, show worktrees from all registered repos.
+
+    Raises:
+        typer.Exit: On error or cancellation.
+    """
+    import sys
+
+    if not sys.stderr.isatty():
+        print("Error: Interactive mode requires a terminal (TTY)", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    entries: list[tuple[str, str]] = []  # (display_label, path)
+
+    if global_mode:
+        from .registry import get_all_registered_repos
+
+        for name, repo_path in get_all_registered_repos():
+            if not repo_path.exists():
+                continue
+            try:
+                worktrees = parse_worktrees(repo_path)
+            except Exception:
+                continue
+            for branch, path in worktrees:
+                if path.resolve() == repo_path.resolve():
+                    continue
+                normalized = normalize_branch_name(branch)
+                if normalized and normalized != "(detached)":
+                    entries.append((f"{name}:{normalized}", str(path)))
+    else:
+        try:
+            repo = get_repo_root()
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            raise typer.Exit(code=1)
+        worktrees = parse_worktrees(repo)
+        for branch, path in worktrees:
+            if path.resolve() == repo.resolve():
+                continue
+            normalized = normalize_branch_name(branch)
+            if normalized and normalized != "(detached)":
+                entries.append((normalized, str(path)))
+
+    if not entries:
+        print("No worktrees found.", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    # Display numbered list on stderr
+    print("", file=sys.stderr)
+    for i, (label, wt_path) in enumerate(entries, 1):
+        print(f"  [{i}] {label} → {wt_path}", file=sys.stderr)
+    print("", file=sys.stderr)
+
+    # Prompt for selection (prompt on stderr so stdout stays clean for path)
+    try:
+        sys.stderr.write(f"Select worktree [1-{len(entries)}]: ")
+        sys.stderr.flush()
+        choice = sys.stdin.readline().strip()
+        if not choice:
+            raise EOFError
+    except (KeyboardInterrupt, EOFError):
+        print("", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(entries):
+            # Output selected path to stdout
+            print(entries[idx][1])
+            return
+    except ValueError:
+        pass
+
+    print(f"Error: Invalid selection '{choice}'", file=sys.stderr)
+    raise typer.Exit(code=1)
 
 
 @app.command(name="_path", hidden=True)
@@ -1401,6 +1518,7 @@ def worktree_path(
     ),
     global_mode: bool = typer.Option(False, "--global", "-g", help="Search all registered repositories"),
     list_branches: bool = typer.Option(False, "--list-branches", help="List branch names (for tab completion)"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Interactive worktree selection"),
 ) -> None:
     """
     [Internal] Get worktree path for a branch.
@@ -1413,8 +1531,15 @@ def worktree_path(
         cw _path -g fix-auth
         cw _path --list-branches
         cw _path --list-branches -g
+        cw _path --interactive
+        cw _path -g --interactive
     """
     import sys
+
+    # --interactive mode: show numbered list, let user pick
+    if interactive:
+        _interactive_path_selection(global_mode)
+        return
 
     # --list-branches mode: output branch names for tab completion
     if list_branches:
@@ -1432,7 +1557,7 @@ def worktree_path(
 
     # Normal mode: resolve branch to path
     if not branch:
-        print("Error: branch argument is required (unless --list-branches is used)", file=sys.stderr)
+        print("Error: branch argument is required (unless --list-branches or --interactive is used)", file=sys.stderr)
         raise typer.Exit(code=1)
 
     if global_mode:
@@ -1446,7 +1571,7 @@ def worktree_path(
             raise typer.Exit(code=1)
 
         if not matches:
-            print(f"Error: No worktree found for branch '{branch}' in any registered repository", file=sys.stderr)
+            print(f"Error: No worktree found for '{branch}' in any registered repository", file=sys.stderr)
             raise typer.Exit(code=1)
 
         if len(matches) == 1:
@@ -1454,10 +1579,11 @@ def worktree_path(
             print(wt_path)
             return
 
-        # Multiple matches — disambiguation needed
+        # Multiple matches — show repo:branch hints
         print(f"Error: Multiple worktrees found for '{branch}':", file=sys.stderr)
         for wt_path, _branch_name, repo in matches:
-            print(f"  {wt_path}  (repo: {repo.name})", file=sys.stderr)
+            print(f"  {repo.name}:{_branch_name}  ({wt_path})", file=sys.stderr)
+        print("Use 'repo:branch' notation to disambiguate.", file=sys.stderr)
         raise typer.Exit(code=1)
 
     # Local mode (existing behavior)

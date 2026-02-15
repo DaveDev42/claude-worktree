@@ -3,8 +3,9 @@
 #   cw _shell-function powershell | Out-String | Invoke-Expression
 
 # Navigate to a worktree by branch name
-# If no argument is provided, navigate to the base (main) worktree
+# If no argument is provided, show interactive worktree selector
 # Use -g to search across all registered repositories
+# Supports repo:branch notation (auto-enables global mode)
 function cw-cd {
     param(
         [Parameter(Mandatory=$false, Position=0)]
@@ -13,27 +14,31 @@ function cw-cd {
         [switch]$g
     )
 
+    # Auto-detect repo:branch notation → enable global mode
+    if (-not $g -and $Branch -match ':') {
+        $g = [switch]::Present
+    }
+
     $worktreePath = $null
 
-    if ($g) {
-        # Global mode: delegate to cw _path -g
-        if (-not $Branch) {
-            Write-Error "Error: Branch name is required with -g/--global"
+    if (-not $Branch) {
+        # No argument — interactive selector
+        if ($g) {
+            $worktreePath = cw _path -g --interactive
+        } else {
+            $worktreePath = cw _path --interactive
+        }
+        if ($LASTEXITCODE -ne 0) {
             return
         }
+    } elseif ($g) {
+        # Global mode: delegate to cw _path -g
         $worktreePath = cw _path -g $Branch
         if ($LASTEXITCODE -ne 0) {
             return
         }
-    } elseif (-not $Branch) {
-        # No argument - navigate to base (main) worktree
-        $worktreePath = git worktree list --porcelain 2>&1 |
-            Where-Object { $_ -is [string] } |
-            ForEach-Object {
-                if ($_ -match '^worktree (.+)$') { $Matches[1]; break }
-            } | Select-Object -First 1
     } else {
-        # Argument provided - navigate to specified branch worktree
+        # Local mode: get worktree path from git directly
         $worktreePath = git worktree list --porcelain 2>&1 |
             Where-Object { $_ -is [string] } |
             ForEach-Object {
@@ -66,7 +71,7 @@ Register-ArgumentCompleter -CommandName cw-cd -ParameterName Branch -ScriptBlock
 
     $branches = $null
     if ($fakeBoundParameters.ContainsKey('g')) {
-        # Global mode: get branches from all registered repos
+        # Global mode: get repo:branch from all registered repos
         $branches = cw _path --list-branches -g 2>&1 |
             Where-Object { $_ -is [string] -and $_.Trim() } |
             Sort-Object -Unique
