@@ -143,12 +143,11 @@ def _complete_local_worktree_branches() -> list[str]:
 
 
 def _complete_global_worktree_branches() -> list[str]:
-    """Return branch names from all registered repositories."""
+    """Return repo:branch names from all registered repositories."""
     from .registry import get_all_registered_repos
 
     completions: list[str] = []
-    seen: set[str] = set()
-    for _name, repo_path in get_all_registered_repos():
+    for name, repo_path in get_all_registered_repos():
         if not repo_path.exists():
             continue
         try:
@@ -159,9 +158,8 @@ def _complete_global_worktree_branches() -> list[str]:
             if path.resolve() == repo_path.resolve():
                 continue
             normalized = normalize_branch_name(branch)
-            if normalized and normalized != "(detached)" and normalized not in seen:
-                completions.append(normalized)
-                seen.add(normalized)
+            if normalized and normalized != "(detached)":
+                completions.append(f"{name}:{normalized}")
     return completions
 
 
@@ -1298,98 +1296,74 @@ def upgrade() -> None:
         raise typer.Exit(code=1)
 
 
-@app.command(rich_help_panel="Configuration")
-def cd(
-    branch: str = typer.Argument(
-        ...,
-        help="Branch name to navigate to",
-        autocompletion=complete_worktree_branches,
-    ),
-    print_only: bool = typer.Option(
-        False,
-        "--print",
-        "-p",
-        help="Print path only (for scripting)",
-    ),
-) -> None:
+def _interactive_path_selection(global_mode: bool) -> None:
+    """Display interactive worktree selector, output selected path to stdout.
+
+    All UI output goes to stderr so stdout remains clean for the path.
+
+    Args:
+        global_mode: If True, show worktrees from all registered repos.
+
+    Raises:
+        typer.Exit: On error or cancellation.
     """
-    Print the path to a worktree's directory and optionally setup cw-cd shell function.
+    import sys
 
-    This command always prints the worktree path to stdout for use in scripts (e.g., cd $(cw cd fix-auth)).
-    If the cw-cd shell function is not installed and not in --print mode, prompts to run shell-setup.
+    from .tui import arrow_select
 
-    Example:
-        cw cd fix-auth          # Print path and offer shell-setup if not installed
-        cw cd fix-auth --print  # Print path only (no prompts)
-        cd $(cw cd fix-auth)    # Use in scripts
-    """
-    import os
+    entries: list[tuple[str, str]] = []  # (display_label, path)
 
-    from .git_utils import find_worktree_by_branch, get_repo_root, is_non_interactive
+    if global_mode:
+        from .registry import get_all_registered_repos
 
-    try:
-        repo = get_repo_root()
-        # Try to find worktree by branch name
-        normalized = normalize_branch_name(branch)
-        worktree_path = find_worktree_by_branch(repo, branch)
-        if not worktree_path:
-            worktree_path = find_worktree_by_branch(repo, f"refs/heads/{normalized}")
-
-        if not worktree_path:
-            console.print(f"[bold red]Error:[/bold red] No worktree found for branch '{branch}'")
+        for name, repo_path in get_all_registered_repos():
+            if not repo_path.exists():
+                continue
+            try:
+                worktrees = parse_worktrees(repo_path)
+            except Exception:
+                continue
+            for branch, path in worktrees:
+                normalized = normalize_branch_name(branch)
+                if path.resolve() == repo_path.resolve():
+                    # Root worktree — add as first entry per repo
+                    label = f"{name} (root)"
+                    entries.insert(0, (label, str(path)))
+                elif normalized and normalized != "(detached)":
+                    entries.append((f"{name}:{normalized}", str(path)))
+    else:
+        try:
+            repo = get_repo_root()
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=1)
+        worktrees = parse_worktrees(repo)
+        for branch, path in worktrees:
+            normalized = normalize_branch_name(branch)
+            if path.resolve() == repo.resolve():
+                # Root worktree — add as first entry
+                root_label = normalized or "main"
+                entries.insert(0, (f"{root_label} (root)", str(path)))
+            elif normalized and normalized != "(detached)":
+                entries.append((normalized, str(path)))
 
-        # Check if cw-cd shell function is installed (only if not in print-only mode and interactive)
-        if not print_only and not is_non_interactive():
-            # Check shell config files for cw-cd installation
-            shell_env = os.environ.get("SHELL", "")
-            cw_cd_installed = False
-
-            if "bash" in shell_env:
-                bashrc = Path.home() / ".bashrc"
-                if bashrc.exists() and "cw _shell-function" in bashrc.read_text():
-                    cw_cd_installed = True
-            elif "zsh" in shell_env:
-                zshrc = Path.home() / ".zshrc"
-                if zshrc.exists() and "cw _shell-function" in zshrc.read_text():
-                    cw_cd_installed = True
-            elif "fish" in shell_env:
-                config_fish = Path.home() / ".config" / "fish" / "config.fish"
-                if config_fish.exists() and "cw _shell-function" in config_fish.read_text():
-                    cw_cd_installed = True
-
-            # If not installed, offer to run shell-setup
-            if not cw_cd_installed:
-                console.print(f"[bold cyan]Worktree path:[/bold cyan] {worktree_path}\n")
-                console.print(
-                    "[dim]💡 Tip: Install the cw-cd shell function for easier navigation![/dim]"
-                )
-                console.print(
-                    f"[dim]   With cw-cd installed, you can just type: [cyan]cw-cd {branch}[/cyan][/dim]\n"
-                )
-
-                try:
-                    response = typer.confirm("Run shell-setup now?", default=False)
-                    if response:
-                        console.print("")
-                        shell_setup()
-                        console.print("")
-                    else:
-                        # User declined
-                        console.print(
-                            "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
-                        )
-                except (KeyboardInterrupt, EOFError):
-                    console.print(
-                        "\n[dim]You can run [cyan]cw shell-setup[/cyan] anytime to install it.[/dim]\n"
-                    )
-
-        # Always print path to stdout (for scripting)
-        print(worktree_path)
-
-    except ClaudeWorktreeError as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
+    if not entries:
+        print("No worktrees found.", file=sys.stderr)
         raise typer.Exit(code=1)
+
+    # Single entry — select automatically without TUI
+    if len(entries) == 1:
+        print(entries[0][1])
+        return
+
+    if not sys.stderr.isatty():
+        print("Error: Interactive mode requires a terminal (TTY)", file=sys.stderr)
+        raise typer.Exit(code=1)
+
+    result = arrow_select(entries, title="Select worktree:")
+    if result is None:
+        raise typer.Exit(code=1)
+    print(result)
 
 
 @app.command(name="_path", hidden=True)
@@ -1401,6 +1375,7 @@ def worktree_path(
     ),
     global_mode: bool = typer.Option(False, "--global", "-g", help="Search all registered repositories"),
     list_branches: bool = typer.Option(False, "--list-branches", help="List branch names (for tab completion)"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Interactive worktree selection"),
 ) -> None:
     """
     [Internal] Get worktree path for a branch.
@@ -1413,8 +1388,15 @@ def worktree_path(
         cw _path -g fix-auth
         cw _path --list-branches
         cw _path --list-branches -g
+        cw _path --interactive
+        cw _path -g --interactive
     """
     import sys
+
+    # --interactive mode: show numbered list, let user pick
+    if interactive:
+        _interactive_path_selection(global_mode)
+        return
 
     # --list-branches mode: output branch names for tab completion
     if list_branches:
@@ -1432,7 +1414,7 @@ def worktree_path(
 
     # Normal mode: resolve branch to path
     if not branch:
-        print("Error: branch argument is required (unless --list-branches is used)", file=sys.stderr)
+        print("Error: branch argument is required (unless --list-branches or --interactive is used)", file=sys.stderr)
         raise typer.Exit(code=1)
 
     if global_mode:
@@ -1446,7 +1428,7 @@ def worktree_path(
             raise typer.Exit(code=1)
 
         if not matches:
-            print(f"Error: No worktree found for branch '{branch}' in any registered repository", file=sys.stderr)
+            print(f"Error: No worktree found for '{branch}' in any registered repository", file=sys.stderr)
             raise typer.Exit(code=1)
 
         if len(matches) == 1:
@@ -1454,10 +1436,11 @@ def worktree_path(
             print(wt_path)
             return
 
-        # Multiple matches — disambiguation needed
+        # Multiple matches — show repo:branch hints
         print(f"Error: Multiple worktrees found for '{branch}':", file=sys.stderr)
         for wt_path, _branch_name, repo in matches:
-            print(f"  {wt_path}  (repo: {repo.name})", file=sys.stderr)
+            print(f"  {repo.name}:{_branch_name}  ({wt_path})", file=sys.stderr)
+        print("Use 'repo:branch' notation to disambiguate.", file=sys.stderr)
         raise typer.Exit(code=1)
 
     # Local mode (existing behavior)
@@ -1568,11 +1551,8 @@ def shell_setup() -> None:
     console.print(f"\nThis will add the following to [cyan]{profile_path}[/cyan]:")
 
     if shell_name == "zsh":
-        # zsh: Show tab completion first, then shell functions
-        console.print("\n  [dim]# Tab completion support[/dim]")
-        console.print("  [dim]FPATH=$HOME/.zfunc:$FPATH[/dim]")
-        console.print("  [dim]autoload -Uz compinit && compinit[/dim]")
-        console.print("\n  [dim]# cw-cd function for directory navigation[/dim]")
+        # zsh: shell function includes inline Typer completion
+        console.print("\n  [dim]# cw-cd function + tab completion for cw commands[/dim]")
         console.print(f"  [dim]{shell_function_line}[/dim]")
     elif shell_name == "bash":
         # bash: Show shell functions first, then tab completion
@@ -1603,32 +1583,11 @@ def shell_setup() -> None:
         # Create parent directories if needed
         profile_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # For zsh, also create completion directory and file
-        if shell_name == "zsh":
-            zfunc_dir = Path.home() / ".zfunc"
-            zfunc_dir.mkdir(exist_ok=True)
-
-            # Create completion file
-            completion_file = zfunc_dir / "_cw"
-            completion_content = """#compdef cw
-
-_cw_completion() {
-  eval $(env _TYPER_COMPLETE_ARGS="${words[1,$CURRENT]}" _CW_COMPLETE=complete_zsh cw)
-}
-
-compdef _cw_completion cw"""
-            completion_file.write_text(completion_content)
-            console.print(f"[dim]Created completion file: {completion_file}[/dim]")
-
         # Append to profile file
         with profile_path.open("a") as f:
             if shell_name == "zsh":
-                # For zsh: Add FPATH and compinit FIRST, then shell functions
-                # (compdef in shell functions requires compinit to be loaded)
-                f.write("\n# claude-worktree tab completion\n")
-                f.write("FPATH=$HOME/.zfunc:$FPATH\n")
-                f.write("autoload -Uz compinit && compinit\n")
-                f.write("\n# claude-worktree shell integration\n")
+                # For zsh: shell function includes inline Typer completion
+                f.write("\n# claude-worktree shell integration (cw-cd + tab completion)\n")
                 f.write(f"{shell_function_line}\n")
             elif shell_name == "bash":
                 # For bash: Shell functions first, then completion

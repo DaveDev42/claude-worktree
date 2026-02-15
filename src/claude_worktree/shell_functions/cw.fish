@@ -3,8 +3,9 @@
 #   cw _shell-function fish | source
 
 # Navigate to a worktree by branch name
-# If no argument is provided, navigate to the base (main) worktree
+# If no argument is provided, show interactive worktree selector
 # Use -g/--global to search across all registered repositories
+# Supports repo:branch notation (auto-enables global mode)
 function cw-cd
     set -l global_mode 0
     set -l branch ""
@@ -16,32 +17,38 @@ function cw-cd
                 set global_mode 1
             case '-*'
                 echo "Error: Unknown option '$arg'" >&2
-                echo "Usage: cw-cd [-g|--global] [branch]" >&2
+                echo "Usage: cw-cd [-g|--global] [branch|repo:branch]" >&2
                 return 1
             case '*'
                 set branch $arg
         end
     end
 
+    # Auto-detect repo:branch notation → enable global mode
+    if test $global_mode -eq 0; and string match -q '*:*' -- "$branch"
+        set global_mode 1
+    end
+
     set -l worktree_path
 
-    if test $global_mode -eq 1
-        # Global mode: delegate to cw _path -g
-        if test -z "$branch"
-            echo "Error: Branch name is required with -g/--global" >&2
+    if test -z "$branch"
+        # No argument — interactive selector
+        if test $global_mode -eq 1
+            set worktree_path (cw _path -g --interactive)
+        else
+            set worktree_path (cw _path --interactive)
+        end
+        if test $status -ne 0
             return 1
         end
+    else if test $global_mode -eq 1
+        # Global mode: delegate to cw _path -g
         set worktree_path (cw _path -g "$branch")
         if test $status -ne 0
             return 1
         end
-    else if test -z "$branch"
-        # No argument - navigate to base (main) worktree
-        set worktree_path (git worktree list --porcelain 2>/dev/null | awk '
-            /^worktree / { print $2; exit }
-        ')
     else
-        # Argument provided - navigate to specified branch worktree
+        # Local mode: get worktree path from git directly
         set worktree_path (git worktree list --porcelain 2>/dev/null | awk -v branch="$branch" '
             /^worktree / { path=$2 }
             /^branch / && $2 == "refs/heads/"branch { print path; exit }

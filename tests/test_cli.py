@@ -249,66 +249,6 @@ def test_shell_command_nonexistent_branch(temp_git_repo: Path) -> None:
     assert "Error" in result.stdout
 
 
-def test_cd_command_help() -> None:
-    """Test cd command help."""
-    result = runner.invoke(app, ["cd", "--help"])
-    assert result.exit_code == 0
-    assert "Print the path to a worktree" in result.stdout
-
-
-def test_cd_command_execution(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
-    """Test cd command with real worktree."""
-    # Mock is_non_interactive to return False (simulate interactive environment)
-    from claude_worktree import git_utils
-
-    monkeypatch.setattr(git_utils, "is_non_interactive", lambda: False)
-
-    # Mock typer.confirm to avoid blocking prompt
-    import typer
-
-    monkeypatch.setattr(typer, "confirm", lambda *args, **kwargs: False)
-
-    # Create worktree
-    runner.invoke(app, ["new", "cd-test", "--no-cd"])
-    expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-cd-test"
-
-    # Get path via cd command
-    result = runner.invoke(app, ["cd", "cd-test"])
-    assert result.exit_code == 0
-    # Path should be in output (may be split across lines due to formatting)
-    # Remove newlines to handle line wrapping from Rich console
-    output_no_newlines = result.stdout.replace("\n", "")
-    assert expected_path.name in output_no_newlines or str(expected_path) in output_no_newlines
-    assert "cw-cd" in result.stdout  # Should show shell function hint
-
-    # Clean up
-    runner.invoke(app, ["delete", "cd-test"])
-
-
-def test_cd_command_print_only(temp_git_repo: Path, disable_claude) -> None:
-    """Test cd command with --print flag."""
-    # Create worktree
-    runner.invoke(app, ["new", "cd-print", "--no-cd"])
-    expected_path = temp_git_repo.parent / f"{temp_git_repo.name}-cd-print"
-
-    # Get path with --print flag
-    result = runner.invoke(app, ["cd", "cd-print", "--print"])
-    assert result.exit_code == 0
-    # Should output only the path, no hints
-    assert result.stdout.strip() == str(expected_path)
-    assert "cw-cd" not in result.stdout
-
-    # Clean up
-    runner.invoke(app, ["delete", "cd-print"])
-
-
-def test_cd_command_nonexistent_branch(temp_git_repo: Path) -> None:
-    """Test cd command with nonexistent branch."""
-    result = runner.invoke(app, ["cd", "nonexistent-branch"])
-    assert result.exit_code != 0
-    assert "Error" in result.stdout
-
-
 def test_sync_command_help(temp_git_repo: Path) -> None:
     """Test sync command help."""
     result = runner.invoke(app, ["sync", "--help"])
@@ -449,31 +389,6 @@ def test_shell_setup_help() -> None:
     assert result.exit_code == 0
     assert "shell" in result.stdout.lower()
     assert "setup" in result.stdout.lower() or "install" in result.stdout.lower()
-
-
-def test_cd_command_suggests_shell_setup(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
-    """Test cd command suggests shell-setup."""
-    # Mock is_non_interactive to return False (simulate interactive environment)
-    from claude_worktree import git_utils
-
-    monkeypatch.setattr(git_utils, "is_non_interactive", lambda: False)
-
-    # Mock typer.confirm to avoid blocking prompt
-    import typer
-
-    monkeypatch.setattr(typer, "confirm", lambda *args, **kwargs: False)
-
-    # Create worktree
-    runner.invoke(app, ["new", "setup-test", "--no-cd"])
-
-    # Get path via cd command (without --print)
-    result = runner.invoke(app, ["cd", "setup-test"])
-    assert result.exit_code == 0
-    # Should suggest shell-setup
-    assert "shell-setup" in result.stdout
-
-    # Clean up
-    runner.invoke(app, ["delete", "setup-test"])
 
 
 # Branch completion tests
