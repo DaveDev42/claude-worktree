@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import click
 import typer
 
 from . import __version__
@@ -46,11 +47,31 @@ from .slash_command_setup import (
 )
 from .update import check_for_updates
 
+# Commands that support -g/--global mode
+_GLOBAL_COMMANDS: set[str] = {
+    "list", "delete", "pr", "merge", "resume",
+    "sync", "change-base", "scan", "prune", "backup",
+}
+
+
+class _GlobalFilterGroup(typer.core.TyperGroup):
+    """Custom group that filters help output to global-capable commands when -g is active."""
+
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        import sys
+
+        commands = super().list_commands(ctx)
+        if "-g" in sys.argv or "--global" in sys.argv:
+            commands = [c for c in commands if c in _GLOBAL_COMMANDS]
+        return commands
+
+
 app = typer.Typer(
     name="cw",
     help="Claude Code × git worktree helper CLI",
     no_args_is_help=True,
     add_completion=True,
+    cls=_GlobalFilterGroup,
 )
 console = get_console()
 
