@@ -210,6 +210,35 @@ def normalize_branch_name(branch: str) -> str:
     return branch
 
 
+def get_feature_worktrees(repo: Path | None = None) -> list[tuple[str, Path]]:
+    """Get feature worktrees, excluding main repo and detached entries.
+
+    Uses git's guarantee that the first worktree entry is always the main repo.
+    Safe to call from any worktree.
+
+    Args:
+        repo: Optional path to start from (defaults to current directory)
+
+    Returns:
+        List of (branch_name, path) tuples with normalized branch names.
+    """
+    effective_repo = get_repo_root(repo)
+    worktrees = parse_worktrees(effective_repo)
+    if not worktrees:
+        return []
+
+    main_path = worktrees[0][1].resolve()
+    result = []
+    for branch, path in worktrees:
+        if path.resolve() == main_path:
+            continue
+        if branch == "(detached)":
+            continue
+        branch_name = normalize_branch_name(branch)
+        result.append((branch_name, path))
+    return result
+
+
 def get_main_repo_root(repo: Path | None = None) -> Path:
     """
     Get main repository path, even when called from a worktree.

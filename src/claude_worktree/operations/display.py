@@ -12,6 +12,7 @@ from ..git_utils import (
     branch_exists,
     get_config,
     get_current_branch,
+    get_feature_worktrees,
     get_repo_root,
     git_command,
     normalize_branch_name,
@@ -238,23 +239,14 @@ def show_tree() -> None:
     - Current/active worktree highlighting
     """
     repo = get_repo_root()
-    worktrees = parse_worktrees(repo)
     cwd = Path.cwd()
 
     console.print(f"\n[bold cyan]{repo.name}/[/bold cyan] (base repository)")
     console.print(f"[dim]{repo}[/dim]\n")
 
-    # Separate main repo from feature worktrees
+    # Get feature worktrees (excludes main repo and detached entries)
     feature_worktrees = []
-    for branch, path in worktrees:
-        # Skip main repository
-        if path.resolve() == repo.resolve():
-            continue
-        # Skip detached worktrees
-        if branch == "(detached)":
-            continue
-
-        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+    for branch_name, path in get_feature_worktrees(repo):
         status = get_worktree_status(str(path), repo)
         is_current = str(cwd).startswith(str(path))
         feature_worktrees.append((branch_name, path, status, is_current))
@@ -322,19 +314,10 @@ def show_stats() -> None:
     - Status distribution
     """
     repo = get_repo_root()
-    worktrees = parse_worktrees(repo)
 
-    # Collect worktree data
+    # Collect worktree data (excludes main repo and detached entries)
     worktree_data: list[tuple[str, Path, str, float, int]] = []
-    for branch, path in worktrees:
-        # Skip main repository
-        if path.resolve() == repo.resolve():
-            continue
-        # Skip detached worktrees
-        if branch == "(detached)":
-            continue
-
-        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+    for branch_name, path in get_feature_worktrees(repo):
         status = get_worktree_status(str(path), repo)
 
         # Get creation time (directory mtime)

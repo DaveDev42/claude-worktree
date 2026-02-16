@@ -8,7 +8,7 @@ from pathlib import Path
 from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH, CONFIG_KEY_BASE_PATH, default_worktree_path
 from ..exceptions import GitError
-from ..git_utils import get_config, get_repo_root, git_command, parse_worktrees, set_config
+from ..git_utils import get_config, get_feature_worktrees, get_repo_root, git_command, set_config
 
 console = get_console()
 
@@ -53,12 +53,8 @@ def backup_worktree(
     branches_to_backup: list[tuple[str, Path]] = []
 
     if all_worktrees:
-        # Backup all worktrees
-        for br, path in parse_worktrees(repo):
-            if path.resolve() == repo.resolve() or br == "(detached)":
-                continue
-            branch_name = br[11:] if br.startswith("refs/heads/") else br
-            branches_to_backup.append((branch_name, path))
+        # Backup all worktrees (excludes main repo and detached entries)
+        branches_to_backup = get_feature_worktrees(repo)
     elif branch or not all_worktrees:
         # Backup specific branch or current worktree
         worktree_path, branch_name, _ = resolve_worktree_target(branch)
