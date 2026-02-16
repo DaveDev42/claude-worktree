@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..console import get_console
 from ..constants import CONFIG_KEY_INTENDED_BRANCH
-from ..git_utils import get_config, normalize_branch_name, parse_worktrees
+from ..git_utils import get_config, get_feature_worktrees
 from ..registry import (
     get_all_registered_repos,
     prune_registry,
@@ -61,7 +61,7 @@ def global_list_worktrees() -> None:
             continue
 
         try:
-            worktrees = parse_worktrees(repo_path)
+            feature_wts = get_feature_worktrees(repo_path)
         except Exception:
             console.print(
                 f"[yellow]⚠ {name}[/yellow] [dim]({repo_path})[/dim] — "
@@ -70,13 +70,7 @@ def global_list_worktrees() -> None:
             continue
 
         has_feature = False
-        for branch, path in worktrees:
-            if path.resolve() == repo_path.resolve():
-                continue
-            if branch == "(detached)":
-                continue
-
-            branch_name = normalize_branch_name(branch)
+        for branch_name, path in feature_wts:
             status = get_worktree_status(str(path), repo_path)
 
             # Check intended branch for mismatch detection

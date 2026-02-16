@@ -11,9 +11,9 @@ from ..exceptions import GitError, InvalidBranchError, RebaseError
 from ..git_utils import (
     branch_exists,
     get_config,
+    get_feature_worktrees,
     get_repo_root,
     git_command,
-    parse_worktrees,
     set_config,
 )
 
@@ -162,17 +162,8 @@ def export_config(output_file: Path | None = None) -> None:
         "worktrees": [],
     }
 
-    # Collect worktree metadata
-    for branch, path in parse_worktrees(repo):
-        # Skip main repository
-        if path.resolve() == repo.resolve():
-            continue
-        # Skip detached worktrees
-        if branch == "(detached)":
-            continue
-
-        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
-
+    # Collect worktree metadata (excludes main repo and detached entries)
+    for branch_name, path in get_feature_worktrees(repo):
         # Get metadata for this worktree
         base_branch = get_config(CONFIG_KEY_BASE_BRANCH.format(branch_name), repo)
         base_path = get_config(CONFIG_KEY_BASE_PATH.format(branch_name), repo)

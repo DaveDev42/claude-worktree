@@ -7,7 +7,7 @@ from packaging.version import parse
 
 from ..console import get_console
 from ..constants import CONFIG_KEY_BASE_BRANCH
-from ..git_utils import get_config, get_repo_root, git_command, parse_worktrees
+from ..git_utils import get_config, get_feature_worktrees, get_repo_root, git_command
 
 console = get_console()
 
@@ -64,14 +64,7 @@ def doctor() -> None:
     console.print("[bold]2. Checking worktree accessibility...[/bold]")
     worktrees: list[tuple[str, Path, str]] = []
     stale_count = 0
-    for branch, path in parse_worktrees(repo):
-        # Skip main repository
-        if path.resolve() == repo.resolve():
-            continue
-        if branch == "(detached)":
-            continue
-
-        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+    for branch_name, path in get_feature_worktrees(repo):
         status = get_worktree_status(str(path), repo)
         worktrees.append((branch_name, path, status))
 

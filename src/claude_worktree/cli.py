@@ -22,7 +22,13 @@ from .config import (
 from .console import get_console
 from .cwshare_setup import prompt_cwshare_setup
 from .exceptions import ClaudeWorktreeError
-from .git_utils import get_repo_root, normalize_branch_name, parse_worktrees
+from .git_utils import (
+    get_feature_worktrees,
+    get_main_repo_root,
+    get_repo_root,
+    normalize_branch_name,
+    parse_worktrees,
+)
 from .operations import (
     backup_worktree,
     change_base_branch,
@@ -151,15 +157,11 @@ def _complete_global_worktree_branches() -> list[str]:
         if not repo_path.exists():
             continue
         try:
-            worktrees = parse_worktrees(repo_path)
+            feature_wts = get_feature_worktrees(repo_path)
         except Exception:
             continue
-        for branch, path in worktrees:
-            if path.resolve() == repo_path.resolve():
-                continue
-            normalized = normalize_branch_name(branch)
-            if normalized and normalized != "(detached)":
-                completions.append(f"{name}:{normalized}")
+        for branch_name, _path in feature_wts:
+            completions.append(f"{name}:{branch_name}")
     return completions
 
 
@@ -1333,7 +1335,7 @@ def _interactive_path_selection(global_mode: bool) -> None:
                     entries.append((f"{name}:{normalized}", str(path)))
     else:
         try:
-            repo = get_repo_root()
+            repo = get_main_repo_root()
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=1)

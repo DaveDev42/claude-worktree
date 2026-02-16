@@ -26,6 +26,7 @@ from ..git_utils import (
     find_worktree_by_name,
     get_config,
     get_current_branch,
+    get_feature_worktrees,
     get_main_repo_root,
     get_repo_root,
     git_command,
@@ -1259,19 +1260,8 @@ def clean_worktrees(
     gh_unavailable_branches: list[str] = []  # Track branches that need gh CLI
     has_gh = has_command("gh")
 
-    # Collect worktrees matching criteria
-    for branch, path in parse_worktrees(repo):
-        # Skip main repository
-        if path.resolve() == repo.resolve():
-            continue
-
-        # Skip detached worktrees
-        if branch == "(detached)":
-            continue
-
-        # Normalize branch name
-        branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
-
+    # Collect worktrees matching criteria (excludes main repo and detached entries)
+    for branch_name, path in get_feature_worktrees(repo):
         should_delete = False
         reasons = []
 
@@ -1371,10 +1361,7 @@ def clean_worktrees(
     if interactive:
         console.print("[bold cyan]Available worktrees:[/bold cyan]\n")
         all_worktrees: list[tuple[str, str, str]] = []
-        for branch, path in parse_worktrees(repo):
-            if path.resolve() == repo.resolve() or branch == "(detached)":
-                continue
-            branch_name = branch[11:] if branch.startswith("refs/heads/") else branch
+        for branch_name, path in get_feature_worktrees(repo):
             status = get_worktree_status(str(path), repo)
             all_worktrees.append((branch_name, str(path), status))
             console.print(f"  [{status:8}] {branch_name:<30} {path}")
