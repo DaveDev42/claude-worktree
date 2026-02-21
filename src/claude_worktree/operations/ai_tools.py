@@ -67,6 +67,38 @@ def _run_command_in_shell(
             return subprocess.run(["bash", "-lc", cmd], cwd=str(cwd), check=check)
 
 
+def _run_detached(cmd: str, cwd: str | Path) -> None:
+    """Run a command fully detached from the terminal.
+
+    The process survives terminal close by using start_new_session (setsid)
+    and redirecting stdin/stdout/stderr to devnull.
+
+    Args:
+        cmd: Command string to execute
+        cwd: Working directory
+    """
+    if sys.platform == "win32":
+        # On Windows, use CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS
+        subprocess.Popen(
+            cmd,
+            cwd=str(cwd),
+            shell=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,  # type: ignore[attr-defined]
+        )
+    else:
+        subprocess.Popen(
+            ["bash", "-lc", cmd],
+            cwd=str(cwd),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+
+
 def _generate_session_name(path: Path, branch_name: str | None = None) -> str:
     """Generate session name from path with length limit.
 
@@ -361,8 +393,8 @@ def launch_ai_tool(
     """
     # Handle deprecated parameters
     if bg:
-        warnings.warn("--bg is deprecated. Use --term bg instead", DeprecationWarning, stacklevel=2)
-        term = "bg"
+        warnings.warn("--bg is deprecated. Use --term detach instead", DeprecationWarning, stacklevel=2)
+        term = "detach"
     elif iterm:
         warnings.warn(
             "--iterm is deprecated. Use --term i-w instead", DeprecationWarning, stacklevel=2
@@ -426,9 +458,9 @@ def launch_ai_tool(
         case LaunchMethod.FOREGROUND:
             console.print(f"[cyan]Starting {ai_tool_name} (Ctrl+C to exit)...[/cyan]\n")
             _run_command_in_shell(cmd, path, background=False, check=False)
-        case LaunchMethod.BACKGROUND:
-            _run_command_in_shell(cmd, path, background=True)
-            console.print(f"[bold green]*[/bold green] {ai_tool_name} running in background\n")
+        case LaunchMethod.DETACH:
+            _run_detached(cmd, path)
+            console.print(f"[bold green]*[/bold green] {ai_tool_name} detached (survives terminal close)\n")
         # iTerm
         case LaunchMethod.ITERM_WINDOW:
             _launch_iterm_window(path, cmd, ai_tool_name)

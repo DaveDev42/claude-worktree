@@ -462,11 +462,35 @@ def resolve_launch_alias(value: str) -> str:
     Returns:
         Resolved full name, preserving any session suffix
     """
+    import warnings
+
+    # Deprecated aliases
+    _DEPRECATED_ALIASES: dict[str, str] = {
+        "bg": "detach",
+        "background": "detach",
+    }
+
     # Handle session name suffix (e.g., "t:mysession" -> "tmux:mysession")
     if ":" in value:
         prefix, suffix = value.split(":", 1)
+        if prefix in _DEPRECATED_ALIASES:
+            warnings.warn(
+                f"'{prefix}' is deprecated. Use '{_DEPRECATED_ALIASES[prefix]}' instead.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            prefix = _DEPRECATED_ALIASES[prefix]
         resolved_prefix = LAUNCH_METHOD_ALIASES.get(prefix, prefix)
         return f"{resolved_prefix}:{suffix}"
+
+    if value in _DEPRECATED_ALIASES:
+        new_value = _DEPRECATED_ALIASES[value]
+        warnings.warn(
+            f"'{value}' is deprecated. Use '{new_value}' instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return new_value
 
     return LAUNCH_METHOD_ALIASES.get(value, value)
 

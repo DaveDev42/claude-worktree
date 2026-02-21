@@ -242,18 +242,18 @@ def complete_preset_names() -> list[str]:
 def complete_term_options() -> list[str]:
     """Autocomplete function for --term option."""
     return [
-        # Full names
-        "foreground", "background",
+        # Full names — WezTerm, Zellij, iTerm, tmux, generic
+        "wezterm-window", "wezterm-tab", "wezterm-pane-h", "wezterm-pane-v",
+        "zellij", "zellij-tab", "zellij-pane-h", "zellij-pane-v",
         "iterm-window", "iterm-tab", "iterm-pane-h", "iterm-pane-v",
         "tmux", "tmux-window", "tmux-pane-h", "tmux-pane-v",
-        "zellij", "zellij-tab", "zellij-pane-h", "zellij-pane-v",
-        "wezterm-window", "wezterm-tab", "wezterm-pane-h", "wezterm-pane-v",
+        "foreground", "detach",
         # Aliases
-        "fg", "bg",
+        "w-w", "w-t", "w-p-h", "w-p-v",
+        "z", "z-t", "z-p-h", "z-p-v",
         "i-w", "i-t", "i-p-h", "i-p-v",
         "t", "t-w", "t-p-h", "t-p-v",
-        "z", "z-t", "z-p-h", "z-p-v",
-        "w-w", "w-t", "w-p-h", "w-p-v",
+        "fg", "d",
     ]
 
 
@@ -413,16 +413,16 @@ def new(
         help="Custom path for worktree (default: ../<repo>-<branch>)",
         exists=False,
     ),
-    no_cd: bool = typer.Option(
+    no_term: bool = typer.Option(
         False,
-        "--no-cd",
-        help="Don't change directory after creation",
+        "--no-term",
+        help="Skip AI tool launch (create worktree only)",
     ),
     term: str | None = typer.Option(
         None,
         "--term",
         "-T",
-        help="Terminal: fg, bg, i-w, i-t, i-p-h, i-p-v, t, t-w, t-p-h, t-p-v, z, z-t, z-p-h, z-p-v, w-w, w-t, w-p-h, w-p-v",
+        help="Launch method: wezterm-window (w-w), wezterm-tab (w-t), wezterm-pane (w-p-h/v), zellij (z[:name]), zellij-tab (z-t), zellij-pane (z-p-h/v), iterm-window (i-w), iterm-tab (i-t), iterm-pane (i-p-h/v), tmux (t[:name]), tmux-window (t-w), tmux-pane (t-p-h/v), foreground (fg), detach (d)",
         autocompletion=complete_term_options,
     ),
     # Hidden deprecated options
@@ -436,32 +436,39 @@ def new(
 
     Creates a new git worktree at ../<repo>-<branch_name> by default,
     or at a custom path if specified. Automatically launches your configured
-    AI tool in the new worktree (unless set to 'no-op' preset).
+    AI tool in the new worktree (unless --no-term or 'no-op' preset).
 
     Terminal options (--term/-T):
-        fg, bg             - Foreground/background
+        w-w, w-t           - WezTerm window/tab
+        w-p-h, w-p-v       - WezTerm pane
+        z, z:name          - Zellij session (auto or named)
+        z-t, z-p-h, z-p-v  - Zellij tab/pane
         i-w, i-t           - iTerm window/tab (macOS)
         i-p-h, i-p-v       - iTerm horizontal/vertical pane (macOS)
         t, t:name          - tmux session (auto or named)
         t-w, t-p-h, t-p-v  - tmux window/pane
-        z, z:name          - Zellij session (auto or named)
-        z-t, z-p-h, z-p-v  - Zellij tab/pane
-        w-w, w-t           - WezTerm window/tab
-        w-p-h, w-p-v       - WezTerm pane
+        fg                 - Foreground (default)
+        d                  - Detach (survives terminal close)
 
     Example:
         cw new fix-auth
         cw new feature-api --base develop
         cw new hotfix-bug --term i-t
         cw new feature-ui --term t:mywork
+        cw new quick-fix --no-term
     """
+    # Validate mutually exclusive flags
+    if no_term and term:
+        console.print("[bold red]Error:[/bold red] Cannot use both --no-term and --term")
+        raise typer.Exit(code=1)
+
     try:
         create_worktree(
             branch_name=branch_name,
             base_branch=base,
             path=path,
-            no_cd=no_cd,
             term=term,
+            no_term=no_term,
             bg=bg,
             iterm=iterm,
             iterm_tab=iterm_tab,
@@ -649,7 +656,7 @@ def resume(
         None,
         "--term",
         "-T",
-        help="Terminal: fg, bg, i-w, i-t, i-p-h, i-p-v, t, t-w, t-p-h, t-p-v, z, z-t, z-p-h, z-p-v, w-w, w-t, w-p-h, w-p-v",
+        help="Launch method: wezterm-window (w-w), wezterm-tab (w-t), wezterm-pane (w-p-h/v), zellij (z[:name]), zellij-tab (z-t), zellij-pane (z-p-h/v), iterm-window (i-w), iterm-tab (i-t), iterm-pane (i-p-h/v), tmux (t[:name]), tmux-window (t-w), tmux-pane (t-p-h/v), foreground (fg), detach (d)",
         autocompletion=complete_term_options,
     ),
     branch: bool = typer.Option(
@@ -682,15 +689,16 @@ def resume(
     skip the prompt and force a specific lookup method.
 
     Terminal options (--term/-T):
-        fg, bg             - Foreground/background
+        w-w, w-t           - WezTerm window/tab
+        w-p-h, w-p-v       - WezTerm pane
+        z, z:name          - Zellij session (auto or named)
+        z-t, z-p-h, z-p-v  - Zellij tab/pane
         i-w, i-t           - iTerm window/tab (macOS)
         i-p-h, i-p-v       - iTerm horizontal/vertical pane (macOS)
         t, t:name          - tmux session (auto or named)
         t-w, t-p-h, t-p-v  - tmux window/pane
-        z, z:name          - Zellij session (auto or named)
-        z-t, z-p-h, z-p-v  - Zellij tab/pane
-        w-w, w-t           - WezTerm window/tab
-        w-p-h, w-p-v       - WezTerm pane
+        fg                 - Foreground (default)
+        d                  - Detach (survives terminal close)
 
     Example:
         cw resume                    # Resume in current directory

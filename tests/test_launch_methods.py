@@ -25,7 +25,7 @@ class TestLaunchMethodEnum:
     def test_all_enum_values_exist(self):
         """Test that all expected enum values exist."""
         expected_methods = [
-            "foreground", "background",
+            "foreground", "detach",
             "iterm-window", "iterm-tab", "iterm-pane-h", "iterm-pane-v",
             "tmux", "tmux-window", "tmux-pane-h", "tmux-pane-v",
             "zellij", "zellij-tab", "zellij-pane-h", "zellij-pane-v",
@@ -48,7 +48,7 @@ class TestAliasResolution:
     def test_simple_aliases(self):
         """Test simple alias resolution."""
         assert resolve_launch_alias("fg") == "foreground"
-        assert resolve_launch_alias("bg") == "background"
+        assert resolve_launch_alias("d") == "detach"
 
     def test_iterm_aliases(self):
         """Test iTerm aliases."""
@@ -177,7 +177,7 @@ class TestGetDefaultLaunchMethod:
         """Test environment variable overrides config."""
         with patch.dict(os.environ, {"CW_LAUNCH_METHOD": "i-t"}):
             with patch("claude_worktree.config.load_config") as mock_config:
-                mock_config.return_value = {"launch": {"method": "bg"}}
+                mock_config.return_value = {"launch": {"method": "d"}}
                 method = get_default_launch_method()
                 assert method == LaunchMethod.ITERM_TAB
 
@@ -204,9 +204,9 @@ class TestGetDefaultLaunchMethod:
         """Test that invalid env value falls through to config."""
         with patch.dict(os.environ, {"CW_LAUNCH_METHOD": "invalid"}):
             with patch("claude_worktree.config.load_config") as mock_config:
-                mock_config.return_value = {"launch": {"method": "bg"}}
+                mock_config.return_value = {"launch": {"method": "d"}}
                 method = get_default_launch_method()
-                assert method == LaunchMethod.BACKGROUND
+                assert method == LaunchMethod.DETACH
 
 
 class TestLauncherFunctions:
@@ -513,19 +513,17 @@ class TestLaunchAIToolIntegration:
         # Check session_name is passed
         assert mock_launch.call_args[0][3] == "mywork"
 
-    @patch("claude_worktree.operations.ai_tools._run_command_in_shell")
+    @patch("claude_worktree.operations.ai_tools._run_detached")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("claude_worktree.operations.ai_tools.get_ai_tool_command", return_value=["claude"])
     def test_deprecated_bg_param(self, mock_cmd, mock_has, mock_run):
         """Test deprecated --bg parameter shows warning."""
         from claude_worktree.operations.ai_tools import launch_ai_tool
 
-        with pytest.warns(DeprecationWarning, match="--bg is deprecated"):
+        with pytest.warns(DeprecationWarning, match="--bg is deprecated. Use --term detach instead"):
             launch_ai_tool(Path("/test"), bg=True)
 
-        # Should call background launch
         mock_run.assert_called_once()
-        assert mock_run.call_args[1]["background"] is True
 
     @patch("claude_worktree.operations.ai_tools._launch_iterm_window")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)

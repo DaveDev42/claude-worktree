@@ -61,8 +61,8 @@ def create_worktree(
     branch_name: str,
     base_branch: str | None = None,
     path: Path | None = None,
-    no_cd: bool = False,
     term: str | None = None,
+    no_term: bool = False,
     # Deprecated parameters (for backward compatibility)
     bg: bool = False,
     iterm: bool = False,
@@ -76,8 +76,8 @@ def create_worktree(
         branch_name: Name for the new branch (user-specified, no timestamp)
         base_branch: Base branch to branch from (defaults to current branch)
         path: Custom path for worktree (defaults to ../<repo>-<branch>)
-        no_cd: Don't change directory after creation
         term: Terminal launch method (e.g., "i-t", "t:mysession", "z-p-h")
+        no_term: Skip AI tool launch (create worktree only)
         bg: [DEPRECATED] Use term="bg" instead
         iterm: [DEPRECATED] Use term="iterm-window" or term="i-w" instead
         iterm_tab: [DEPRECATED] Use term="iterm-tab" or term="i-t" instead
@@ -126,18 +126,23 @@ def create_worktree(
                 response = typer.confirm("Resume work in this worktree instead?", default=True)
                 if response:
                     # User wants to resume - call resume_worktree
-                    console.print(
-                        f"\n[dim]Switching to resume mode for '[cyan]{branch_name}[/cyan]'...[/dim]\n"
-                    )
-                    resume_worktree(
-                        worktree=branch_name,
-                        term=term,
-                        # Deprecated parameters passed through
-                        bg=bg,
-                        iterm=iterm,
-                        iterm_tab=iterm_tab,
-                        tmux_session=tmux_session,
-                    )
+                    if no_term:
+                        console.print(
+                            f"\n[dim]Worktree exists at: [blue]{existing_worktree}[/blue][/dim]\n"
+                        )
+                    else:
+                        console.print(
+                            f"\n[dim]Switching to resume mode for '[cyan]{branch_name}[/cyan]'...[/dim]\n"
+                        )
+                        resume_worktree(
+                            worktree=branch_name,
+                            term=term,
+                            # Deprecated parameters passed through
+                            bg=bg,
+                            iterm=iterm,
+                            iterm_tab=iterm_tab,
+                            tmux_session=tmux_session,
+                        )
                     return existing_worktree
                 else:
                     # User declined - suggest alternatives
@@ -319,25 +324,21 @@ def create_worktree(
         # Non-fatal: warn but continue
         console.print(f"[yellow]![/yellow] Warning: Failed to share files: {e}\n")
 
-    # Change directory
-    if not no_cd:
-        os.chdir(worktree_path)
-        console.print(f"Changed directory to: {worktree_path}")
-
     # Run post-create hooks (non-blocking)
     hook_context["event"] = "worktree.post_create"
     run_hooks("worktree.post_create", hook_context, cwd=worktree_path)
 
-    # Launch AI tool (if configured)
-    launch_ai_tool(
-        worktree_path,
-        term=term,
-        # Deprecated parameters passed through
-        bg=bg,
-        iterm=iterm,
-        iterm_tab=iterm_tab,
-        tmux_session=tmux_session,
-    )
+    # Launch AI tool (if configured and not skipped)
+    if not no_term:
+        launch_ai_tool(
+            worktree_path,
+            term=term,
+            # Deprecated parameters passed through
+            bg=bg,
+            iterm=iterm,
+            iterm_tab=iterm_tab,
+            tmux_session=tmux_session,
+        )
 
     return worktree_path
 
