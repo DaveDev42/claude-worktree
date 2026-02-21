@@ -16,8 +16,8 @@ from claude_worktree.operations import create_worktree, export_config, import_co
 def test_export_config_basic(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
     """Test basic configuration export."""
     # Create a couple of worktrees
-    create_worktree(branch_name="feature1", no_cd=True)
-    create_worktree(branch_name="feature2", no_cd=True)
+    create_worktree(branch_name="feature1")
+    create_worktree(branch_name="feature2")
 
     # Export to a specific file
     output_file = tmp_path / "test-export.json"
@@ -99,7 +99,7 @@ def test_export_config_with_custom_config(
     save_config(config)
 
     # Create worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
 
     # Export
     output_file = tmp_path / "custom-config-export.json"
@@ -118,8 +118,8 @@ def test_import_config_preview_mode(
 ) -> None:
     """Test import in preview mode (default)."""
     # Create and export some worktrees
-    create_worktree(branch_name="feature1", no_cd=True)
-    create_worktree(branch_name="feature2", no_cd=True)
+    create_worktree(branch_name="feature1")
+    create_worktree(branch_name="feature2")
 
     export_file = tmp_path / "test-import.json"
     export_config(output_file=export_file)
@@ -145,7 +145,7 @@ def test_import_config_preview_mode(
 def test_import_config_apply_mode(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
     """Test import with apply flag."""
     # Create worktrees and export
-    create_worktree(branch_name="feature1", no_cd=True)
+    create_worktree(branch_name="feature1")
 
     export_file = tmp_path / "test-apply.json"
     export_config(output_file=export_file)
@@ -174,7 +174,7 @@ def test_import_config_worktree_metadata(
 ) -> None:
     """Test import restores worktree metadata."""
     # Create worktree
-    create_worktree(branch_name="metadata-test", no_cd=True)
+    create_worktree(branch_name="metadata-test")
 
     # Export
     export_file = tmp_path / "metadata-export.json"
@@ -251,8 +251,8 @@ def test_import_config_version_check(temp_git_repo: Path, tmp_path: Path) -> Non
 def test_export_import_roundtrip(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
     """Test full roundtrip: export, modify, import, verify."""
     # Setup: Create worktrees and custom config
-    create_worktree(branch_name="roundtrip1", no_cd=True)
-    create_worktree(branch_name="roundtrip2", no_cd=True)
+    create_worktree(branch_name="roundtrip1")
+    create_worktree(branch_name="roundtrip2")
 
     original_config = load_config()
     original_config["ai_tool"]["command"] = "original-tool"
@@ -296,7 +296,7 @@ def test_export_config_with_stale_worktree(
     import shutil
 
     # Create worktree
-    worktree_path = create_worktree(branch_name="stale-wt", no_cd=True)
+    worktree_path = create_worktree(branch_name="stale-wt")
 
     # Delete the worktree directory manually
     shutil.rmtree(worktree_path)

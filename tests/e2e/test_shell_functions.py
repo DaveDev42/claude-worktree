@@ -43,7 +43,7 @@ class TestBashShellFunction:
     def test_cw_cd_changes_directory(self, temp_git_repo: Path, disable_claude) -> None:
         """Test that cw-cd actually changes directory in bash."""
         # Create worktree
-        create_worktree(branch_name="test-bash", no_cd=True)
+        create_worktree(branch_name="test-bash")
 
         # Get shell function script and write to temp file
         script_content = get_shell_function_script("bash")
@@ -133,8 +133,8 @@ class TestBashShellFunction:
     def test_bash_tab_completion(self, temp_git_repo: Path, disable_claude) -> None:
         """Test bash tab completion for cw-cd."""
         # Create multiple worktrees
-        create_worktree(branch_name="feature-1", no_cd=True)
-        create_worktree(branch_name="feature-2", no_cd=True)
+        create_worktree(branch_name="feature-1")
+        create_worktree(branch_name="feature-2")
 
         script_content = get_shell_function_script("bash")
 
@@ -180,7 +180,7 @@ class TestZshShellFunction:
         if not has_command("zsh"):
             pytest.skip("zsh not installed")
 
-        create_worktree(branch_name="test-zsh", no_cd=True)
+        create_worktree(branch_name="test-zsh")
 
         script_content = get_shell_function_script("zsh")
 
@@ -218,7 +218,7 @@ class TestFishShellFunction:
         if not has_command("fish"):
             pytest.skip("fish not installed")
 
-        create_worktree(branch_name="test-fish", no_cd=True)
+        create_worktree(branch_name="test-fish")
 
         script_content = get_shell_function_script("fish")
 
@@ -251,8 +251,8 @@ class TestFishShellFunction:
             pytest.skip("fish not installed")
 
         # Create worktrees
-        create_worktree(branch_name="feature-x", no_cd=True)
-        create_worktree(branch_name="feature-y", no_cd=True)
+        create_worktree(branch_name="feature-x")
+        create_worktree(branch_name="feature-y")
 
         script_content = get_shell_function_script("fish")
 
@@ -293,7 +293,7 @@ class TestPowerShellFunction:
         if not has_command("pwsh") and not has_command("powershell"):
             pytest.skip("PowerShell not installed")
 
-        create_worktree(branch_name="test-pwsh", no_cd=True)
+        create_worktree(branch_name="test-pwsh")
 
         script_content = get_shell_function_script("powershell")
 

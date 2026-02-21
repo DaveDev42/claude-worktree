@@ -144,7 +144,7 @@ class TestYourWorkflow:
     def test_your_scenario(self, temp_git_repo: Path, disable_claude) -> None:
         """Test description."""
         # 1. Setup - create worktree
-        result = run_cw_command(["new", "my-branch", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "my-branch"], cwd=temp_git_repo)
         assert result.returncode == 0
 
         # 2. Action - perform operations
@@ -166,7 +166,7 @@ class TestYourShellFunction:
 
     def test_in_bash(self, temp_git_repo: Path, disable_claude) -> None:
         """Test shell function in bash."""
-        create_worktree(branch_name="test-shell", no_cd=True)
+        create_worktree(branch_name="test-shell")
 
         bash_script = """
         source <(cw _shell-function bash)

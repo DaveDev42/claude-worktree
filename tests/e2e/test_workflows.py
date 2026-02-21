@@ -44,7 +44,7 @@ class TestFeatureDevelopmentWorkflow:
         6. Verify cleanup and changes in main
         """
         # 1. Create new worktree
-        result = run_cw_command(["new", "feature-login", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "feature-login"], cwd=temp_git_repo)
         assert result.returncode == 0, f"Failed to create worktree: {result.stderr}"
 
         worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-feature-login"
@@ -94,7 +94,7 @@ class TestFeatureDevelopmentWorkflow:
         # 1. Create multiple worktrees
         branches = ["feature-auth", "feature-ui", "bugfix-crash"]
         for branch in branches:
-            result = run_cw_command(["new", branch, "--no-cd"], cwd=temp_git_repo)
+            result = run_cw_command(["new", branch], cwd=temp_git_repo)
             assert result.returncode == 0, f"Failed to create {branch}"
 
         # 2. List should show all 3
@@ -125,7 +125,7 @@ class TestFeatureDevelopmentWorkflow:
         4. Worktree gone but branch exists
         """
         # 1. Create worktree
-        result = run_cw_command(["new", "keep-branch-test", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "keep-branch-test"], cwd=temp_git_repo)
         assert result.returncode == 0
 
         worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-keep-branch-test"
@@ -170,7 +170,7 @@ class TestRebaseConflictWorkflow:
         4. Worktree should still exist (not cleaned up on failure)
         """
         # 1. Create worktree
-        result = run_cw_command(["new", "conflict-test", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "conflict-test"], cwd=temp_git_repo)
         assert result.returncode == 0
 
         worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-conflict-test"
@@ -220,7 +220,7 @@ class TestRebaseConflictWorkflow:
         4. Worktree should still exist
         """
         # 1. Create worktree with commit
-        result = run_cw_command(["new", "dry-run-test", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "dry-run-test"], cwd=temp_git_repo)
         assert result.returncode == 0
 
         worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-dry-run-test"
@@ -254,11 +254,11 @@ class TestErrorHandling:
     def test_create_duplicate_worktree(self, temp_git_repo: Path, disable_claude) -> None:
         """Test error when trying to create duplicate worktree."""
         # Create first worktree
-        result = run_cw_command(["new", "duplicate", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "duplicate"], cwd=temp_git_repo)
         assert result.returncode == 0
 
         # Try to create again with same name
-        result = run_cw_command(["new", "duplicate", "--no-cd"], cwd=temp_git_repo)
+        result = run_cw_command(["new", "duplicate"], cwd=temp_git_repo)
         assert result.returncode != 0, "Should fail when creating duplicate"
 
         output = result.stdout + result.stderr
@@ -284,7 +284,7 @@ class TestErrorHandling:
         ]
 
         for invalid_name in invalid_names:
-            result = run_cw_command(["new", invalid_name, "--no-cd"], cwd=temp_git_repo)
+            result = run_cw_command(["new", invalid_name], cwd=temp_git_repo)
             assert result.returncode != 0, f"Should reject invalid name: {invalid_name}"
 
             output = result.stdout + result.stderr
@@ -362,7 +362,7 @@ class TestCustomPathWorkflow:
         # 1. Create with custom path
         custom_path = tmp_path / "my-custom-worktree"
         result = run_cw_command(
-            ["new", "custom-branch", "--path", str(custom_path), "--no-cd"],
+            ["new", "custom-branch", "--path", str(custom_path)],
             cwd=temp_git_repo,
         )
         assert result.returncode == 0
@@ -416,7 +416,7 @@ class TestBasebranchWorkflow:
 
         # 2. Create worktree from develop
         result = run_cw_command(
-            ["new", "feature-from-dev", "--base", "develop", "--no-cd"], cwd=temp_git_repo
+            ["new", "feature-from-dev", "--base", "develop"], cwd=temp_git_repo
         )
         assert result.returncode == 0
 

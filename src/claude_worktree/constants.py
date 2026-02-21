@@ -9,7 +9,7 @@ class LaunchMethod(StrEnum):
     """Terminal launch methods for AI tool execution."""
 
     FOREGROUND = "foreground"
-    BACKGROUND = "background"
+    DETACH = "detach"
     # iTerm (macOS)
     ITERM_WINDOW = "iterm-window"
     ITERM_TAB = "iterm-tab"
@@ -38,7 +38,7 @@ class LaunchMethod(StrEnum):
 # For panes: h=horizontal, v=vertical
 LAUNCH_METHOD_ALIASES: dict[str, str] = {
     "fg": "foreground",
-    "bg": "background",
+    "d": "detach",
     # iTerm
     "i-w": "iterm-window",
     "i-t": "iterm-tab",

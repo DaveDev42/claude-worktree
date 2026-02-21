@@ -31,7 +31,6 @@ def test_create_worktree_basic(temp_git_repo: Path, disable_claude) -> None:
         branch_name="fix-auth",
         base_branch=None,  # Will use current branch
         path=None,  # Will use default path
-        no_cd=True,  # Don't change directory
     )
 
     # Verify worktree was created
@@ -67,7 +66,6 @@ def test_create_worktree_custom_path(temp_git_repo: Path, disable_claude) -> Non
     result_path = create_worktree(
         branch_name="custom-branch",
         path=custom_path,
-        no_cd=True,
     )
 
     assert result_path == custom_path
@@ -88,7 +86,6 @@ def test_create_worktree_with_base_branch(temp_git_repo: Path, disable_claude) -
     result_path = create_worktree(
         branch_name="feature",
         base_branch="develop",
-        no_cd=True,
     )
 
     # Verify it was created from develop
@@ -107,8 +104,7 @@ def test_create_worktree_invalid_base(temp_git_repo: Path, disable_claude) -> No
         create_worktree(
             branch_name="feature",
             base_branch="nonexistent-branch",
-            no_cd=True,
-        )
+            )
 
 
 def test_finish_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch) -> None:
@@ -116,7 +112,6 @@ def test_finish_worktree_success(temp_git_repo: Path, disable_claude, monkeypatc
     # Create worktree
     worktree_path = create_worktree(
         branch_name="finish-test",
-        no_cd=True,
     )
 
     # Change to worktree and make a commit
@@ -158,7 +153,6 @@ def test_finish_worktree_with_rebase(temp_git_repo: Path, disable_claude, monkey
     # Create worktree
     worktree_path = create_worktree(
         branch_name="rebase-test",
-        no_cd=True,
     )
 
     # Make commit in worktree
@@ -198,7 +192,6 @@ def test_finish_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatc
     # Create worktree
     worktree_path = create_worktree(
         branch_name="dry-run-test",
-        no_cd=True,
     )
 
     # Make commit in worktree
@@ -256,7 +249,6 @@ def test_delete_worktree_by_branch(temp_git_repo: Path, disable_claude) -> None:
     # Create worktree
     worktree_path = create_worktree(
         branch_name="delete-me",
-        no_cd=True,
     )
 
     assert worktree_path.exists()
@@ -282,7 +274,6 @@ def test_delete_worktree_by_path(temp_git_repo: Path, disable_claude) -> None:
     # Create worktree
     worktree_path = create_worktree(
         branch_name="delete-by-path",
-        no_cd=True,
     )
 
     # Delete by path
@@ -297,7 +288,6 @@ def test_delete_worktree_keep_branch(temp_git_repo: Path, disable_claude) -> Non
     # Create worktree
     worktree_path = create_worktree(
         branch_name="keep-branch",
-        no_cd=True,
     )
 
     # Delete worktree but keep branch
@@ -334,11 +324,9 @@ def test_list_worktrees(temp_git_repo: Path, disable_claude, capsys) -> None:
     # Create a couple of worktrees
     create_worktree(
         branch_name="wt1",
-        no_cd=True,
     )
     create_worktree(
         branch_name="wt2",
-        no_cd=True,
     )
 
     # List worktrees
@@ -355,7 +343,6 @@ def test_show_status_in_worktree(temp_git_repo: Path, disable_claude, monkeypatc
     # Create worktree
     worktree_path = create_worktree(
         branch_name="status-test",
-        no_cd=True,
     )
 
     # Change to worktree
@@ -398,8 +385,7 @@ def test_create_worktree_invalid_branch_name(temp_git_repo: Path, disable_claude
         with pytest.raises(InvalidBranchError, match="Invalid branch name"):
             create_worktree(
                 branch_name=invalid_name,
-                no_cd=True,
-            )
+                    )
 
 
 def test_get_worktree_status_stale(temp_git_repo: Path, disable_claude) -> None:
@@ -407,7 +393,6 @@ def test_get_worktree_status_stale(temp_git_repo: Path, disable_claude) -> None:
     # Create worktree
     worktree_path = create_worktree(
         branch_name="stale-test",
-        no_cd=True,
     )
 
     # Manually remove the directory
@@ -425,7 +410,6 @@ def test_get_worktree_status_active(temp_git_repo: Path, disable_claude, monkeyp
     # Create worktree
     worktree_path = create_worktree(
         branch_name="active-test",
-        no_cd=True,
     )
 
     # Change to the worktree directory
@@ -441,7 +425,6 @@ def test_get_worktree_status_modified(temp_git_repo: Path, disable_claude) -> No
     # Create worktree
     worktree_path = create_worktree(
         branch_name="modified-test",
-        no_cd=True,
     )
 
     # Add uncommitted changes
@@ -457,7 +440,6 @@ def test_get_worktree_status_clean(temp_git_repo: Path, disable_claude) -> None:
     # Create worktree
     worktree_path = create_worktree(
         branch_name="clean-test",
-        no_cd=True,
     )
 
     # Status should be "clean" (no uncommitted changes, not current directory)
@@ -474,7 +456,6 @@ def test_resume_worktree_current_directory(
     # Create worktree
     worktree_path = create_worktree(
         branch_name="resume-test",
-        no_cd=True,
     )
 
     # Clean up any existing session (from previous test runs)
@@ -504,7 +485,6 @@ def test_resume_worktree_with_branch_name(
     # Create worktree
     worktree_path = create_worktree(
         branch_name="resume-branch",
-        no_cd=True,
     )
 
     # Start from main repo
@@ -535,7 +515,6 @@ def test_resume_worktree_with_session(
     # Create worktree
     worktree_path = create_worktree(
         branch_name="session-test",
-        no_cd=True,
     )
 
     # Create session metadata
@@ -608,7 +587,6 @@ def test_resume_worktree_creates_session_metadata(
     # Create worktree
     worktree_path = create_worktree(
         branch_name="metadata-test",
-        no_cd=True,
     )
 
     # Clean up any existing session (from previous test runs)
@@ -692,7 +670,6 @@ def test_create_pr_worktree_missing_gh_cli(temp_git_repo: Path, disable_claude, 
     # Create worktree
     worktree_path = create_worktree(
         branch_name="pr-test",
-        no_cd=True,
     )
 
     # Make a commit
@@ -720,7 +697,6 @@ def test_create_pr_worktree_no_push(
     # Create worktree
     worktree_path = create_worktree(
         branch_name="pr-no-push",
-        no_cd=True,
     )
 
     # Make a commit
@@ -767,7 +743,6 @@ def test_merge_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch
     # Create worktree
     worktree_path = create_worktree(
         branch_name="merge-test",
-        no_cd=True,
     )
 
     # Make a commit
@@ -811,7 +786,6 @@ def test_merge_worktree_with_rebase(temp_git_repo: Path, disable_claude, monkeyp
     # Create worktree
     worktree_path = create_worktree(
         branch_name="merge-rebase-test",
-        no_cd=True,
     )
 
     # Make commit in worktree
@@ -851,7 +825,6 @@ def test_merge_worktree_dry_run(temp_git_repo: Path, disable_claude, monkeypatch
     # Create worktree
     worktree_path = create_worktree(
         branch_name="merge-dry-run-test",
-        no_cd=True,
     )
 
     # Make commit in worktree
@@ -905,7 +878,6 @@ def test_change_base_branch_success(temp_git_repo: Path, disable_claude, monkeyp
     worktree_path = create_worktree(
         branch_name="feature-test",
         base_branch="main",
-        no_cd=True,
     )
 
     # Make a commit in the worktree
@@ -948,7 +920,6 @@ def test_change_base_branch_with_target(temp_git_repo: Path, disable_claude) -> 
     worktree_path = create_worktree(
         branch_name="target-test",
         base_branch="main",
-        no_cd=True,
     )
 
     # Make a commit
@@ -990,7 +961,6 @@ def test_change_base_branch_dry_run(
     worktree_path = create_worktree(
         branch_name="dry-run-base",
         base_branch="main",
-        no_cd=True,
     )
 
     # Change to worktree
@@ -1023,7 +993,6 @@ def test_change_base_branch_invalid_base(temp_git_repo: Path, disable_claude, mo
     # Create worktree
     worktree_path = create_worktree(
         branch_name="invalid-base-test",
-        no_cd=True,
     )
 
     # Change to worktree
@@ -1093,7 +1062,6 @@ def test_change_base_branch_with_conflicts(
     worktree_path = create_worktree(
         branch_name="conflict-test",
         base_branch="main",
-        no_cd=True,
     )
     (worktree_path / "conflict.txt").write_text("main content")
     subprocess.run(["git", "add", "."], cwd=worktree_path, check=True, capture_output=True)
@@ -1156,7 +1124,6 @@ def test_sync_worktree_with_ai_merge_conflicts(
     worktree_path = create_worktree(
         branch_name="sync-conflict-test",
         base_branch="main",
-        no_cd=True,
     )
 
     # Make conflicting change in worktree
@@ -1193,7 +1160,6 @@ def test_sync_worktree_success(temp_git_repo: Path, disable_claude, monkeypatch)
     worktree_path = create_worktree(
         branch_name="sync-success-test",
         base_branch="main",
-        no_cd=True,
     )
 
     # Make a commit in the worktree
@@ -1235,12 +1201,10 @@ def test_sync_all_worktrees(temp_git_repo: Path, disable_claude, monkeypatch) ->
     worktree1 = create_worktree(
         branch_name="wt1",
         base_branch="main",
-        no_cd=True,
     )
     worktree2 = create_worktree(
         branch_name="wt2",
         base_branch="main",
-        no_cd=True,
     )
 
     # Make commits in each worktree
@@ -1292,7 +1256,6 @@ def test_sync_nested_worktrees(temp_git_repo: Path, disable_claude, monkeypatch)
     worktree_a = create_worktree(
         branch_name="feature-a",
         base_branch="main",
-        no_cd=True,
     )
 
     # Make a commit in feature-a
@@ -1309,7 +1272,6 @@ def test_sync_nested_worktrees(temp_git_repo: Path, disable_claude, monkeypatch)
     worktree_a_refinement = create_worktree(
         branch_name="feature-a-refinement",
         base_branch="feature-a",
-        no_cd=True,
     )
 
     # Make a commit in feature-a-refinement
@@ -1354,7 +1316,6 @@ def test_create_worktree_existing_worktree_non_interactive(
     # Create initial worktree
     worktree_path = create_worktree(
         branch_name="duplicate-test",
-        no_cd=True,
     )
     assert worktree_path.exists()
 
@@ -1363,8 +1324,7 @@ def test_create_worktree_existing_worktree_non_interactive(
     with pytest.raises(InvalidBranchError, match="already exists"):
         create_worktree(
             branch_name="duplicate-test",
-            no_cd=True,
-        )
+            )
 
 
 def test_create_worktree_existing_branch_non_interactive(
@@ -1391,7 +1351,6 @@ def test_create_worktree_existing_branch_non_interactive(
     # Create worktree from existing branch (non-interactive mode should proceed)
     worktree_path = create_worktree(
         branch_name="existing-branch",
-        no_cd=True,
     )
 
     # Verify worktree was created
@@ -1412,7 +1371,7 @@ def test_delete_worktree_current_directory(
     temp_git_repo: Path, disable_claude, monkeypatch
 ) -> None:
     """Test deleting worktree from within that worktree (current directory)."""
-    worktree_path = create_worktree(branch_name="delete-current", no_cd=True)
+    worktree_path = create_worktree(branch_name="delete-current")
     assert worktree_path.exists()
 
     # Change to the worktree directory
@@ -1449,7 +1408,6 @@ def test_delete_worktree_by_worktree_name(temp_git_repo: Path, disable_claude) -
     # Create worktree
     worktree_path = create_worktree(
         branch_name="feature-test",
-        no_cd=True,
     )
 
     assert worktree_path.exists()
@@ -1476,7 +1434,6 @@ def test_delete_worktree_with_branch_flag(temp_git_repo: Path, disable_claude) -
     # Create worktree
     worktree_path = create_worktree(
         branch_name="branch-flag-test",
-        no_cd=True,
     )
 
     assert worktree_path.exists()
@@ -1502,7 +1459,6 @@ def test_delete_worktree_with_worktree_flag(temp_git_repo: Path, disable_claude)
     # Create worktree
     worktree_path = create_worktree(
         branch_name="wt-flag-test",
-        no_cd=True,
     )
 
     assert worktree_path.exists()
@@ -1520,7 +1476,6 @@ def test_delete_worktree_branch_flag_not_found(temp_git_repo: Path, disable_clau
     # Create worktree
     create_worktree(
         branch_name="exists",
-        no_cd=True,
     )
 
     # Try to delete nonexistent branch with --branch flag
@@ -1533,7 +1488,6 @@ def test_delete_worktree_worktree_flag_not_found(temp_git_repo: Path, disable_cl
     # Create worktree
     create_worktree(
         branch_name="exists",
-        no_cd=True,
     )
 
     # Try to delete nonexistent worktree name with --worktree flag
@@ -1548,7 +1502,6 @@ def test_delete_worktree_from_inside_with_different_branch(
     # Create worktree with branch "original-branch"
     worktree_path = create_worktree(
         branch_name="original-branch",
-        no_cd=True,
     )
 
     assert worktree_path.exists()
@@ -1587,7 +1540,6 @@ def test_delete_worktree_ambiguous_non_interactive(
     # Create first worktree with branch name that could match a directory
     create_worktree(
         branch_name="ambiguous",
-        no_cd=True,
     )
 
     # Create second worktree with directory name 'ambiguous'
@@ -1626,7 +1578,6 @@ def test_delete_worktree_same_branch_and_worktree_name(
     # Create worktree
     worktree_path = create_worktree(
         branch_name="matching",
-        no_cd=True,
     )
 
     assert worktree_path.exists()
@@ -1646,7 +1597,6 @@ def test_get_main_repo_root_from_worktree(temp_git_repo: Path, disable_claude, m
     # Create worktree
     worktree_path = create_worktree(
         branch_name="test-main-repo",
-        no_cd=True,
     )
 
     # Change to worktree
@@ -1664,7 +1614,6 @@ def test_find_worktree_by_name(temp_git_repo: Path, disable_claude) -> None:
     # Create worktree
     worktree_path = create_worktree(
         branch_name="name-lookup",
-        no_cd=True,
     )
 
     worktree_dir_name = worktree_path.name
@@ -1719,7 +1668,6 @@ def test_create_worktree_from_remote_only_branch(
     # Create worktree from the remote-only branch (non-interactive mode)
     worktree_path = create_worktree(
         branch_name="remote-feature",
-        no_cd=True,
     )
 
     # Verify worktree was created
@@ -1767,7 +1715,7 @@ def test_create_worktree_from_remote_only_branch_stores_metadata(
         cwd=temp_git_repo, check=True, capture_output=True,
     )
 
-    worktree_path = create_worktree(branch_name="meta-test", no_cd=True)
+    worktree_path = create_worktree(branch_name="meta-test")
     assert worktree_path.exists()
 
     # Verify metadata is stored
@@ -1818,7 +1766,7 @@ def test_create_worktree_local_branch_takes_precedence_over_remote(
     assert remote_branch_exists("both-local-remote", temp_git_repo)
 
     # Non-interactive: should proceed with "existing local branch" path (no prompt)
-    worktree_path = create_worktree(branch_name="both-local-remote", no_cd=True)
+    worktree_path = create_worktree(branch_name="both-local-remote")
     assert worktree_path.exists()
 
 
@@ -1861,7 +1809,6 @@ def test_create_worktree_from_remote_with_explicit_base(
     worktree_path = create_worktree(
         branch_name="remote-with-base",
         base_branch="develop",
-        no_cd=True,
     )
     assert worktree_path.exists()
 
@@ -1906,8 +1853,7 @@ def test_create_worktree_from_remote_with_invalid_base(
         create_worktree(
             branch_name="remote-invalid-base",
             base_branch="nonexistent-base",
-            no_cd=True,
-        )
+            )
 
 
 def test_create_worktree_from_remote_with_custom_path(
@@ -1943,7 +1889,6 @@ def test_create_worktree_from_remote_with_custom_path(
     worktree_path = create_worktree(
         branch_name="remote-custom-path",
         path=custom_path,
-        no_cd=True,
     )
 
     assert worktree_path == custom_path
@@ -1996,7 +1941,7 @@ def test_create_worktree_remote_has_different_content(
     assert not (temp_git_repo / "remote-file.txt").exists()
 
     # Create worktree from remote-only branch
-    worktree_path = create_worktree(branch_name="content-branch", no_cd=True)
+    worktree_path = create_worktree(branch_name="content-branch")
 
     # Worktree should have the remote branch's content
     assert (worktree_path / "remote-file.txt").exists()
@@ -2030,7 +1975,7 @@ def test_delete_worktree_created_from_remote(
         cwd=temp_git_repo, check=True, capture_output=True,
     )
 
-    worktree_path = create_worktree(branch_name="delete-remote-test", no_cd=True)
+    worktree_path = create_worktree(branch_name="delete-remote-test")
     assert worktree_path.exists()
 
     # Delete it

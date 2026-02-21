@@ -33,7 +33,7 @@ def test_get_backups_dir(tmp_path: Path, monkeypatch) -> None:
 def test_backup_worktree_current(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
     """Test backing up current worktree."""
     # Create a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
 
     # Create some changes in the worktree
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
@@ -76,7 +76,7 @@ def test_backup_worktree_specific_branch(
 ) -> None:
     """Test backing up a specific worktree by branch name."""
     # Create a worktree
-    create_worktree(branch_name="feature-x", no_cd=True)
+    create_worktree(branch_name="feature-x")
 
     # Backup specific branch
     backup_output = tmp_path / "backups"
@@ -91,8 +91,8 @@ def test_backup_worktree_specific_branch(
 def test_backup_worktree_all(temp_git_repo: Path, disable_claude, tmp_path: Path) -> None:
     """Test backing up all worktrees."""
     # Create multiple worktrees
-    create_worktree(branch_name="feature-1", no_cd=True)
-    create_worktree(branch_name="feature-2", no_cd=True)
+    create_worktree(branch_name="feature-1")
+    create_worktree(branch_name="feature-2")
 
     # Backup all worktrees
     backup_output = tmp_path / "backups"
@@ -110,7 +110,7 @@ def test_backup_worktree_with_uncommitted_changes(
 ) -> None:
     """Test backup includes uncommitted changes."""
     # Create a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
 
     # Create uncommitted changes
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
@@ -161,7 +161,7 @@ def test_list_backups(
     from claude_worktree.operations import backup_ops
 
     # Create and backup a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
     backup_output = tmp_path / "backups"
     backup_worktree(branch="test-branch", output=backup_output)
 
@@ -180,8 +180,8 @@ def test_list_backups_filter_by_branch(
 ) -> None:
     """Test listing backups filtered by branch."""
     # Create and backup multiple worktrees
-    create_worktree(branch_name="feature-1", no_cd=True)
-    create_worktree(branch_name="feature-2", no_cd=True)
+    create_worktree(branch_name="feature-1")
+    create_worktree(branch_name="feature-2")
 
     backup_output = tmp_path / "backups"
     backup_worktree(branch="feature-1", output=backup_output)
@@ -205,7 +205,7 @@ def test_list_backups_filter_by_branch(
 def test_restore_worktree(temp_git_repo: Path, disable_claude, tmp_path: Path, monkeypatch) -> None:
     """Test restoring a worktree from backup."""
     # Create and backup a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
 
     # Add some content to the worktree
@@ -246,7 +246,7 @@ def test_restore_worktree_with_uncommitted_changes(
 ) -> None:
     """Test restoring a worktree with uncommitted changes."""
     # Create a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
 
     # Add committed content
@@ -298,7 +298,7 @@ def test_restore_worktree_latest_backup(
 ) -> None:
     """Test restoring from latest backup when multiple exist."""
     # Create a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
 
     # Create first backup
@@ -352,7 +352,7 @@ def test_restore_worktree_specific_backup(
 ) -> None:
     """Test restoring from a specific backup by ID."""
     # Create a worktree and two backups
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
 
     backup_output = tmp_path / "backups"
@@ -415,7 +415,7 @@ def test_restore_worktree_existing_path(
 ) -> None:
     """Test restore fails when target path already exists."""
     # Create and backup a worktree
-    create_worktree(branch_name="test-branch", no_cd=True)
+    create_worktree(branch_name="test-branch")
     worktree_path = temp_git_repo.parent / f"{temp_git_repo.name}-test-branch"
 
     backup_output = tmp_path / "backups"
