@@ -1,4 +1,4 @@
-"""Slash command setup for Happy, Claude Code, and Codex."""
+"""Slash command setup for Claude Code and Codex."""
 
 import shutil
 from pathlib import Path
@@ -16,10 +16,9 @@ def detect_ai_tools() -> dict[str, bool]:
 
     Returns:
         Dict with tool names and their installation status
-        Example: {"happy": True, "claude": True, "codex": False}
+        Example: {"claude": True, "codex": False}
     """
     tools = {
-        "happy": shutil.which("happy") is not None,
         "claude": shutil.which("claude") is not None,
         "codex": shutil.which("codex") is not None,
     }
@@ -31,7 +30,7 @@ def get_installed_ai_tools() -> list[str]:
     """Get list of installed AI tool names.
 
     Returns:
-        List of installed tool names (e.g., ["happy", "claude"])
+        List of installed tool names (e.g., ["claude", "codex"])
     """
     tools = detect_ai_tools()
     return [name for name, installed in tools.items() if installed]
@@ -42,7 +41,7 @@ def is_slash_command_installed() -> bool:
 
     Returns:
         True if at least one of the slash command files exists:
-        - ~/.claude/commands/cw.md (Claude Code, Happy)
+        - ~/.claude/commands/cw.md (Claude Code)
         - ~/.codex/prompts/cw.md (Codex)
     """
     claude_file = Path.home() / ".claude" / "commands" / "cw.md"
@@ -53,8 +52,8 @@ def is_slash_command_installed() -> bool:
 def can_use_slash_commands() -> bool:
     """Check if Claude Code is installed (supports slash commands).
 
-    Happy and Codex use the same slash command directories as Claude Code,
-    so we only need to check for Claude Code installation.
+    Codex uses a separate slash command directory,
+    but we only need to check for Claude Code installation.
 
     Returns:
         True if Claude Code is installed
@@ -103,8 +102,8 @@ def install_slash_command() -> bool:
         # Subcommands support requires Python 3.9+
         subcommands = {}
 
-    # Install for Claude Code / Happy (shared directory)
-    if installed_tools.get("claude") or installed_tools.get("happy"):
+    # Install for Claude Code
+    if installed_tools.get("claude"):
         total_attempts += 1
         claude_dir = Path.home() / ".claude" / "commands"
         claude_cw_dir = claude_dir / "cw"
@@ -120,11 +119,11 @@ def install_slash_command() -> bool:
                 (claude_cw_dir / filename).write_text(content)
 
             console.print(
-                f"[bold green]*[/bold green] Installed for Claude Code/Happy: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
+                f"[bold green]*[/bold green] Installed for Claude Code: {claude_dir / 'cw.md'} + {len(subcommands)} subcommands"
             )
             success_count += 1
         except Exception as e:
-            console.print(f"[bold red]x[/bold red] Failed to install for Claude Code/Happy: {e}")
+            console.print(f"[bold red]x[/bold red] Failed to install for Claude Code: {e}")
 
     # Install for Codex (separate directory)
     if installed_tools.get("codex"):
@@ -164,7 +163,7 @@ def install_slash_command() -> bool:
     else:
         console.print("\n[bold red]Error:[/bold red] Failed to install slash command")
         console.print("\n[yellow]Manual installation:[/yellow]")
-        console.print("  Claude Code/Happy: ~/.claude/commands/cw.md")
+        console.print("  Claude Code: ~/.claude/commands/cw.md")
         console.print("  Codex: ~/.codex/prompts/cw.md")
         console.print(
             "  Template: https://github.com/DaveDev42/claude-worktree/blob/main/src/claude_worktree/slash_commands/cw.md"
@@ -216,7 +215,7 @@ def prompt_slash_command_setup() -> None:
     # Prompt user
     console.print("\n[bold cyan]💡 Claude Code Slash Command Setup[/bold cyan]")
     console.print("\nWould you like to enable [cyan]/cw[/cyan] commands in your AI sessions?")
-    console.print("This lets you run worktree commands directly from Claude Code/Happy/Codex:\n")
+    console.print("This lets you run worktree commands directly from Claude Code/Codex:\n")
     console.print("  [dim]/cw new feature-name[/dim]")
     console.print("  [dim]/cw list[/dim]")
     console.print("  [dim]/cw resume fix-auth[/dim]\n")

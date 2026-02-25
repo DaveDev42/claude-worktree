@@ -441,16 +441,7 @@ def launch_ai_tool(
         )
         return
 
-    # Build command - only add --dangerously-skip-permissions if not already present
-    # (for backward compatibility with non-merge commands)
     cmd_parts = ai_cmd_parts.copy()
-    if (
-        not prompt
-        and ai_tool_name == "claude"
-        and "--dangerously-skip-permissions" not in cmd_parts
-    ):
-        cmd_parts.append("--dangerously-skip-permissions")
-
     cmd = " ".join(shlex.quote(part) for part in cmd_parts)
 
     # Dispatch to appropriate launcher

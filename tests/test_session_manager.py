@@ -232,7 +232,7 @@ def test_list_sessions(temp_sessions_dir):
     # Create multiple sessions
     save_session_metadata("branch1", "claude", "/path1")
     save_session_metadata("branch2", "codex", "/path2")
-    save_session_metadata("branch3", "happy", "/path3")
+    save_session_metadata("branch3", "claude", "/path3")
 
     sessions = list_sessions()
 

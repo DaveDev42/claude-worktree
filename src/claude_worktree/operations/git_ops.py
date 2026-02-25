@@ -95,7 +95,7 @@ BODY:
             console.print("[yellow]Generating PR description with AI...[/yellow]")
 
             # Read prompt content from file
-            # Note: AI tools like claude/happy accept prompt as positional argument, not via --prompt flag
+            # Note: AI tools like claude accept prompt as positional argument, not via --prompt flag
             with open(prompt_file) as f:
                 prompt_text = f.read()
 

@@ -15,7 +15,7 @@ When communicating externally, always reference user-facing documentation:
 
 ## Project Overview
 
-**claude-worktree** is a CLI tool that seamlessly integrates git worktree with AI coding assistants to streamline feature development workflows. It allows developers to quickly create isolated worktrees for feature branches, work with their preferred AI tool (Claude Code, Codex, Happy, or custom) in those environments, and cleanly merge changes back to the base branch.
+**claude-worktree** is a CLI tool that seamlessly integrates git worktree with AI coding assistants to streamline feature development workflows. It allows developers to quickly create isolated worktrees for feature branches, work with their preferred AI tool (Claude Code, Codex, or custom) in those environments, and cleanly merge changes back to the base branch.
 
 ## Core Concept
 
@@ -130,7 +130,6 @@ claude-worktree/
   - Supports multiple AI tools:
     - Claude Code (default)
     - Codex
-    - Happy (with Claude or Codex backend)
     - Custom commands
   - Note: To skip AI tool launch, use `cw config use-preset no-op`
 
@@ -141,10 +140,11 @@ claude-worktree/
   - Available presets:
     - `no-op`: Disable AI tool launching
     - `claude`: Claude Code (default)
+    - `claude-yolo`: Claude Code with --dangerously-skip-permissions
+    - `claude-remote`: Claude Code with remote control (phone/tablet/browser)
+    - `claude-yolo-remote`: Claude Code remote control + skip permissions
     - `codex`: OpenAI Codex
-    - `happy`: Happy with Claude Code (mobile-enabled)
-    - `happy-codex`: Happy with Codex mode and bypass permissions
-    - `happy-yolo`: Happy with YOLO mode (bypass all permissions)
+    - `codex-yolo`: Codex with bypass approvals and sandbox
 - **`cw config list-presets`**: List available presets
 - **`cw config reset`**: Reset to defaults
 - Configuration stored in `~/.config/claude-worktree/config.json`

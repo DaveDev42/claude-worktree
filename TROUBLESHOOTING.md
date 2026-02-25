@@ -189,9 +189,6 @@ cw delete <branch> --keep-branch  # Keep branch, delete worktree only
 
    # For Codex
    which codex
-
-   # For Happy
-   which happy
    ```
 
 2. **Install the AI tool**:
@@ -199,12 +196,8 @@ cw delete <branch> --keep-branch  # Keep branch, delete worktree only
    # Claude Code
    # Download from https://claude.ai/download
 
-   # Happy (mobile Claude Code)
-   npm install -g happy-coder
-
    # Verify installation
    claude --version
-   happy --version
    ```
 
 3. **Configure `cw` to use your AI tool**:
@@ -214,11 +207,9 @@ cw delete <branch> --keep-branch  # Keep branch, delete worktree only
 
    # Set AI tool explicitly
    cw config set ai-tool claude
-   cw config set ai-tool happy
 
    # Or use a preset
    cw config use-preset claude
-   cw config use-preset happy
    ```
 
 4. **Disable AI tool launch temporarily**:
