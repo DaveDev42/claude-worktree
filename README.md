@@ -13,7 +13,7 @@
 
 Each feature gets:
 - ✅ Its own directory (git worktree)
-- ✅ Its own AI coding session (Claude Code, Codex, Happy, or custom)
+- ✅ Its own AI coding session (Claude Code, Codex, or custom)
 - ✅ Zero interference with other work
 
 Perfect for developers who want to:
@@ -207,10 +207,10 @@ By default, `cw` launches Claude Code. You can easily change this:
 
 ```bash
 # Use a preset
-cw config use-preset claude         # Claude Code (default)
-cw config use-preset happy          # Happy (mobile Claude)
-cw config use-preset codex          # OpenAI Codex
-cw config use-preset no-op          # Skip AI launch
+cw config use-preset claude              # Claude Code (default)
+cw config use-preset claude-remote       # Remote control (phone/tablet)
+cw config use-preset codex               # OpenAI Codex
+cw config use-preset no-op               # Skip AI launch
 
 # Or set custom tool
 cw config set ai-tool "your-ai-tool"
@@ -238,7 +238,7 @@ cw config copy-files remove .env
 
 **Note:** Dependencies like `node_modules` and `.venv` are automatically symlinked (not copied) to save disk space.
 
-For detailed configuration options (Happy setup, auto-updates, export/import, etc.), see **[Configuration Guide](docs/configuration.md)**.
+For detailed configuration options (remote control, auto-updates, export/import, etc.), see **[Configuration Guide](docs/configuration.md)**.
 
 ## More Features
 
@@ -262,7 +262,7 @@ cw <command> --help
 
 - **Git**: 2.31+ (for worktree support)
 - **Python**: 3.11+
-- **AI Tool** (optional): Claude Code, Codex, Happy, or custom
+- **AI Tool** (optional): Claude Code, Codex, or custom
 
 ## Installation Methods
 

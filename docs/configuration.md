@@ -24,12 +24,11 @@ cw config show
 # Set a custom AI tool
 cw config set ai-tool claude
 cw config set ai-tool codex
-cw config set ai-tool "happy --backend claude"
 
 # Use a predefined preset
 cw config use-preset claude
 cw config use-preset codex
-cw config use-preset happy
+cw config use-preset claude-remote
 
 # List available presets
 cw config list-presets
@@ -54,27 +53,20 @@ OpenAI Codex integration.
 cw config use-preset codex
 ```
 
-#### `happy`
-Happy with Claude Code - mobile-enabled wrapper for Claude.
+#### `claude-remote`
+Claude Code with remote control — works in local terminal AND accessible from phone, tablet, or browser.
 
 ```bash
-cw config use-preset happy
+cw config use-preset claude-remote
 ```
 
-**Requires:** `npm install -g happy-coder`
+**Requires:** Claude Code Pro/Max plan.
 
-#### `happy-codex`
-Happy with Codex mode and bypass permissions for faster iteration.
-
-```bash
-cw config use-preset happy-codex
-```
-
-#### `happy-yolo`
-Happy with bypass all permissions (fastest, use in sandboxes).
+#### `claude-yolo-remote`
+Claude Code remote control with `--dangerously-skip-permissions`.
 
 ```bash
-cw config use-preset happy-yolo
+cw config use-preset claude-yolo-remote
 ```
 
 #### `no-op`
@@ -113,71 +105,31 @@ CW_AI_TOOL="aider" cw new my-feature
 
 The tool will be launched with the worktree directory as the working directory.
 
-## Using Happy (Mobile Claude Code)
+## Using Claude Remote Control
 
-[Happy](https://github.com/slopus/happy-cli) is a mobile-enabled wrapper for Claude Code that allows you to control coding sessions from your phone.
-
-### Installation
-
-```bash
-npm install -g happy-coder
-```
+Claude Code's remote control feature lets you use the local terminal normally while also accessing the session from any device (phone, tablet, browser).
 
 ### Quick Start
 
 ```bash
-# Use Happy preset (Claude Code with mobile)
-cw config use-preset happy
+# Use remote control preset
+cw config use-preset claude-remote
 
-# Create worktree with Happy
+# Create worktree — Claude starts locally with remote control enabled
 cw new my-feature
 
-# QR code will appear for mobile connection
+# Use /rc or scan QR code to connect from another device
 ```
 
-### Permission Modes
+**Requires:** Claude Code Pro/Max plan.
 
-Happy supports different permission modes for faster iteration:
-
-#### Standard Mode (default)
-```bash
-cw config use-preset happy
-```
-
-Normal Claude Code behavior with permission prompts.
-
-#### Codex Mode with Bypass Permissions
-```bash
-cw config use-preset happy-codex
-```
-
-Uses Codex backend and bypasses some permission prompts.
-
-#### YOLO Mode - Bypass All Permissions
-```bash
-cw config use-preset happy-yolo
-```
-
-**⚠️ Use with caution!** Bypasses all permission prompts. Only use in sandboxed environments.
-
-### Using Happy with Codex
+### With Skip Permissions
 
 ```bash
-# Switch to Codex mode
-cw config use-preset happy-codex
-cw new my-feature
+cw config use-preset claude-yolo-remote
 ```
 
-### Advanced Happy Configuration
-
-```bash
-# Custom Happy server
-export HAPPY_SERVER_URL=https://my-server.com
-cw config set ai-tool "happy"
-
-# Pass additional arguments to Claude
-cw config set ai-tool "happy --claude-arg --dangerously-skip-permissions"
-```
+**Warning:** Bypasses all permission prompts. Only use in sandboxed environments.
 
 ## Launch Options
 
@@ -614,14 +566,6 @@ CW_AI_TOOL="aider" cw new my-feature
 CW_AI_TOOL="echo" cw new feature  # Skip AI launch
 ```
 
-### `HAPPY_SERVER_URL`
-
-Custom Happy server URL (when using Happy).
-
-```bash
-export HAPPY_SERVER_URL=https://my-server.com
-```
-
 ## Configuration Examples
 
 ### Example 1: Solo Developer (Direct Merge Workflow)
@@ -641,8 +585,8 @@ echo 'source <(cw _shell-function bash)' >> ~/.bashrc
 ### Example 2: Team Developer (PR Workflow)
 
 ```bash
-# Use Happy for mobile access
-cw config use-preset happy
+# Use Claude remote control for mobile access
+cw config use-preset claude-remote
 
 # Install shell helpers
 cw --install-completion

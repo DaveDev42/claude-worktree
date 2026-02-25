@@ -1,7 +1,7 @@
 """AI session management for claude-worktree.
 
 Handles backup and restoration of AI coding assistant sessions across worktrees.
-Supports Claude Code, Codex, Happy, and custom AI tools.
+Supports Claude Code, Codex, and custom AI tools.
 """
 
 import json
@@ -102,7 +102,7 @@ def save_session_metadata(branch_name: str, ai_tool: str, worktree_path: str) ->
 
     Args:
         branch_name: Name of the feature branch
-        ai_tool: Name of the AI tool (e.g., "claude", "codex", "happy")
+        ai_tool: Name of the AI tool (e.g., "claude", "codex")
         worktree_path: Path to the worktree directory
     """
     session_dir = get_session_dir(branch_name)

@@ -1738,7 +1738,6 @@ def set_cmd(
 
     Example:
         cw config set ai-tool claude
-        cw config set ai-tool "happy --backend claude"
         cw config set git.default_base_branch develop
     """
     try:
@@ -1762,7 +1761,7 @@ def set_cmd(
 def use_preset_cmd(
     preset: str = typer.Argument(
         ...,
-        help="Preset name (e.g., 'claude', 'codex', 'happy', 'happy-codex')",
+        help="Preset name (e.g., 'claude', 'codex', 'claude-remote')",
         autocompletion=complete_preset_names,
     ),
 ) -> None:
@@ -1772,14 +1771,15 @@ def use_preset_cmd(
     Available presets:
     - no-op: Disable AI tool launching
     - claude: Claude Code CLI
+    - claude-yolo: Claude Code with --dangerously-skip-permissions
+    - claude-remote: Claude Code with remote control (phone/tablet/browser)
+    - claude-yolo-remote: Claude Code remote control + skip permissions
     - codex: OpenAI Codex
-    - happy: Happy with Claude Code mode
-    - happy-codex: Happy with Codex mode (bypass permissions)
-    - happy-yolo: Happy with bypass permissions (fast iteration)
+    - codex-yolo: Codex with bypass approvals and sandbox
 
     Example:
         cw config use-preset claude
-        cw config use-preset happy-codex
+        cw config use-preset claude-remote
         cw config use-preset no-op
     """
     try:
@@ -1829,10 +1829,10 @@ def reset() -> None:
 @app.command(name="slash-command-setup", rich_help_panel="Configuration")
 def slash_command_setup_cmd() -> None:
     """
-    Install or reinstall /cw slash command for Happy/Claude/Codex.
+    Install or reinstall /cw slash command for Claude/Codex.
 
     Installs the /cw slash command to ~/.claude/commands/ directory,
-    making it available in all Happy, Claude Code, and Codex sessions.
+    making it available in all Claude Code and Codex sessions.
 
     Example:
         cw slash-command-setup
@@ -1841,9 +1841,8 @@ def slash_command_setup_cmd() -> None:
     installed_tools = get_installed_ai_tools()
 
     if not installed_tools:
-        console.print("[yellow]Warning:[/yellow] No AI tools (happy/claude/codex) detected.")
+        console.print("[yellow]Warning:[/yellow] No AI tools (claude/codex) detected.")
         console.print("\nSlash commands work with:")
-        console.print("  - Happy: https://github.com/happy-coder/happy")
         console.print("  - Claude Code: https://claude.ai/download")
         console.print("  - Codex: https://github.com/codex-ai/codex")
         console.print("\nInstall one of these tools to use /cw commands.")

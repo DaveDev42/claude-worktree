@@ -121,12 +121,12 @@ def test_get_ai_tool_command_custom(temp_config_dir: Path) -> None:
     import copy as copy_module
 
     config = copy_module.deepcopy(DEFAULT_CONFIG)
-    config["ai_tool"]["command"] = "happy"
-    config["ai_tool"]["args"] = ["--backend", "claude"]
+    config["ai_tool"]["command"] = "aider"
+    config["ai_tool"]["args"] = ["--model", "gpt-4"]
     save_config(config)
 
     cmd = get_ai_tool_command()
-    assert cmd == ["happy", "--backend", "claude"]
+    assert cmd == ["aider", "--model", "gpt-4"]
 
 
 def test_get_ai_tool_command_preset(temp_config_dir: Path) -> None:
@@ -134,12 +134,12 @@ def test_get_ai_tool_command_preset(temp_config_dir: Path) -> None:
     import copy as copy_module
 
     config = copy_module.deepcopy(DEFAULT_CONFIG)
-    config["ai_tool"]["command"] = "happy-codex"
+    config["ai_tool"]["command"] = "claude-remote"
     config["ai_tool"]["args"] = []
     save_config(config)
 
     cmd = get_ai_tool_command()
-    assert cmd == ["happy", "codex", "--permission-mode", "bypassPermissions"]
+    assert cmd == ["claude", "/remote-control"]
 
 
 def test_get_ai_tool_command_preset_with_extra_args(temp_config_dir: Path) -> None:
@@ -166,10 +166,10 @@ def test_get_ai_tool_command_env_override(temp_config_dir: Path, monkeypatch) ->
     save_config(config)
 
     # Override with environment variable
-    monkeypatch.setenv("CW_AI_TOOL", "happy --backend codex")
+    monkeypatch.setenv("CW_AI_TOOL", "aider --model gpt-4")
 
     cmd = get_ai_tool_command()
-    assert cmd == ["happy", "--backend", "codex"]
+    assert cmd == ["aider", "--model", "gpt-4"]
 
 
 def test_set_ai_tool(temp_config_dir: Path) -> None:
@@ -183,19 +183,19 @@ def test_set_ai_tool(temp_config_dir: Path) -> None:
 
 def test_set_ai_tool_no_args(temp_config_dir: Path) -> None:
     """Test setting AI tool without args."""
-    set_ai_tool("happy")
+    set_ai_tool("codex")
 
     config = load_config()
-    assert config["ai_tool"]["command"] == "happy"
+    assert config["ai_tool"]["command"] == "codex"
     assert config["ai_tool"]["args"] == []
 
 
 def test_use_preset(temp_config_dir: Path) -> None:
     """Test using a preset."""
-    use_preset("happy")
+    use_preset("claude-remote")
 
     config = load_config()
-    assert config["ai_tool"]["command"] == "happy"
+    assert config["ai_tool"]["command"] == "claude-remote"
     assert config["ai_tool"]["args"] == []
 
 
@@ -260,12 +260,12 @@ def test_show_config(temp_config_dir: Path) -> None:
 
 def test_show_config_with_args(temp_config_dir: Path) -> None:
     """Test showing config with additional args."""
-    set_ai_tool("happy", ["--backend", "claude", "--verbose"])
+    set_ai_tool("codex", ["--model", "o3", "--verbose"])
 
     output = show_config()
 
-    assert "AI Tool: happy" in output
-    assert "Args: --backend claude --verbose" in output
+    assert "AI Tool: codex" in output
+    assert "Args: --model o3 --verbose" in output
 
 
 def test_list_presets() -> None:
@@ -324,11 +324,10 @@ def test_ai_tool_presets_defined() -> None:
         "no-op",
         "claude",
         "claude-yolo",
+        "claude-remote",
+        "claude-yolo-remote",
         "codex",
         "codex-yolo",
-        "happy",
-        "happy-codex",
-        "happy-yolo",
     ]
 
     for preset in expected_presets:
@@ -348,6 +347,27 @@ def test_claude_preset_commands() -> None:
     assert AI_TOOL_PRESETS["claude-yolo"] == ["claude", "--dangerously-skip-permissions"]
 
 
+def test_claude_remote_preset_commands() -> None:
+    """Test that Claude remote presets generate correct commands."""
+    assert AI_TOOL_PRESETS["claude-remote"] == ["claude", "/remote-control"]
+    assert AI_TOOL_PRESETS["claude-yolo-remote"] == [
+        "claude",
+        "--dangerously-skip-permissions",
+        "/remote-control",
+    ]
+
+
+def test_use_claude_remote_presets(temp_config_dir: Path) -> None:
+    """Test using Claude remote presets."""
+    use_preset("claude-remote")
+    cmd = get_ai_tool_command()
+    assert cmd == ["claude", "/remote-control"]
+
+    use_preset("claude-yolo-remote")
+    cmd = get_ai_tool_command()
+    assert cmd == ["claude", "--dangerously-skip-permissions", "/remote-control"]
+
+
 def test_codex_preset_commands() -> None:
     """Test that Codex presets generate correct commands."""
     # Test basic codex
@@ -358,41 +378,6 @@ def test_codex_preset_commands() -> None:
         "codex",
         "--dangerously-bypass-approvals-and-sandbox",
     ]
-
-
-def test_happy_preset_commands() -> None:
-    """Test that Happy presets generate correct commands."""
-    # Test basic happy (Claude Code mode)
-    assert AI_TOOL_PRESETS["happy"] == ["happy"]
-
-    # Test happy-codex (Codex mode with bypass permissions)
-    assert AI_TOOL_PRESETS["happy-codex"] == [
-        "happy",
-        "codex",
-        "--permission-mode",
-        "bypassPermissions",
-    ]
-
-    # Test happy-yolo (with --yolo flag for dangerously skip permissions)
-    assert AI_TOOL_PRESETS["happy-yolo"] == ["happy", "--yolo"]
-
-
-def test_use_happy_presets(temp_config_dir: Path) -> None:
-    """Test using Happy presets."""
-    # Test happy preset
-    use_preset("happy")
-    cmd = get_ai_tool_command()
-    assert cmd == ["happy"]
-
-    # Test happy-codex preset
-    use_preset("happy-codex")
-    cmd = get_ai_tool_command()
-    assert cmd == ["happy", "codex", "--permission-mode", "bypassPermissions"]
-
-    # Test happy-yolo preset
-    use_preset("happy-yolo")
-    cmd = get_ai_tool_command()
-    assert cmd == ["happy", "--yolo"]
 
 
 def test_get_ai_tool_resume_command_default(temp_config_dir: Path) -> None:
@@ -406,12 +391,13 @@ def test_get_ai_tool_resume_command_preset(temp_config_dir: Path) -> None:
     import copy as copy_module
 
     config = copy_module.deepcopy(DEFAULT_CONFIG)
-    config["ai_tool"]["command"] = "happy-codex"
+    config["ai_tool"]["command"] = "codex"
     config["ai_tool"]["args"] = []
     save_config(config)
 
     cmd = get_ai_tool_resume_command()
-    assert cmd == ["happy", "codex", "--permission-mode", "bypassPermissions", "--continue"]
+    # codex uses subcommand syntax: "codex resume --last"
+    assert cmd == ["codex", "resume", "--last"]
 
 
 def test_get_ai_tool_resume_command_no_tool(temp_config_dir: Path) -> None:
@@ -436,10 +422,10 @@ def test_get_ai_tool_resume_command_env_override(temp_config_dir: Path, monkeypa
     save_config(config)
 
     # Override with environment variable
-    monkeypatch.setenv("CW_AI_TOOL", "happy --backend codex")
+    monkeypatch.setenv("CW_AI_TOOL", "aider --model gpt-4")
 
     cmd = get_ai_tool_resume_command()
-    assert cmd == ["happy", "--backend", "codex", "--resume"]
+    assert cmd == ["aider", "--model", "gpt-4", "--resume"]
 
 
 def test_get_ai_tool_resume_command_codex(temp_config_dir: Path) -> None:
@@ -489,10 +475,9 @@ def test_ai_tool_resume_presets_defined() -> None:
     assert "claude" in AI_TOOL_RESUME_PRESETS
     assert "claude-yolo" in AI_TOOL_RESUME_PRESETS
 
-    # Happy uses --continue flag (inherits from Claude Code)
-    assert "happy" in AI_TOOL_RESUME_PRESETS
-    assert "happy-codex" in AI_TOOL_RESUME_PRESETS
-    assert "happy-yolo" in AI_TOOL_RESUME_PRESETS
+    # Claude remote presets (--continue works normally with remote control setting)
+    assert "claude-remote" in AI_TOOL_RESUME_PRESETS
+    assert "claude-yolo-remote" in AI_TOOL_RESUME_PRESETS
 
     # Codex uses subcommand syntax
     assert "codex" in AI_TOOL_RESUME_PRESETS
@@ -642,16 +627,50 @@ def test_get_ai_tool_merge_command_no_tool(temp_config_dir: Path) -> None:
     assert cmd == []
 
 
+def test_get_ai_tool_merge_command_claude_remote(temp_config_dir: Path) -> None:
+    """Test getting merge command for claude-remote preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude-remote"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    # merge uses --print mode; /remote-control is stripped via base_override
+    assert cmd == ["claude", "--print", "--tools=default", prompt]
+
+
+def test_get_ai_tool_merge_command_claude_yolo_remote(temp_config_dir: Path) -> None:
+    """Test getting merge command for claude-yolo-remote preset."""
+    import copy as copy_module
+
+    config = copy_module.deepcopy(DEFAULT_CONFIG)
+    config["ai_tool"]["command"] = "claude-yolo-remote"
+    config["ai_tool"]["args"] = []
+    save_config(config)
+
+    prompt = "Resolve conflicts"
+    cmd = get_ai_tool_merge_command(prompt)
+    assert cmd == [
+        "claude",
+        "--dangerously-skip-permissions",
+        "--print",
+        "--tools=default",
+        prompt,
+    ]
+
+
 def test_ai_tool_merge_presets_defined() -> None:
     """Test that merge presets are defined for supported tools."""
     # Claude presets should have merge configurations
     assert "claude" in AI_TOOL_MERGE_PRESETS
     assert "claude-yolo" in AI_TOOL_MERGE_PRESETS
 
-    # Happy presets
-    assert "happy" in AI_TOOL_MERGE_PRESETS
-    assert "happy-codex" in AI_TOOL_MERGE_PRESETS
-    assert "happy-yolo" in AI_TOOL_MERGE_PRESETS
+    # Claude remote presets
+    assert "claude-remote" in AI_TOOL_MERGE_PRESETS
+    assert "claude-yolo-remote" in AI_TOOL_MERGE_PRESETS
 
     # Codex presets
     assert "codex" in AI_TOOL_MERGE_PRESETS
@@ -665,16 +684,3 @@ def test_ai_tool_merge_presets_defined() -> None:
         assert config["prompt_position"] in ["end", 0, 1, 2, 3]  # Valid positions
 
 
-def test_get_ai_tool_merge_command_happy_yolo(temp_config_dir: Path) -> None:
-    """Test getting merge command for happy-yolo preset."""
-    import copy as copy_module
-
-    config = copy_module.deepcopy(DEFAULT_CONFIG)
-    config["ai_tool"]["command"] = "happy-yolo"
-    config["ai_tool"]["args"] = []
-    save_config(config)
-
-    prompt = "Resolve conflicts"
-    cmd = get_ai_tool_merge_command(prompt)
-    # Should include happy --yolo + merge flags
-    assert cmd == ["happy", "--yolo", "--print", "--tools=default", prompt]

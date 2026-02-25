@@ -486,12 +486,12 @@ cw config set update.auto_check false
 Use a predefined AI tool preset.
 
 ```bash
-cw config use-preset claude         # Claude Code (default)
-cw config use-preset codex          # OpenAI Codex
-cw config use-preset happy          # Happy with Claude Code
-cw config use-preset happy-codex    # Happy with Codex mode
-cw config use-preset happy-yolo     # Happy with bypass all permissions
-cw config use-preset no-op          # Disable AI tool launch
+cw config use-preset claude              # Claude Code (default)
+cw config use-preset claude-yolo         # Claude Code + skip permissions
+cw config use-preset claude-remote       # Claude Code + remote control
+cw config use-preset claude-yolo-remote  # Remote control + skip permissions
+cw config use-preset codex               # OpenAI Codex
+cw config use-preset no-op               # Disable AI tool launch
 ```
 
 ### `cw config list-presets`

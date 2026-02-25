@@ -342,7 +342,7 @@ class TestConfigWorkflow:
         assert result.returncode == 0
 
         # Should show common presets
-        expected_presets = ["claude", "codex", "happy", "no-op"]
+        expected_presets = ["claude", "codex", "claude-remote", "no-op"]
         for preset in expected_presets:
             assert preset in result.stdout, f"Preset {preset} not in list"
 

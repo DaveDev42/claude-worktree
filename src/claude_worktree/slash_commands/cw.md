@@ -37,7 +37,7 @@ Execute claude-worktree (cw) commands to manage git worktrees with AI assistance
 
 ## Notes
 
-- Works with Happy, Claude Code, and Codex
+- Works with Claude Code and Codex
 - Session context is automatically saved/restored
 - Use `cw --help` in terminal for full documentation
 

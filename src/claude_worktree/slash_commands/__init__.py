@@ -1,1 +1,1 @@
-"""Slash commands for Happy, Claude Code, and Codex."""
+"""Slash commands for Claude Code and Codex."""

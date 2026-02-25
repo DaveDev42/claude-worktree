@@ -27,13 +27,12 @@ AI_TOOL_PRESETS = {
     # Claude Code
     "claude": ["claude"],
     "claude-yolo": ["claude", "--dangerously-skip-permissions"],
+    # Claude Code with Remote Control (local terminal + phone/tablet/browser access)
+    "claude-remote": ["claude", "/remote-control"],
+    "claude-yolo-remote": ["claude", "--dangerously-skip-permissions", "/remote-control"],
     # Codex
     "codex": ["codex"],
     "codex-yolo": ["codex", "--dangerously-bypass-approvals-and-sandbox"],
-    # Happy (mobile-enabled Claude Code)
-    "happy": ["happy"],
-    "happy-codex": ["happy", "codex", "--permission-mode", "bypassPermissions"],
-    "happy-yolo": ["happy", "--yolo"],
 }
 
 # Predefined resume commands for AI tools that use different resume syntax
@@ -42,10 +41,9 @@ AI_TOOL_RESUME_PRESETS = {
     # Claude uses --continue flag instead of --resume
     "claude": ["claude", "--continue"],
     "claude-yolo": ["claude", "--dangerously-skip-permissions", "--continue"],
-    # Happy uses --continue flag (inherits from Claude Code)
-    "happy": ["happy", "--continue"],
-    "happy-codex": ["happy", "codex", "--permission-mode", "bypassPermissions", "--continue"],
-    "happy-yolo": ["happy", "--yolo", "--continue"],
+    # Claude remote: --continue resumes session, /remote-control activates remote access
+    "claude-remote": ["claude", "--continue", "/remote-control"],
+    "claude-yolo-remote": ["claude", "--dangerously-skip-permissions", "--continue", "/remote-control"],
     # Codex uses subcommand syntax: "codex resume [OPTIONS]" instead of "codex [OPTIONS] --resume"
     "codex": ["codex", "resume", "--last"],
     "codex-yolo": ["codex", "resume", "--dangerously-bypass-approvals-and-sandbox", "--last"],
@@ -67,16 +65,14 @@ AI_TOOL_MERGE_PRESETS = {
         "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
-    # Happy: Use --yolo mode for automated conflict resolution
-    "happy": {
+    # Claude remote: merge uses --print mode, /remote-control prompt must be stripped
+    "claude-remote": {
+        "base_override": ["claude"],
         "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
-    "happy-codex": {
-        "flags": ["--print", "--tools=default"],
-        "prompt_position": "end",
-    },
-    "happy-yolo": {
+    "claude-yolo-remote": {
+        "base_override": ["claude", "--dangerously-skip-permissions"],
         "flags": ["--print", "--tools=default"],
         "prompt_position": "end",
     },
@@ -197,7 +193,7 @@ def get_ai_tool_command() -> list[str]:
     3. Default ("claude")
 
     Returns:
-        List of command parts (e.g., ["claude"] or ["happy", "--backend", "claude"])
+        List of command parts (e.g., ["claude"] or ["codex", "--model", "o3"])
         Empty list [] means no AI tool should be launched.
     """
     # Check environment variable first
@@ -305,8 +301,13 @@ def get_ai_tool_merge_command(prompt: str) -> list[str]:
         flags = list(merge_config.get("flags", []))
         prompt_position = merge_config.get("prompt_position", "end")
 
-        # Get base command from preset
-        base_cmd: list[str] = AI_TOOL_PRESETS.get(command, [command]).copy()
+        # Get base command (use base_override to strip interactive-only args
+        # like /remote-control that don't work with --print mode)
+        base_override = merge_config.get("base_override")
+        if base_override is not None:
+            base_cmd: list[str] = list(base_override)
+        else:
+            base_cmd = AI_TOOL_PRESETS.get(command, [command]).copy()
 
         # Build command: base + args + flags + prompt
         cmd_parts = base_cmd + args + flags
@@ -351,7 +352,7 @@ def use_preset(preset_name: str) -> None:
     """Use a predefined AI tool preset.
 
     Args:
-        preset_name: Name of the preset (e.g., "claude", "happy-claude")
+        preset_name: Name of the preset (e.g., "claude", "codex")
 
     Raises:
         ConfigError: If preset doesn't exist
