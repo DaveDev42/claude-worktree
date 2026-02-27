@@ -11,6 +11,7 @@ from ..config import (
     get_ai_tool_command,
     get_ai_tool_merge_command,
     get_ai_tool_resume_command,
+    is_claude_tool,
     load_config,
     parse_term_option,
 )
@@ -419,13 +420,23 @@ def launch_ai_tool(
     # Get configured AI tool command
     # - If prompt is provided (AI merge): use merge command with preset-specific flags
     # - If resume flag: use resume command
-    # - Otherwise: use regular command
+    # - Otherwise: use regular command (with smart --continue for Claude)
     if prompt:
         ai_cmd_parts = get_ai_tool_merge_command(prompt)
     elif resume:
         ai_cmd_parts = get_ai_tool_resume_command()
     else:
-        ai_cmd_parts = get_ai_tool_command()
+        # Smart --continue: check Claude native session storage
+        if is_claude_tool():
+            from ..session_manager import claude_native_session_exists
+
+            if claude_native_session_exists(path):
+                ai_cmd_parts = get_ai_tool_resume_command()
+                console.print("[dim]Found existing Claude session, using --continue[/dim]")
+            else:
+                ai_cmd_parts = get_ai_tool_command()
+        else:
+            ai_cmd_parts = get_ai_tool_command()
 
     # Skip if no AI tool configured (empty array means no-op)
     if not ai_cmd_parts:
@@ -540,8 +551,11 @@ def resume_worktree(
         os.chdir(worktree_path)
         console.print(f"[dim]Switched to worktree: {worktree_path}[/dim]\n")
 
-    # Check for existing session
+    # Check for existing session (cw metadata + Claude history.jsonl)
     has_session = session_manager.session_exists(branch_name)
+    # Fallback: check Claude native project session storage
+    if not has_session and is_claude_tool():
+        has_session = session_manager.claude_native_session_exists(worktree_path)
     if has_session:
         console.print(f"[green]*[/green] Found session for branch: [bold]{branch_name}[/bold]")
 

@@ -9,12 +9,14 @@ from claude_worktree.config import (
     AI_TOOL_MERGE_PRESETS,
     AI_TOOL_PRESETS,
     AI_TOOL_RESUME_PRESETS,
+    CLAUDE_PRESET_NAMES,
     DEFAULT_CONFIG,
     ConfigError,
     get_ai_tool_command,
     get_ai_tool_merge_command,
     get_ai_tool_resume_command,
     get_config_path,
+    is_claude_tool,
     list_presets,
     load_config,
     reset_config,
@@ -682,5 +684,84 @@ def test_ai_tool_merge_presets_defined() -> None:
         assert "prompt_position" in config
         assert isinstance(config["flags"], list)
         assert config["prompt_position"] in ["end", 0, 1, 2, 3]  # Valid positions
+
+
+# =============================================================================
+# is_claude_tool() tests
+# =============================================================================
+
+
+def test_claude_preset_names_derived_from_ai_tool_presets() -> None:
+    """Test that CLAUDE_PRESET_NAMES is auto-derived from AI_TOOL_PRESETS."""
+    # Verify it includes all presets whose first command is "claude"
+    expected = {k for k, v in AI_TOOL_PRESETS.items() if v and v[0] == "claude"}
+    assert CLAUDE_PRESET_NAMES == expected
+    # Sanity check: known Claude presets are present
+    assert "claude" in CLAUDE_PRESET_NAMES
+    assert "claude-yolo" in CLAUDE_PRESET_NAMES
+    assert "claude-remote" in CLAUDE_PRESET_NAMES
+    assert "claude-yolo-remote" in CLAUDE_PRESET_NAMES
+    # Non-claude presets are excluded
+    assert "codex" not in CLAUDE_PRESET_NAMES
+    assert "no-op" not in CLAUDE_PRESET_NAMES
+
+
+def test_is_claude_tool_default(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns True with default config (claude preset)."""
+    assert is_claude_tool() is True
+
+
+def test_is_claude_tool_claude_yolo(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns True for claude-yolo preset."""
+    use_preset("claude-yolo")
+    assert is_claude_tool() is True
+
+
+def test_is_claude_tool_claude_remote(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns True for claude-remote preset."""
+    use_preset("claude-remote")
+    assert is_claude_tool() is True
+
+
+def test_is_claude_tool_claude_yolo_remote(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns True for claude-yolo-remote preset."""
+    use_preset("claude-yolo-remote")
+    assert is_claude_tool() is True
+
+
+def test_is_claude_tool_codex(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns False for codex preset."""
+    use_preset("codex")
+    assert is_claude_tool() is False
+
+
+def test_is_claude_tool_noop(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns False for no-op preset."""
+    use_preset("no-op")
+    assert is_claude_tool() is False
+
+
+def test_is_claude_tool_custom_command(temp_config_dir: Path) -> None:
+    """Test is_claude_tool returns False for custom command."""
+    set_ai_tool("aider")
+    assert is_claude_tool() is False
+
+
+def test_is_claude_tool_env_override_claude(temp_config_dir: Path, monkeypatch) -> None:
+    """Test is_claude_tool with CW_AI_TOOL env var set to claude."""
+    monkeypatch.setenv("CW_AI_TOOL", "claude --verbose")
+    assert is_claude_tool() is True
+
+
+def test_is_claude_tool_env_override_other(temp_config_dir: Path, monkeypatch) -> None:
+    """Test is_claude_tool with CW_AI_TOOL env var set to non-claude tool."""
+    monkeypatch.setenv("CW_AI_TOOL", "aider --model gpt-4")
+    assert is_claude_tool() is False
+
+
+def test_is_claude_tool_env_override_empty(temp_config_dir: Path, monkeypatch) -> None:
+    """Test is_claude_tool with empty CW_AI_TOOL env var."""
+    monkeypatch.setenv("CW_AI_TOOL", "")
+    assert is_claude_tool() is False
 
 

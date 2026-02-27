@@ -5,11 +5,13 @@ Supports Claude Code, Codex, and custom AI tools.
 """
 
 import json
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .constants import CLAUDE_SESSION_PREFIX_LENGTH
 from .exceptions import ClaudeWorktreeError
 from .git_utils import normalize_branch_name
 
@@ -95,6 +97,42 @@ def session_exists(branch_name: str) -> bool:
         return False
     except OSError:
         return False
+
+
+def claude_native_session_exists(worktree_path: str | Path) -> bool:
+    """Check if a Claude native session exists for the given worktree path.
+
+    Claude Code stores project sessions in ~/.claude/projects/<encoded-path>/.
+    The path is encoded by replacing all non-alphanumeric characters with hyphens,
+    matching the encoding used by Claude Code internally.
+
+    Args:
+        worktree_path: Absolute path to the worktree directory
+
+    Returns:
+        True if .jsonl session files exist for the project, False otherwise
+    """
+    path_str = str(Path(worktree_path).resolve())
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", path_str)
+
+    claude_projects_dir = Path.home() / ".claude" / "projects"
+    if not claude_projects_dir.exists():
+        return False
+
+    # Direct match
+    project_dir = claude_projects_dir / encoded
+    if project_dir.is_dir() and any(project_dir.glob("*.jsonl")):
+        return True
+
+    # Prefix matching for long paths — Claude may truncate
+    if len(encoded) > CLAUDE_SESSION_PREFIX_LENGTH:
+        prefix = encoded[:CLAUDE_SESSION_PREFIX_LENGTH]
+        for candidate in claude_projects_dir.iterdir():
+            if candidate.is_dir() and candidate.name.startswith(prefix):
+                if any(candidate.glob("*.jsonl")):
+                    return True
+
+    return False
 
 
 def save_session_metadata(branch_name: str, ai_tool: str, worktree_path: str) -> None:

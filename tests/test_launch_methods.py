@@ -602,3 +602,105 @@ class TestSessionNameGeneration:
         name = _generate_session_name(path)
         assert len(name) <= MAX_SESSION_NAME_LENGTH
         assert name.startswith("cw-")
+
+
+class TestSmartContinueDetection:
+    """Test smart --continue auto-detection in launch_ai_tool."""
+
+    @patch("claude_worktree.operations.ai_tools._run_command_in_shell")
+    @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
+    @patch("claude_worktree.operations.ai_tools.is_claude_tool", return_value=True)
+    @patch(
+        "claude_worktree.operations.ai_tools.get_ai_tool_resume_command",
+        return_value=["claude", "--continue"],
+    )
+    @patch(
+        "claude_worktree.operations.ai_tools.get_ai_tool_command",
+        return_value=["claude"],
+    )
+    @patch("claude_worktree.session_manager.claude_native_session_exists", return_value=True)
+    def test_launch_uses_continue_when_native_session_exists(
+        self, mock_native, mock_cmd, mock_resume_cmd, mock_is_claude, mock_has, mock_run
+    ):
+        """Test that launch_ai_tool adds --continue when native session exists."""
+        from claude_worktree.operations.ai_tools import launch_ai_tool
+
+        path = Path("/test/worktree")
+        launch_ai_tool(path)
+
+        # Should use resume command (--continue), not regular command
+        mock_resume_cmd.assert_called_once()
+        mock_cmd.assert_not_called()
+        mock_run.assert_called_once()
+        # Verify the command string contains --continue
+        cmd_str = mock_run.call_args[0][0]
+        assert "--continue" in cmd_str
+
+    @patch("claude_worktree.operations.ai_tools._run_command_in_shell")
+    @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
+    @patch("claude_worktree.operations.ai_tools.is_claude_tool", return_value=True)
+    @patch(
+        "claude_worktree.operations.ai_tools.get_ai_tool_resume_command",
+        return_value=["claude", "--continue"],
+    )
+    @patch(
+        "claude_worktree.operations.ai_tools.get_ai_tool_command",
+        return_value=["claude"],
+    )
+    @patch("claude_worktree.session_manager.claude_native_session_exists", return_value=False)
+    def test_launch_skips_continue_when_no_native_session(
+        self, mock_native, mock_cmd, mock_resume_cmd, mock_is_claude, mock_has, mock_run
+    ):
+        """Test that launch_ai_tool uses regular command when no session exists."""
+        from claude_worktree.operations.ai_tools import launch_ai_tool
+
+        path = Path("/test/worktree")
+        launch_ai_tool(path)
+
+        # Should use regular command, not resume
+        mock_cmd.assert_called_once()
+        mock_resume_cmd.assert_not_called()
+        mock_run.assert_called_once()
+        cmd_str = mock_run.call_args[0][0]
+        assert "--continue" not in cmd_str
+
+    @patch("claude_worktree.operations.ai_tools._run_command_in_shell")
+    @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
+    @patch("claude_worktree.operations.ai_tools.is_claude_tool", return_value=False)
+    @patch(
+        "claude_worktree.operations.ai_tools.get_ai_tool_command",
+        return_value=["codex"],
+    )
+    def test_launch_skips_continue_for_non_claude_tool(
+        self, mock_cmd, mock_is_claude, mock_has, mock_run
+    ):
+        """Test that smart --continue is skipped for non-Claude tools."""
+        from claude_worktree.operations.ai_tools import launch_ai_tool
+
+        path = Path("/test/worktree")
+        launch_ai_tool(path)
+
+        # Should use regular command without checking native sessions
+        mock_cmd.assert_called_once()
+        mock_run.assert_called_once()
+
+    @patch("claude_worktree.operations.ai_tools._run_command_in_shell")
+    @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
+    @patch("claude_worktree.operations.ai_tools.is_claude_tool", return_value=True)
+    @patch(
+        "claude_worktree.operations.ai_tools.get_ai_tool_resume_command",
+        return_value=["claude", "--continue"],
+    )
+    def test_launch_resume_flag_bypasses_smart_continue(
+        self, mock_resume_cmd, mock_is_claude, mock_has, mock_run
+    ):
+        """Test that explicit resume=True bypasses smart --continue detection."""
+        from claude_worktree.operations.ai_tools import launch_ai_tool
+
+        path = Path("/test/worktree")
+        # resume=True should go directly to resume command, no native session check
+        launch_ai_tool(path, resume=True)
+
+        mock_resume_cmd.assert_called_once()
+        # is_claude_tool should not be consulted when resume=True
+        mock_is_claude.assert_not_called()

@@ -65,6 +65,11 @@ LAUNCH_METHOD_ALIASES: dict[str, str] = {
 # Zellij uses Unix sockets which have a ~108 byte path limit
 MAX_SESSION_NAME_LENGTH = 50
 
+# Claude native session path prefix length threshold
+# Paths encoded to >200 chars may be truncated by Claude Code,
+# so we use prefix matching for long paths
+CLAUDE_SESSION_PREFIX_LENGTH = 200
+
 # Git config keys for metadata storage
 CONFIG_KEY_BASE_BRANCH = "branch.{}.worktreeBase"
 CONFIG_KEY_BASE_PATH = "worktree.{}.basePath"

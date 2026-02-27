@@ -88,6 +88,10 @@ AI_TOOL_MERGE_PRESETS = {
 }
 
 
+# Claude-based preset names (derived from AI_TOOL_PRESETS to stay in sync automatically)
+CLAUDE_PRESET_NAMES = {k for k, v in AI_TOOL_PRESETS.items() if v and v[0] == "claude"}
+
+
 DEFAULT_CONFIG = {
     "ai_tool": {
         "command": "claude",  # Command name or preset name (safe default without dangerous permissions)
@@ -333,6 +337,25 @@ def get_ai_tool_merge_command(prompt: str) -> list[str]:
 
     # Custom command: just append prompt
     return [command] + args + [prompt]
+
+
+def is_claude_tool() -> bool:
+    """Check if the currently configured AI tool is Claude-based.
+
+    Checks environment variable CW_AI_TOOL first, then config preset name.
+
+    Returns:
+        True if the AI tool is a Claude variant, False otherwise
+    """
+    env_tool = os.environ.get("CW_AI_TOOL")
+    if env_tool is not None:
+        # Check if the first word of the command is "claude"
+        first_word = env_tool.strip().split()[0] if env_tool.strip() else ""
+        return first_word == "claude"
+
+    config = load_config()
+    command: str = config["ai_tool"]["command"]
+    return command in CLAUDE_PRESET_NAMES
 
 
 def set_ai_tool(tool: str, args: list[str] | None = None) -> None:
