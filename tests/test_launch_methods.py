@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -417,69 +417,142 @@ class TestLauncherFunctions:
         assert "-d" in call_args
         assert "down" in call_args
 
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_window(self, mock_run, mock_has_command):
-        """Test WezTerm new window creation."""
+    def test_wezterm_window(self, mock_run, mock_has_command, mock_sleep):
+        """Test WezTerm new window creation uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_window
 
         path = Path("/test/worktree")
         command = "claude --resume"
 
+        # Mock spawn to return pane ID
+        spawn_result = MagicMock()
+        spawn_result.stdout = "42\n"
+        mock_run.side_effect = [spawn_result, None]
+
         _launch_wezterm_window(path, command, "claude")
 
-        call_args = mock_run.call_args[0][0]
-        assert "wezterm" in call_args
-        assert "cli" in call_args
-        assert "spawn" in call_args
-        assert "--new-window" in call_args
-        assert "--cwd" in call_args
+        assert mock_run.call_count == 2
+        # First call: spawn
+        spawn_args = mock_run.call_args_list[0]
+        assert spawn_args[0][0] == [
+            "wezterm", "cli", "spawn", "--new-window", "--cwd", str(path),
+        ]
+        assert spawn_args[1]["capture_output"] is True
+        # Second call: send-text
+        send_args = mock_run.call_args_list[1]
+        assert send_args[0][0] == [
+            "wezterm", "cli", "send-text", "--pane-id", "42", "--no-paste",
+        ]
+        assert send_args[1]["input"] == f"{command}\n"
+        mock_sleep.assert_called_once_with(0.1)
 
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_tab(self, mock_run, mock_has_command):
-        """Test WezTerm new tab creation."""
+    def test_wezterm_tab(self, mock_run, mock_has_command, mock_sleep):
+        """Test WezTerm new tab creation uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_tab
 
         path = Path("/test/worktree")
         command = "claude --resume"
 
+        spawn_result = MagicMock()
+        spawn_result.stdout = "7\n"
+        mock_run.side_effect = [spawn_result, None]
+
         _launch_wezterm_tab(path, command, "claude")
 
-        call_args = mock_run.call_args[0][0]
-        assert "wezterm" in call_args
-        assert "spawn" in call_args
-        assert "--cwd" in call_args
+        assert mock_run.call_count == 2
+        spawn_args = mock_run.call_args_list[0]
+        assert spawn_args[0][0] == [
+            "wezterm", "cli", "spawn", "--cwd", str(path),
+        ]
+        assert spawn_args[1]["capture_output"] is True
+        send_args = mock_run.call_args_list[1]
+        assert send_args[0][0] == [
+            "wezterm", "cli", "send-text", "--pane-id", "7", "--no-paste",
+        ]
+        assert send_args[1]["input"] == f"{command}\n"
+        mock_sleep.assert_called_once_with(0.1)
 
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_pane_horizontal(self, mock_run, mock_has_command):
-        """Test WezTerm horizontal pane split."""
+    def test_wezterm_pane_horizontal(self, mock_run, mock_has_command, mock_sleep):
+        """Test WezTerm horizontal pane split uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_pane
 
         path = Path("/test/worktree")
         command = "claude --resume"
+
+        spawn_result = MagicMock()
+        spawn_result.stdout = "10\n"
+        mock_run.side_effect = [spawn_result, None]
 
         _launch_wezterm_pane(path, command, "claude", horizontal=True)
 
-        call_args = mock_run.call_args[0][0]
-        assert "split-pane" in call_args
-        assert "--horizontal" in call_args
+        assert mock_run.call_count == 2
+        spawn_args = mock_run.call_args_list[0]
+        assert "split-pane" in spawn_args[0][0]
+        assert "--horizontal" in spawn_args[0][0]
+        assert "--" not in spawn_args[0][0]
+        assert spawn_args[1]["capture_output"] is True
+        send_args = mock_run.call_args_list[1]
+        assert send_args[0][0] == [
+            "wezterm", "cli", "send-text", "--pane-id", "10", "--no-paste",
+        ]
+        assert send_args[1]["input"] == f"{command}\n"
+        mock_sleep.assert_called_once_with(0.1)
 
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_pane_vertical(self, mock_run, mock_has_command):
-        """Test WezTerm vertical pane split."""
+    def test_wezterm_pane_vertical(self, mock_run, mock_has_command, mock_sleep):
+        """Test WezTerm vertical pane split uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_pane
 
         path = Path("/test/worktree")
         command = "claude --resume"
 
+        spawn_result = MagicMock()
+        spawn_result.stdout = "15\n"
+        mock_run.side_effect = [spawn_result, None]
+
         _launch_wezterm_pane(path, command, "claude", horizontal=False)
 
-        call_args = mock_run.call_args[0][0]
-        assert "split-pane" in call_args
-        assert "--bottom" in call_args
+        assert mock_run.call_count == 2
+        spawn_args = mock_run.call_args_list[0]
+        assert "split-pane" in spawn_args[0][0]
+        assert "--bottom" in spawn_args[0][0]
+        assert "--" not in spawn_args[0][0]
+        assert spawn_args[1]["capture_output"] is True
+        send_args = mock_run.call_args_list[1]
+        assert send_args[0][0] == [
+            "wezterm", "cli", "send-text", "--pane-id", "15", "--no-paste",
+        ]
+        assert send_args[1]["input"] == f"{command}\n"
+        mock_sleep.assert_called_once_with(0.1)
+
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
+    @patch("subprocess.run")
+    def test_wezterm_empty_pane_id(self, mock_run, mock_has_command, mock_sleep):
+        """Test WezTerm raises error when spawn returns empty pane ID."""
+        from claude_worktree.exceptions import GitError
+        from claude_worktree.operations.ai_tools import _launch_wezterm_tab
+
+        path = Path("/test/worktree")
+        command = "claude --resume"
+
+        spawn_result = MagicMock()
+        spawn_result.stdout = "\n"
+        mock_run.side_effect = [spawn_result, None]
+
+        with pytest.raises(GitError, match="Failed to get pane ID"):
+            _launch_wezterm_tab(path, command, "claude")
 
 
 class TestLaunchAIToolIntegration:
