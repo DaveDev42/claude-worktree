@@ -119,10 +119,11 @@ def claude_native_session_exists(worktree_path: str | Path) -> bool:
     if not claude_projects_dir.exists():
         return False
 
-    # Direct match
-    project_dir = claude_projects_dir / encoded
-    if project_dir.is_dir() and any(project_dir.glob("*.jsonl")):
-        return True
+    # Direct match (only if name fits filesystem limit of 255 chars)
+    if len(encoded) <= 255:
+        project_dir = claude_projects_dir / encoded
+        if project_dir.is_dir() and any(project_dir.glob("*.jsonl")):
+            return True
 
     # Prefix matching for long paths — Claude may truncate
     if len(encoded) > CLAUDE_SESSION_PREFIX_LENGTH:

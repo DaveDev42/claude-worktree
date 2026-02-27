@@ -403,13 +403,17 @@ def test_claude_native_session_exists_long_path_prefix_match(claude_projects_dir
 
     from claude_worktree.constants import CLAUDE_SESSION_PREFIX_LENGTH
 
-    # Create a very long path (>CLAUDE_SESSION_PREFIX_LENGTH chars when encoded)
+    # Create a very long path (>255 chars when encoded, forcing prefix matching)
     long_name = "a" * 250
     worktree_path = str(tmp_path / long_name)
     encoded = re.sub(r"[^a-zA-Z0-9]", "-", worktree_path)
+    assert len(encoded) > CLAUDE_SESSION_PREFIX_LENGTH
+    assert len(encoded) > 255  # Too long for a directory name
 
-    # Simulate Claude truncating the directory name
-    truncated = encoded[:CLAUDE_SESSION_PREFIX_LENGTH] + "-extra-suffix"
+    # Simulate Claude truncating the directory name to fit filesystem
+    # Use prefix (200 chars) + short hash-like suffix, kept under 255 chars
+    truncated = encoded[:CLAUDE_SESSION_PREFIX_LENGTH] + "-abc123"
+    assert len(truncated) <= 255
     project_dir = claude_projects_dir / truncated
     project_dir.mkdir()
     (project_dir / "conversation.jsonl").write_text('{"msg": "hello"}\n')
