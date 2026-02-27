@@ -421,12 +421,14 @@ def test_claude_native_session_exists_long_path_prefix_match(claude_projects_dir
     assert claude_native_session_exists(worktree_path) is True
 
 
-def test_claude_native_session_exists_path_encoding(claude_projects_dir):
-    """Test that path encoding matches Claude's behavior."""
+def test_claude_native_session_exists_path_encoding(claude_projects_dir, tmp_path):
+    """Test that path encoding replaces all non-alphanumeric chars with hyphens."""
     import re
 
-    # Path with various special characters
-    worktree_path = "/Users/dev/my-project_v2.0/feature"
+    # Use a real directory so resolve() is consistent across platforms
+    worktree_dir = tmp_path / "my-project_v2.0" / "feature"
+    worktree_dir.mkdir(parents=True)
+    worktree_path = str(worktree_dir.resolve())
     encoded = re.sub(r"[^a-zA-Z0-9]", "-", worktree_path)
 
     project_dir = claude_projects_dir / encoded
@@ -434,8 +436,12 @@ def test_claude_native_session_exists_path_encoding(claude_projects_dir):
     (project_dir / "chat.jsonl").write_text("{}\n")
 
     assert claude_native_session_exists(worktree_path) is True
-    # Verify encoding: slashes, hyphens, underscores, dots all become hyphens
-    assert encoded == "-Users-dev-my-project-v2-0-feature"
+    # Verify encoding only contains alphanumeric and hyphens
+    assert re.fullmatch(r"[-a-zA-Z0-9]+", encoded)
+    # Verify special chars in original path got encoded
+    assert "project" in encoded
+    assert "v2" in encoded
+    assert "feature" in encoded
 
 
 def test_claude_native_session_exists_resolves_symlinks(claude_projects_dir, tmp_path):
