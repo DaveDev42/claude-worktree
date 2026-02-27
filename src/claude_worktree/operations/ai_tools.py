@@ -4,6 +4,7 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 import warnings
 from pathlib import Path
 
@@ -319,16 +320,35 @@ def _launch_zellij_pane(
 # =============================================================================
 
 
+def _wezterm_send_text(pane_id: str, command: str) -> None:
+    """Send a command as typed text to a WezTerm pane.
+
+    Includes a short delay to allow default_prog (e.g. Zellij) to initialize
+    before sending text.
+    """
+    if not pane_id:
+        raise GitError("Failed to get pane ID from WezTerm spawn")
+    time.sleep(0.1)
+    subprocess.run(
+        ["wezterm", "cli", "send-text", "--pane-id", pane_id, "--no-paste"],
+        input=f"{command}\n",
+        check=True,
+    )
+
+
 def _launch_wezterm_window(path: Path, command: str, ai_tool_name: str) -> None:
     """Launch AI tool in new WezTerm window."""
     if not has_command("wezterm"):
         raise GitError("wezterm not installed. Install from https://wezterm.org/")
 
-    subprocess.run(
-        ["wezterm", "cli", "spawn", "--new-window", "--cwd", str(path),
-         "--", "bash", "-lc", command],
+    result = subprocess.run(
+        ["wezterm", "cli", "spawn", "--new-window", "--cwd", str(path)],
         check=True,
+        capture_output=True,
+        text=True,
     )
+    pane_id = result.stdout.strip()
+    _wezterm_send_text(pane_id, command)
     console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new WezTerm window\n")
 
 
@@ -337,10 +357,14 @@ def _launch_wezterm_tab(path: Path, command: str, ai_tool_name: str) -> None:
     if not has_command("wezterm"):
         raise GitError("wezterm not installed. Install from https://wezterm.org/")
 
-    subprocess.run(
-        ["wezterm", "cli", "spawn", "--cwd", str(path), "--", "bash", "-lc", command],
+    result = subprocess.run(
+        ["wezterm", "cli", "spawn", "--cwd", str(path)],
         check=True,
+        capture_output=True,
+        text=True,
     )
+    pane_id = result.stdout.strip()
+    _wezterm_send_text(pane_id, command)
     console.print(f"[bold green]*[/bold green] {ai_tool_name} running in new WezTerm tab\n")
 
 
@@ -354,11 +378,14 @@ def _launch_wezterm_pane(
     # --horizontal: split horizontally (side by side)
     # --bottom: split vertically (top/bottom)
     split_flag = "--horizontal" if horizontal else "--bottom"
-    subprocess.run(
-        ["wezterm", "cli", "split-pane", split_flag, "--cwd", str(path),
-         "--", "bash", "-lc", command],
+    result = subprocess.run(
+        ["wezterm", "cli", "split-pane", split_flag, "--cwd", str(path)],
         check=True,
+        capture_output=True,
+        text=True,
     )
+    pane_id = result.stdout.strip()
+    _wezterm_send_text(pane_id, command)
     pane_type = "horizontal" if horizontal else "vertical"
     console.print(f"[bold green]*[/bold green] {ai_tool_name} running in WezTerm {pane_type} pane\n")
 
