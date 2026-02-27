@@ -609,6 +609,45 @@ def test_resume_worktree_creates_session_metadata(
     assert not session_manager.session_exists("metadata-test")
 
 
+def test_resume_worktree_native_session_fallback(
+    temp_git_repo: Path, disable_claude, monkeypatch, capsys
+) -> None:
+    """Test resume_worktree falls back to Claude native session detection."""
+    import re
+
+    from claude_worktree import session_manager
+
+    # Create worktree
+    worktree_path = create_worktree(
+        branch_name="native-session-test",
+    )
+
+    # Change to worktree
+    monkeypatch.chdir(worktree_path)
+
+    # No cw session metadata — session_manager.session_exists() returns False
+    assert not session_manager.session_exists("native-session-test")
+
+    # Create a Claude native session for this worktree
+    resolved = str(worktree_path.resolve())
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", resolved)
+    claude_projects_dir = Path.home() / ".claude" / "projects"
+    claude_projects_dir.mkdir(parents=True, exist_ok=True)
+    project_dir = claude_projects_dir / encoded
+    project_dir.mkdir()
+    (project_dir / "session.jsonl").write_text('{"test": true}\n')
+
+    # Mock is_claude_tool to return True (autouse fixture sets CW_AI_TOOL="")
+    monkeypatch.setattr("claude_worktree.operations.ai_tools.is_claude_tool", lambda: True)
+
+    # Resume — should detect native session via fallback
+    resume_worktree(worktree=None)
+
+    captured = capsys.readouterr()
+    assert "Found session" in captured.out
+    assert "native-session-test" in captured.out
+
+
 def test_launch_ai_tool_with_iterm_tab(temp_git_repo: Path, mocker) -> None:
     """Test launch_ai_tool with iterm_tab parameter on macOS."""
     from claude_worktree.operations import launch_ai_tool

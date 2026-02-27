@@ -4,6 +4,7 @@ import pytest
 
 from claude_worktree.session_manager import (
     SessionError,
+    claude_native_session_exists,
     delete_session,
     get_context_file,
     get_session_dir,
@@ -330,3 +331,138 @@ def test_load_context_error_handling(temp_sessions_dir):
     # We can't easily test file permission errors in a cross-platform way
     # The existing test coverage for OSError handling in save_context is sufficient
     assert load_context("test-branch") == "valid context"
+
+
+# =============================================================================
+# claude_native_session_exists() tests
+# =============================================================================
+
+
+@pytest.fixture
+def claude_projects_dir(tmp_path, monkeypatch):
+    """Set up a fake ~/.claude/projects/ directory."""
+    fake_home = tmp_path / "fake_home"
+    claude_dir = fake_home / ".claude" / "projects"
+    claude_dir.mkdir(parents=True)
+    monkeypatch.setattr(
+        "claude_worktree.session_manager.Path.home",
+        lambda: fake_home,
+    )
+    return claude_dir
+
+
+def test_claude_native_session_exists_true(claude_projects_dir, tmp_path):
+    """Test detecting an existing Claude native session."""
+    import re
+
+    worktree_path = str(tmp_path / "my-project")
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", worktree_path)
+
+    # Create the project directory with a .jsonl file
+    project_dir = claude_projects_dir / encoded
+    project_dir.mkdir()
+    (project_dir / "session.jsonl").write_text('{"test": true}\n')
+
+    assert claude_native_session_exists(worktree_path) is True
+
+
+def test_claude_native_session_exists_false_no_dir(claude_projects_dir, tmp_path):
+    """Test returns False when no project directory exists."""
+    worktree_path = str(tmp_path / "nonexistent-project")
+    assert claude_native_session_exists(worktree_path) is False
+
+
+def test_claude_native_session_exists_false_empty_dir(claude_projects_dir, tmp_path):
+    """Test returns False when project directory exists but has no .jsonl files."""
+    import re
+
+    worktree_path = str(tmp_path / "empty-project")
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", worktree_path)
+
+    project_dir = claude_projects_dir / encoded
+    project_dir.mkdir()
+    # No .jsonl files
+
+    assert claude_native_session_exists(worktree_path) is False
+
+
+def test_claude_native_session_exists_false_no_claude_dir(tmp_path, monkeypatch):
+    """Test returns False when ~/.claude/projects/ doesn't exist."""
+    fake_home = tmp_path / "empty_home"
+    fake_home.mkdir()
+    monkeypatch.setattr(
+        "claude_worktree.session_manager.Path.home",
+        lambda: fake_home,
+    )
+    assert claude_native_session_exists("/some/path") is False
+
+
+def test_claude_native_session_exists_long_path_prefix_match(claude_projects_dir, tmp_path):
+    """Test prefix matching for paths longer than CLAUDE_SESSION_PREFIX_LENGTH."""
+    import re
+
+    from claude_worktree.constants import CLAUDE_SESSION_PREFIX_LENGTH
+
+    # Create a very long path (>255 chars when encoded, forcing prefix matching)
+    long_name = "a" * 250
+    worktree_path = str(tmp_path / long_name)
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", worktree_path)
+    assert len(encoded) > CLAUDE_SESSION_PREFIX_LENGTH
+    assert len(encoded) > 255  # Too long for a directory name
+
+    # Simulate Claude truncating the directory name to fit filesystem
+    # Use prefix (200 chars) + short hash-like suffix, kept under 255 chars
+    truncated = encoded[:CLAUDE_SESSION_PREFIX_LENGTH] + "-abc123"
+    assert len(truncated) <= 255
+    project_dir = claude_projects_dir / truncated
+    project_dir.mkdir()
+    (project_dir / "conversation.jsonl").write_text('{"msg": "hello"}\n')
+
+    assert claude_native_session_exists(worktree_path) is True
+
+
+def test_claude_native_session_exists_path_encoding(claude_projects_dir, tmp_path):
+    """Test that path encoding replaces all non-alphanumeric chars with hyphens."""
+    import re
+
+    # Use a real directory so resolve() is consistent across platforms
+    worktree_dir = tmp_path / "my-project_v2.0" / "feature"
+    worktree_dir.mkdir(parents=True)
+    worktree_path = str(worktree_dir.resolve())
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", worktree_path)
+
+    project_dir = claude_projects_dir / encoded
+    project_dir.mkdir()
+    (project_dir / "chat.jsonl").write_text("{}\n")
+
+    assert claude_native_session_exists(worktree_path) is True
+    # Verify encoding only contains alphanumeric and hyphens
+    assert re.fullmatch(r"[-a-zA-Z0-9]+", encoded)
+    # Verify special chars in original path got encoded
+    assert "project" in encoded
+    assert "v2" in encoded
+    assert "feature" in encoded
+
+
+def test_claude_native_session_exists_resolves_symlinks(claude_projects_dir, tmp_path):
+    """Test that symlinked worktree paths are resolved before encoding."""
+    import re
+
+    # Create real directory and a symlink to it
+    real_dir = tmp_path / "real-project"
+    real_dir.mkdir()
+    symlink_dir = tmp_path / "link-project"
+    symlink_dir.symlink_to(real_dir)
+
+    # Encode the resolved (real) path — this is what claude_native_session_exists does
+    resolved_path = str(real_dir.resolve())
+    encoded = re.sub(r"[^a-zA-Z0-9]", "-", resolved_path)
+
+    project_dir = claude_projects_dir / encoded
+    project_dir.mkdir()
+    (project_dir / "session.jsonl").write_text("{}\n")
+
+    # Passing the symlink should still find the session (resolved to real path)
+    assert claude_native_session_exists(str(symlink_dir)) is True
+    # Passing the real path should also work
+    assert claude_native_session_exists(str(real_dir)) is True
