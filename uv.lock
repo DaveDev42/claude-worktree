@@ -36,7 +36,7 @@ wheels = [
 
 [[package]]
 name = "claude-worktree"
-version = "0.10.51"
+version = "0.10.52"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

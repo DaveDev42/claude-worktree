@@ -320,9 +320,7 @@ def _launch_zellij_pane(
 # =============================================================================
 
 
-def _wezterm_wait_for_shell_ready(
-    pane_id: str, min_delay: float = 0.5, timeout: float = 5.0
-) -> None:
+def _wezterm_wait_for_shell_ready(pane_id: str, timeout: float = 5.0) -> None:
     """Wait for a shell prompt to appear in a WezTerm pane.
 
     Polls the pane content using ``wezterm cli get-text`` and checks if
@@ -333,16 +331,13 @@ def _wezterm_wait_for_shell_ready(
 
     Args:
         pane_id: WezTerm pane ID to monitor.
-        min_delay: Minimum seconds to wait before first check.
         timeout: Maximum seconds to wait.  On timeout the function
             returns silently (best-effort).
     """
     poll_interval = 0.2
     prompt_chars = {"$", "%", ">", "#"}
 
-    time.sleep(min_delay)
-
-    deadline = time.monotonic() + max(0.0, timeout - min_delay)
+    deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
             result = subprocess.run(
@@ -379,10 +374,9 @@ def _wezterm_send_text(pane_id: str, command: str) -> None:
 
     config = load_config()
     launch_cfg = config.get("launch", {})
-    min_delay = float(launch_cfg.get("wezterm_delay", 0.5))
     timeout = float(launch_cfg.get("wezterm_ready_timeout", 5.0))
 
-    _wezterm_wait_for_shell_ready(pane_id, min_delay=min_delay, timeout=timeout)
+    _wezterm_wait_for_shell_ready(pane_id, timeout=timeout)
 
     subprocess.run(
         ["wezterm", "cli", "send-text", "--pane-id", pane_id, "--no-paste"],
