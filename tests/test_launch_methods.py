@@ -797,7 +797,7 @@ class TestWeztermReadinessDetection:
         # deadline=0+5=5, while check=0.1<5 → enter loop, prompt found → return
         mock_monotonic.side_effect = [0.0, 0.1]
 
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
         # Should have called get-text exactly once
         mock_run.assert_called_once()
@@ -825,7 +825,7 @@ class TestWeztermReadinessDetection:
         # Simulate time progression: start=0, then 0.2, 0.4 (within timeout)
         mock_monotonic.side_effect = [0.0, 0.2, 0.4]
 
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
         assert mock_run.call_count == 2
 
@@ -845,7 +845,7 @@ class TestWeztermReadinessDetection:
         mock_monotonic.side_effect = [0.0, 10.0]
 
         # Should not raise
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
     @patch("claude_worktree.operations.ai_tools.time.sleep")
@@ -860,7 +860,7 @@ class TestWeztermReadinessDetection:
         mock_monotonic.side_effect = [0.0, 10.0]
 
         # Should not raise
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
     @patch("claude_worktree.operations.ai_tools.time.sleep")
@@ -877,7 +877,7 @@ class TestWeztermReadinessDetection:
 
         mock_monotonic.side_effect = [0.0, 0.1]
 
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
         mock_run.assert_called_once()
 
@@ -895,7 +895,7 @@ class TestWeztermReadinessDetection:
 
         mock_monotonic.side_effect = [0.0, 0.1]
 
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
         mock_run.assert_called_once()
 
@@ -913,7 +913,7 @@ class TestWeztermReadinessDetection:
 
         mock_monotonic.side_effect = [0.0, 0.1]
 
-        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
         mock_run.assert_called_once()
 
@@ -925,9 +925,9 @@ class TestWeztermReadinessDetection:
         from claude_worktree.operations.ai_tools import _wezterm_send_text
 
         mock_config.return_value = {
-            "launch": {"wezterm_delay": 1.0, "wezterm_ready_timeout": 10.0},
+            "launch": {"wezterm_ready_timeout": 10.0},
         }
 
         _wezterm_send_text("42", "claude --resume")
 
-        mock_wait.assert_called_once_with("42", min_delay=1.0, timeout=10.0)
+        mock_wait.assert_called_once_with("42", timeout=10.0)
