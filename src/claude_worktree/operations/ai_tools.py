@@ -321,13 +321,13 @@ def _launch_zellij_pane(
 
 
 def _wezterm_wait_for_shell_ready(pane_id: str, timeout: float = 5.0) -> None:
-    """Wait for a shell prompt to appear in a WezTerm pane.
+    """Wait for a shell or TUI to be ready in a WezTerm pane.
 
-    Polls the pane content using ``wezterm cli get-text`` and checks if
-    the last non-empty line ends with a common prompt character
-    (``$``, ``%``, ``>``, or ``#``).  This allows ``default_prog``
-    configurations (e.g. Zellij inside zsh) to fully initialize before
-    text is sent.
+    Polls the pane content using ``wezterm cli get-text`` and waits
+    until any non-whitespace content appears.  A freshly spawned pane
+    contains only whitespace; once the shell (or a TUI multiplexer
+    like Zellij/tmux) renders anything visible, the pane is ready to
+    accept ``send-text`` keystrokes.
 
     Args:
         pane_id: WezTerm pane ID to monitor.
@@ -335,7 +335,6 @@ def _wezterm_wait_for_shell_ready(pane_id: str, timeout: float = 5.0) -> None:
             returns silently (best-effort).
     """
     poll_interval = 0.2
-    prompt_chars = {"$", "%", ">", "#"}
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -346,14 +345,8 @@ def _wezterm_wait_for_shell_ready(pane_id: str, timeout: float = 5.0) -> None:
                 text=True,
                 timeout=2,
             )
-            if result.returncode == 0:
-                # Find last non-empty line
-                for line in reversed(result.stdout.splitlines()):
-                    stripped = line.rstrip()
-                    if stripped:
-                        if stripped[-1] in prompt_chars:
-                            return  # Shell is ready
-                        break  # Non-empty line without prompt char; keep waiting
+            if result.returncode == 0 and result.stdout.strip():
+                return  # Something rendered — pane is ready
         except (subprocess.TimeoutExpired, OSError):
             pass  # get-text failed; keep trying until timeout
 

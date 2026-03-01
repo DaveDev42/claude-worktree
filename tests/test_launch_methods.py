@@ -780,13 +780,13 @@ class TestSmartContinueDetection:
 
 
 class TestWeztermReadinessDetection:
-    """Test _wezterm_wait_for_shell_ready shell prompt detection."""
+    """Test _wezterm_wait_for_shell_ready pane content detection."""
 
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
     @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("subprocess.run")
-    def test_prompt_detected_immediately(self, mock_run, mock_sleep, mock_monotonic):
-        """Test that function returns quickly when prompt is already visible."""
+    def test_ready_when_content_appears(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that function returns as soon as non-whitespace content appears."""
         from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
 
         get_text_result = MagicMock()
@@ -794,12 +794,10 @@ class TestWeztermReadinessDetection:
         get_text_result.stdout = "user@host:~/project$\n"
         mock_run.return_value = get_text_result
 
-        # deadline=0+5=5, while check=0.1<5 → enter loop, prompt found → return
         mock_monotonic.side_effect = [0.0, 0.1]
 
         _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
-        # Should have called get-text exactly once
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]
         assert call_args == ["wezterm", "cli", "get-text", "--pane-id", "42"]
@@ -807,22 +805,19 @@ class TestWeztermReadinessDetection:
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
     @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("subprocess.run")
-    def test_prompt_detected_after_polling(self, mock_run, mock_sleep, mock_monotonic):
-        """Test that function polls until prompt appears."""
+    def test_polls_until_content_appears(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that function polls while pane is empty."""
         from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
 
-        # Simulate: first call returns no prompt, second call returns prompt
-        no_prompt = MagicMock()
-        no_prompt.returncode = 0
-        no_prompt.stdout = "Starting zellij...\n"
+        empty_pane = MagicMock()
+        empty_pane.returncode = 0
+        empty_pane.stdout = "   \n   \n"
 
-        has_prompt = MagicMock()
-        has_prompt.returncode = 0
-        has_prompt.stdout = "user@host:~/project %\n"
+        has_content = MagicMock()
+        has_content.returncode = 0
+        has_content.stdout = "user@host:~/project %\n"
 
-        mock_run.side_effect = [no_prompt, has_prompt]
-
-        # Simulate time progression: start=0, then 0.2, 0.4 (within timeout)
+        mock_run.side_effect = [empty_pane, has_content]
         mock_monotonic.side_effect = [0.0, 0.2, 0.4]
 
         _wezterm_wait_for_shell_ready("42", timeout=5.0)
@@ -832,19 +827,33 @@ class TestWeztermReadinessDetection:
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
     @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("subprocess.run")
+    def test_whitespace_only_keeps_waiting(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that whitespace-only output is not treated as ready."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        whitespace = MagicMock()
+        whitespace.returncode = 0
+        whitespace.stdout = "     \n     \n     \n"
+        mock_run.return_value = whitespace
+
+        mock_monotonic.side_effect = [0.0, 10.0]
+
+        _wezterm_wait_for_shell_ready("42", timeout=5.0)
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
     def test_timeout_proceeds_without_error(self, mock_run, mock_sleep, mock_monotonic):
         """Test that timeout is reached gracefully without raising."""
         from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
 
-        no_prompt = MagicMock()
-        no_prompt.returncode = 0
-        no_prompt.stdout = "Loading...\n"
-        mock_run.return_value = no_prompt
+        empty_pane = MagicMock()
+        empty_pane.returncode = 0
+        empty_pane.stdout = ""
+        mock_run.return_value = empty_pane
 
-        # Simulate time: start=0, then immediately past deadline
         mock_monotonic.side_effect = [0.0, 10.0]
 
-        # Should not raise
         _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
@@ -856,59 +865,23 @@ class TestWeztermReadinessDetection:
 
         mock_run.side_effect = OSError("wezterm not available")
 
-        # Simulate time: start=0, then past deadline
         mock_monotonic.side_effect = [0.0, 10.0]
 
-        # Should not raise
         _wezterm_wait_for_shell_ready("42", timeout=5.0)
 
     @patch("claude_worktree.operations.ai_tools.time.monotonic")
     @patch("claude_worktree.operations.ai_tools.time.sleep")
     @patch("subprocess.run")
-    def test_hash_prompt_detected(self, mock_run, mock_sleep, mock_monotonic):
-        """Test that root prompt (#) is detected."""
+    def test_tui_output_detected(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that TUI multiplexer output (e.g. Zellij) is detected as ready."""
         from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
 
         get_text_result = MagicMock()
         get_text_result.returncode = 0
-        get_text_result.stdout = "root@host:/# \n"
-        # rstrip() removes trailing space and newline, leaving '#' as last char
-        mock_run.return_value = get_text_result
-
-        mock_monotonic.side_effect = [0.0, 0.1]
-
-        _wezterm_wait_for_shell_ready("42", timeout=5.0)
-
-        mock_run.assert_called_once()
-
-    @patch("claude_worktree.operations.ai_tools.time.monotonic")
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
-    @patch("subprocess.run")
-    def test_angle_bracket_prompt_detected(self, mock_run, mock_sleep, mock_monotonic):
-        """Test that > prompt is detected (e.g. fish shell)."""
-        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
-
-        get_text_result = MagicMock()
-        get_text_result.returncode = 0
-        get_text_result.stdout = "user@host ~/project>\n"
-        mock_run.return_value = get_text_result
-
-        mock_monotonic.side_effect = [0.0, 0.1]
-
-        _wezterm_wait_for_shell_ready("42", timeout=5.0)
-
-        mock_run.assert_called_once()
-
-    @patch("claude_worktree.operations.ai_tools.time.monotonic")
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
-    @patch("subprocess.run")
-    def test_percent_prompt_detected(self, mock_run, mock_sleep, mock_monotonic):
-        """Test that % prompt is detected (zsh default)."""
-        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
-
-        get_text_result = MagicMock()
-        get_text_result.returncode = 0
-        get_text_result.stdout = "user@host ~/project %\n"
+        get_text_result.stdout = (
+            "Zellij (cw-feature) NORMAL  Tab #1\n"
+            "                                  \n"
+        )
         mock_run.return_value = get_text_result
 
         mock_monotonic.side_effect = [0.0, 0.1]
