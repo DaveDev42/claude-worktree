@@ -417,10 +417,10 @@ class TestLauncherFunctions:
         assert "-d" in call_args
         assert "down" in call_args
 
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("claude_worktree.operations.ai_tools._wezterm_wait_for_shell_ready")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_window(self, mock_run, mock_has_command, mock_sleep):
+    def test_wezterm_window(self, mock_run, mock_has_command, mock_wait):
         """Test WezTerm new window creation uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_window
 
@@ -447,12 +447,12 @@ class TestLauncherFunctions:
             "wezterm", "cli", "send-text", "--pane-id", "42", "--no-paste",
         ]
         assert send_args[1]["input"] == f"{command}\n"
-        mock_sleep.assert_called_once_with(0.1)
+        mock_wait.assert_called_once()
 
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("claude_worktree.operations.ai_tools._wezterm_wait_for_shell_ready")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_tab(self, mock_run, mock_has_command, mock_sleep):
+    def test_wezterm_tab(self, mock_run, mock_has_command, mock_wait):
         """Test WezTerm new tab creation uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_tab
 
@@ -476,12 +476,12 @@ class TestLauncherFunctions:
             "wezterm", "cli", "send-text", "--pane-id", "7", "--no-paste",
         ]
         assert send_args[1]["input"] == f"{command}\n"
-        mock_sleep.assert_called_once_with(0.1)
+        mock_wait.assert_called_once()
 
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("claude_worktree.operations.ai_tools._wezterm_wait_for_shell_ready")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_pane_horizontal(self, mock_run, mock_has_command, mock_sleep):
+    def test_wezterm_pane_horizontal(self, mock_run, mock_has_command, mock_wait):
         """Test WezTerm horizontal pane split uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_pane
 
@@ -505,12 +505,12 @@ class TestLauncherFunctions:
             "wezterm", "cli", "send-text", "--pane-id", "10", "--no-paste",
         ]
         assert send_args[1]["input"] == f"{command}\n"
-        mock_sleep.assert_called_once_with(0.1)
+        mock_wait.assert_called_once()
 
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("claude_worktree.operations.ai_tools._wezterm_wait_for_shell_ready")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_pane_vertical(self, mock_run, mock_has_command, mock_sleep):
+    def test_wezterm_pane_vertical(self, mock_run, mock_has_command, mock_wait):
         """Test WezTerm vertical pane split uses spawn + send-text."""
         from claude_worktree.operations.ai_tools import _launch_wezterm_pane
 
@@ -534,12 +534,12 @@ class TestLauncherFunctions:
             "wezterm", "cli", "send-text", "--pane-id", "15", "--no-paste",
         ]
         assert send_args[1]["input"] == f"{command}\n"
-        mock_sleep.assert_called_once_with(0.1)
+        mock_wait.assert_called_once()
 
-    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("claude_worktree.operations.ai_tools._wezterm_wait_for_shell_ready")
     @patch("claude_worktree.operations.ai_tools.has_command", return_value=True)
     @patch("subprocess.run")
-    def test_wezterm_empty_pane_id(self, mock_run, mock_has_command, mock_sleep):
+    def test_wezterm_empty_pane_id(self, mock_run, mock_has_command, mock_wait):
         """Test WezTerm raises error when spawn returns empty pane ID."""
         from claude_worktree.exceptions import GitError
         from claude_worktree.operations.ai_tools import _launch_wezterm_tab
@@ -777,3 +777,157 @@ class TestSmartContinueDetection:
         mock_resume_cmd.assert_called_once()
         # is_claude_tool should not be consulted when resume=True
         mock_is_claude.assert_not_called()
+
+
+class TestWeztermReadinessDetection:
+    """Test _wezterm_wait_for_shell_ready shell prompt detection."""
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_prompt_detected_immediately(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that function returns quickly when prompt is already visible."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        get_text_result = MagicMock()
+        get_text_result.returncode = 0
+        get_text_result.stdout = "user@host:~/project$\n"
+        mock_run.return_value = get_text_result
+
+        # deadline=0+5=5, while check=0.1<5 → enter loop, prompt found → return
+        mock_monotonic.side_effect = [0.0, 0.1]
+
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+        # Should have called get-text exactly once
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args[0][0]
+        assert call_args == ["wezterm", "cli", "get-text", "--pane-id", "42"]
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_prompt_detected_after_polling(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that function polls until prompt appears."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        # Simulate: first call returns no prompt, second call returns prompt
+        no_prompt = MagicMock()
+        no_prompt.returncode = 0
+        no_prompt.stdout = "Starting zellij...\n"
+
+        has_prompt = MagicMock()
+        has_prompt.returncode = 0
+        has_prompt.stdout = "user@host:~/project %\n"
+
+        mock_run.side_effect = [no_prompt, has_prompt]
+
+        # Simulate time progression: start=0, then 0.2, 0.4 (within timeout)
+        mock_monotonic.side_effect = [0.0, 0.2, 0.4]
+
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+        assert mock_run.call_count == 2
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_timeout_proceeds_without_error(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that timeout is reached gracefully without raising."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        no_prompt = MagicMock()
+        no_prompt.returncode = 0
+        no_prompt.stdout = "Loading...\n"
+        mock_run.return_value = no_prompt
+
+        # Simulate time: start=0, then immediately past deadline
+        mock_monotonic.side_effect = [0.0, 10.0]
+
+        # Should not raise
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_get_text_failure_proceeds(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that get-text command failure is handled gracefully."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        mock_run.side_effect = OSError("wezterm not available")
+
+        # Simulate time: start=0, then past deadline
+        mock_monotonic.side_effect = [0.0, 10.0]
+
+        # Should not raise
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_hash_prompt_detected(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that root prompt (#) is detected."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        get_text_result = MagicMock()
+        get_text_result.returncode = 0
+        get_text_result.stdout = "root@host:/# \n"
+        # rstrip() removes trailing space and newline, leaving '#' as last char
+        mock_run.return_value = get_text_result
+
+        mock_monotonic.side_effect = [0.0, 0.1]
+
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+        mock_run.assert_called_once()
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_angle_bracket_prompt_detected(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that > prompt is detected (e.g. fish shell)."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        get_text_result = MagicMock()
+        get_text_result.returncode = 0
+        get_text_result.stdout = "user@host ~/project>\n"
+        mock_run.return_value = get_text_result
+
+        mock_monotonic.side_effect = [0.0, 0.1]
+
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+        mock_run.assert_called_once()
+
+    @patch("claude_worktree.operations.ai_tools.time.monotonic")
+    @patch("claude_worktree.operations.ai_tools.time.sleep")
+    @patch("subprocess.run")
+    def test_percent_prompt_detected(self, mock_run, mock_sleep, mock_monotonic):
+        """Test that % prompt is detected (zsh default)."""
+        from claude_worktree.operations.ai_tools import _wezterm_wait_for_shell_ready
+
+        get_text_result = MagicMock()
+        get_text_result.returncode = 0
+        get_text_result.stdout = "user@host ~/project %\n"
+        mock_run.return_value = get_text_result
+
+        mock_monotonic.side_effect = [0.0, 0.1]
+
+        _wezterm_wait_for_shell_ready("42", min_delay=0.0, timeout=5.0)
+
+        mock_run.assert_called_once()
+
+    @patch("claude_worktree.operations.ai_tools._wezterm_wait_for_shell_ready")
+    @patch("claude_worktree.operations.ai_tools.load_config")
+    @patch("subprocess.run")
+    def test_send_text_passes_config_values(self, mock_run, mock_config, mock_wait):
+        """Test that _wezterm_send_text reads config and passes values to wait function."""
+        from claude_worktree.operations.ai_tools import _wezterm_send_text
+
+        mock_config.return_value = {
+            "launch": {"wezterm_delay": 1.0, "wezterm_ready_timeout": 10.0},
+        }
+
+        _wezterm_send_text("42", "claude --resume")
+
+        mock_wait.assert_called_once_with("42", min_delay=1.0, timeout=10.0)

@@ -320,18 +320,74 @@ def _launch_zellij_pane(
 # =============================================================================
 
 
+def _wezterm_wait_for_shell_ready(
+    pane_id: str, min_delay: float = 0.5, timeout: float = 5.0
+) -> None:
+    """Wait for a shell prompt to appear in a WezTerm pane.
+
+    Polls the pane content using ``wezterm cli get-text`` and checks if
+    the last non-empty line ends with a common prompt character
+    (``$``, ``%``, ``>``, or ``#``).  This allows ``default_prog``
+    configurations (e.g. Zellij inside zsh) to fully initialize before
+    text is sent.
+
+    Args:
+        pane_id: WezTerm pane ID to monitor.
+        min_delay: Minimum seconds to wait before first check.
+        timeout: Maximum seconds to wait.  On timeout the function
+            returns silently (best-effort).
+    """
+    poll_interval = 0.2
+    prompt_chars = {"$", "%", ">", "#"}
+
+    time.sleep(min_delay)
+
+    deadline = time.monotonic() + max(0.0, timeout - min_delay)
+    while time.monotonic() < deadline:
+        try:
+            result = subprocess.run(
+                ["wezterm", "cli", "get-text", "--pane-id", pane_id],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0:
+                # Find last non-empty line
+                for line in reversed(result.stdout.splitlines()):
+                    stripped = line.rstrip()
+                    if stripped:
+                        if stripped[-1] in prompt_chars:
+                            return  # Shell is ready
+                        break  # Non-empty line without prompt char; keep waiting
+        except (subprocess.TimeoutExpired, OSError):
+            pass  # get-text failed; keep trying until timeout
+
+        time.sleep(poll_interval)
+
+    # Timeout reached — proceed anyway (best-effort)
+
+
 def _wezterm_send_text(pane_id: str, command: str) -> None:
     """Send a command as typed text to a WezTerm pane.
 
-    Includes a short delay to allow default_prog (e.g. Zellij) to initialize
-    before sending text.
+    Waits for the shell inside the pane to be ready before sending,
+    so that ``default_prog`` configurations (e.g. Zellij) have time
+    to initialize.
     """
     if not pane_id:
         raise GitError("Failed to get pane ID from WezTerm spawn")
-    time.sleep(0.1)
+
+    config = load_config()
+    launch_cfg = config.get("launch", {})
+    min_delay = float(launch_cfg.get("wezterm_delay", 0.5))
+    timeout = float(launch_cfg.get("wezterm_ready_timeout", 5.0))
+
+    _wezterm_wait_for_shell_ready(pane_id, min_delay=min_delay, timeout=timeout)
+
     subprocess.run(
         ["wezterm", "cli", "send-text", "--pane-id", pane_id, "--no-paste"],
         input=f"{command}\n",
+        text=True,
         check=True,
     )
 
