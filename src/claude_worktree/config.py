@@ -100,6 +100,8 @@ DEFAULT_CONFIG = {
     "launch": {
         "method": None,  # bg, iterm, tmux, or None
         "tmux_session_prefix": "cw",
+        "wezterm_delay": 0.5,
+        "wezterm_ready_timeout": 5.0,
     },
     "git": {
         "default_base_branch": "main",
