@@ -1,20 +1,46 @@
-# Claude Worktree
+# Claude Worktree (Archived)
 
-> Work on multiple git branches simultaneously with isolated AI coding sessions
+> **⚠️ This project has been superseded by [git-worktree-manager (`gw`)](https://github.com/DaveDev42/git-worktree-manager).**
+>
+> `git-worktree-manager` is a complete rewrite in Rust with:
+> - **Single static binary** (~1.9MB) — no Python/pip/uv dependency
+> - **Instant startup** (~3ms vs 200-400ms)
+> - **100% feature parity** — all `cw` commands available as `gw`
+> - **Full config compatibility** — reads existing `~/.config/claude-worktree/config.json`
 
-[![Tests](https://github.com/DaveDev42/claude-worktree/workflows/Tests/badge.svg)](https://github.com/DaveDev42/claude-worktree/actions)
-[![PyPI version](https://badge.fury.io/py/claude-worktree.svg)](https://pypi.org/project/claude-worktree/)
-[![Python versions](https://img.shields.io/pypi/pyversions/claude-worktree.svg)](https://pypi.org/project/claude-worktree/)
-[![License: BSD-3-Clause](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+## Migration
+
+```bash
+# Install the new tool
+brew tap DaveDev42/tap && brew install git-worktree-manager
+# Or download from: https://github.com/DaveDev42/git-worktree-manager/releases
+
+# Uninstall the old tool
+pip uninstall claude-worktree  # or: uv tool uninstall claude-worktree
+
+# Commands are the same, just use 'gw' instead of 'cw':
+gw list          # was: cw list
+gw new feature   # was: cw new feature
+gw pr            # was: cw pr
+gw resume        # was: cw resume
+gw-cd branch     # was: cw-cd branch
+```
+
+Your existing configuration (`~/.config/claude-worktree/config.json`), git metadata, and session data are fully compatible — no migration needed.
+
+---
+
+<details>
+<summary>Original README (click to expand)</summary>
 
 ## What is this?
 
 **claude-worktree** (command: `cw`) helps you work on multiple features at the same time by creating separate directories for each branch. No more switching branches, stashing changes, or losing context.
 
 Each feature gets:
-- ✅ Its own directory (git worktree)
-- ✅ Its own AI coding session (Claude Code, Codex, or custom)
-- ✅ Zero interference with other work
+- Its own directory (git worktree)
+- Its own AI coding session (Claude Code, Codex, or custom)
+- Zero interference with other work
 
 Perfect for developers who want to:
 - Work on multiple features in parallel
@@ -398,4 +424,6 @@ Built with [Typer](https://typer.tiangolo.com/) and [Rich](https://rich.readthed
 
 ---
 
-**Made for developers who love AI-assisted coding and clean git workflows** 🚀
+**Made for developers who love AI-assisted coding and clean git workflows**
+
+</details>
