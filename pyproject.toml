@@ -1,7 +1,7 @@
 [project]
 name = "claude-worktree"
 version = "0.10.54"
-description = "CLI tool integrating git worktree with Claude Code for seamless feature development workflows"
+description = "[DEPRECATED — Use git-worktree-manager (gw): https://github.com/DaveDev42/git-worktree-manager] CLI tool integrating git worktree with AI coding assistants"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "BSD-3-Clause" }
