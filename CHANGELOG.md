@@ -623,13 +623,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **Slash command support for Happy, Claude Code, and Codex**: Use `/cw` commands directly in AI sessions
-  - Automatic installation prompt on first run (detects installed AI tools)
-  - Manual installation: `cw slash-command-setup`
-  - Installs to `~/.claude/commands/cw.md` for all AI tools
-  - Works with Happy, Claude Code, and Codex
-  - Examples: `/cw new feature-name`, `/cw list`, `/cw resume fix-auth`
+### Removed
+- **Slash command support**: Removed `/cw` slash command feature (unused)
+  - Removed `cw slash-command-setup` command
+  - Removed slash command auto-installation prompt
+  - Removed `slash_commands` config section
 
 ## [0.9.2] - 2025-10-27
 

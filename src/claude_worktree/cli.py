@@ -45,12 +45,6 @@ from .operations import (
     shell_worktree,
     show_status,
 )
-from .slash_command_setup import (
-    get_installed_ai_tools,
-    install_slash_command,
-    is_slash_command_installed,
-    prompt_slash_command_setup,
-)
 from .update import check_for_updates
 
 # Commands that support -g/--global mode
@@ -384,9 +378,6 @@ def main(
 
     # Prompt for shell completion setup on first run
     prompt_completion_setup()
-
-    # Prompt for slash command setup on first run
-    prompt_slash_command_setup()
 
     # Prompt for .cwshare setup on first run per repo
     prompt_cwshare_setup()
@@ -1823,52 +1814,6 @@ def reset() -> None:
         console.print("[bold green]*[/bold green] Configuration reset to defaults")
     except (ClaudeWorktreeError, ConfigError) as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
-        raise typer.Exit(code=1)
-
-
-@app.command(name="slash-command-setup", rich_help_panel="Configuration")
-def slash_command_setup_cmd() -> None:
-    """
-    Install or reinstall /cw slash command for Claude/Codex.
-
-    Installs the /cw slash command to ~/.claude/commands/ directory,
-    making it available in all Claude Code and Codex sessions.
-
-    Example:
-        cw slash-command-setup
-    """
-    # Check if AI tools are installed
-    installed_tools = get_installed_ai_tools()
-
-    if not installed_tools:
-        console.print("[yellow]Warning:[/yellow] No AI tools (claude/codex) detected.")
-        console.print("\nSlash commands work with:")
-        console.print("  - Claude Code: https://claude.ai/download")
-        console.print("  - Codex: https://github.com/codex-ai/codex")
-        console.print("\nInstall one of these tools to use /cw commands.")
-
-        if not typer.confirm("\nInstall slash command anyway?", default=False):
-            raise typer.Exit(code=0)
-    else:
-        tools_str = ", ".join(installed_tools)
-        console.print(f"[bold cyan]Detected AI tools:[/bold cyan] {tools_str}\n")
-
-    # Check if already installed
-    if is_slash_command_installed():
-        console.print("[yellow]Slash command is already installed.[/yellow]")
-        if not typer.confirm("Reinstall?", default=True):
-            raise typer.Exit(code=0)
-
-    # Install
-    if install_slash_command():
-        # Update config
-        config = load_config()
-        if "slash_commands" not in config:
-            config["slash_commands"] = {}
-        config["slash_commands"]["prompted"] = True
-        config["slash_commands"]["installed"] = True
-        save_config(config)
-    else:
         raise typer.Exit(code=1)
 
 
